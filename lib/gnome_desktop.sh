@@ -56,72 +56,77 @@ configure_favorites() {
 
 configure_purple_cross_default_cursor() {
   msg "Configuring Purple Cross default cursor"
-  local asset_path="$SCRIPT_DIR/assets/PurpleCrossDefault.cur"
+
+  local asset_path="$CONFIG_DIR/cursors/purple_cross.cur"
+  if [ ! -f "$asset_path" ]; then
+    echo "WARNING: Purple Cross cursor asset not found at $asset_path — skipping cursor setup"
+    return 0
+  fi
+
   local theme_name="PurpleCrossDefault"
   local theme_dir="$TARGET_HOME/.local/share/icons/$theme_name"
   local cursors_dir="$theme_dir/cursors"
   local default_theme_dir="$TARGET_HOME/.local/share/icons/default"
   local build_dir="$TARGET_HOME/.cache/isc/purple-cross-cursor-build"
-  
-  if [ ! -f "$asset_path" ]; then
-    echo "WARNING: missing cursor asset: $asset_path — copying from installation_scripts"
-    # Fallback: try to find the asset in the parent project
-    local fallback_dir="$SCRIPT_DIR/.."
-    while [ "$fallback_dir" != "/" ] && [ ! -f "$fallback_dir/assets/Purple Cross.cur" ]; do
-      fallback_dir="$(dirname "$fallback_dir")"
-    done
-    if [ -f "$fallback_dir/assets/Purple Cross.cur" ]; then
-      asset_path="$fallback_dir/assets/Purple Cross.cur"
-    else
-      echo "WARNING: Purple Cross cursor asset not found anywhere — skipping cursor setup"
-      return 0
-    fi
-  fi
-  
-  local png_path
+
   if ! need_cmd icotool || ! need_cmd xcursorgen; then apt_install x11-apps icoutils; fi
-  
+
   rm -rf /tmp/purple-cross-cursor 2>/dev/null || true
   run_as_target mkdir -p "$TARGET_HOME/.cache/isc"
   rm -rf "$build_dir" 2>/dev/null || true
   install -d -m 0755 "$build_dir" "$cursors_dir" "$default_theme_dir"
-  
+
   if ! icotool -x -o "$build_dir" "$asset_path" >/dev/null 2>&1; then
     echo "WARNING: icotool failed to extract $asset_path"; return 0
   fi
-  
-  png_path="$(find "$build_dir" -maxdepth 1 -type f -name '*.png' -print -quit 2>/dev/null)" || true
+
+  local png_path
+  png_path="$(find "$build_dir" -maxdepth 1 -type f -name '*.png' -print-quit 2>/dev/null)" || true
   if [ -z "$png_path" ]; then echo "WARNING: no PNG extracted from cursor asset"; return 0; fi
   cp "$png_path" "$build_dir/purple-cross.png"
-  
+
   cat >"$build_dir/cursor.conf" <<EOF
 32 9 9 $build_dir/purple-cross.png
 EOF
-  
+
   if ! xcursorgen "$build_dir/cursor.conf" "$cursors_dir/left_ptr"; then
     echo "WARNING: xcursorgen failed to build Purple Cross cursor"; return 0
   fi
-  
+
   ln -sf left_ptr "$cursors_dir/default"
   ln -sf left_ptr "$cursors_dir/arrow"
   ln -sf left_ptr "$cursors_dir/top_left_arrow"
-  for cursor_name in hand1 hand2 hand pointer pointing_hand \
-    e29285e634086352946a0e7090d73106 9d800788f1b08800ae810202380a0822 \
-    xterm text ibeam vertical-text 048008013003cff3c00c801001200000; do
+  for cursor_name in \
+    hand1 \
+    hand2 \
+    hand \
+    pointer \
+    pointing_hand \
+    e29285e634086352946a0e7090d73106 \
+    9d800788f1b08800ae810202380a0822; do
     ln -sf left_ptr "$cursors_dir/$cursor_name"
   done
-  
+  for cursor_name in \
+    xterm \
+    text \
+    ibeam \
+    vertical-text \
+    048008013003cff3c00c801001200000; do
+    ln -sf left_ptr "$cursors_dir/$cursor_name"
+  done
+
   cat >"$theme_dir/index.theme" <<EOF
 [Icon Theme]
 Name=$theme_name
 Inherits=Yaru
 EOF
+
   cat >"$default_theme_dir/index.theme" <<EOF
 [Icon Theme]
 Name=Default
 Inherits=$theme_name
 EOF
-  
+
   chown -R "$TARGET_USER:$TARGET_USER" "$build_dir" "$theme_dir" "$default_theme_dir" 2>/dev/null || true
   user_gsettings set org.gnome.desktop.interface cursor-theme "'$theme_name'" || true
   user_gsettings set org.gnome.desktop.interface cursor-size 32 || true
