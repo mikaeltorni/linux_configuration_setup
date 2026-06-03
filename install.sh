@@ -60,7 +60,6 @@ main_inner() {
   configure_gitkraken_autostart
   configure_autostart_apps
   configure_easyeffects_autostart
-  configure_easyeffects_presets
   
   # Chrome PWA icons
   configure_pwa_icons
