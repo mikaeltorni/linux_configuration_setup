@@ -36,6 +36,17 @@ All configuration steps are idempotent:
 - Autostart entries: checks for existing `.desktop` files before creating
 - EasyEffects preset: only copies if source exists, overwrites in place
 - PWA icons: creates symlinks and desktop entries only if missing
+- Cursor theme: rebuilds the Purple Cross cursor, maps common pointer/hover/drag/resize roles back to it, and updates both modern and legacy Xcursor default inheritance paths
+
+## Development
+
+Run the shell and Python tests before changing installer behavior:
+
+```bash
+bash tests/test_gnome_desktop.sh
+bash tests/test_shell_helpers.sh
+python3 -m unittest discover -s tests -p 'test_*.py'
+```
 
 ## Structure
 
@@ -64,6 +75,13 @@ This repo is run **after** `linux_installations_setup` has cloned it. It require
 - GNOME Shell running with GSettings available
 - Target user's session bus at `$XDG_RUNTIME_DIR/bus`
 - `python3` for safe GSettings list parsing
+- `icotool` and `xcursorgen` for rebuilding the Purple Cross cursor theme (the installer installs `icoutils` and `x11-apps` when needed)
+
+## Troubleshooting
+
+- If the Purple Cross cursor does not appear immediately everywhere, restart affected applications. Some Wayland and XWayland clients cache cursor themes after startup.
+- The installer writes `~/.local/share/icons/default/index.theme` and `~/.icons/default/index.theme` so applications that read Xcursor defaults outside GNOME GSettings still inherit `PurpleCrossDefault`.
+- Log out and back in before testing GNOME Shell extension code changes.
 
 ## License
 
