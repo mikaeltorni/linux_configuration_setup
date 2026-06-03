@@ -4,9 +4,199 @@
 # Components:
 #   - detect_terminal_desktop(): Detect the first available terminal emulator.
 #   - configure_favorites(): Configure GNOME dock favorites.
+#   - purple_cross_cursor_aliases(): Print cursor role names forced to Purple Cross.
+#   - link_purple_cross_cursor_aliases(): Link all cursor roles to the Purple Cross cursor.
+#   - write_purple_cross_cursor_index(): Write cursor theme inheritance metadata.
 #   - configure_purple_cross_default_cursor(): Install Purple Cross cursor theme.
 #   - configure_terminal_dark_theme(): Set terminal to dark background with light text.
 #   - configure_display_refresh(): Configure display refresh rate settings.
+
+PURPLE_CROSS_CURSOR_THEME_NAME="PurpleCrossDefault"
+PURPLE_CROSS_CURSOR_SIZE=32
+
+PURPLE_CROSS_CURSOR_ALIASES=(
+  00000000000000020006000e7e9ffc3f
+  00008160000006810000408080010102
+  028006030e0e7ebffc7f7070c0600140
+  03b6e0fcb3499374a867c041f52298f0
+  048008013003cff3c00c801001200000
+  08e8e1c95fe2fc01f976f1e063a24ccd
+  1081e37283d90000800003c07f3ef6bf
+  14fef782d02440884392942c11205230
+  2870a09082c103050810ffdffffe0204
+  3085a0e285430894940527032f8b26df
+  3ecb610c1bf2410f44200f48c40d3599
+  4498f0e0c1937ffe01fd06f973665830
+  5c6cd98b3f3ebcb1f9c7f1c204630408
+  6407b0e94181790501fd1e167b474872
+  640fb0e74195791501fd1ed57b41487f
+  9081237383d90e509aa00f00170e968f
+  9d800788f1b08800ae810202380a0822
+  X_cursor
+  a2a266d0498c3104214a47bd64ab0fc8
+  alias
+  all-scroll
+  arrow
+  base_arrow_down
+  base_arrow_up
+  based_arrow_down
+  based_arrow_up
+  bd_double_arrow
+  boat
+  bottom_left_corner
+  bottom_right_corner
+  bottom_side
+  bottom_tee
+  c7088f0f3e6c8088236ef8e1e3e70000
+  cell
+  center_ptr
+  circle
+  closedhand
+  col-resize
+  color-picker
+  context-menu
+  copy
+  cross
+  cross_reverse
+  crossed_circle
+  crosshair
+  d9ce0ab605698f320427677b458ad60b
+  default
+  diamond_cross
+  dnd-ask
+  dnd-copy
+  dnd-link
+  dnd-move
+  dnd-no-drop
+  dnd-none
+  dot
+  dot_box_mask
+  dotbox
+  double_arrow
+  down-arrow
+  draft
+  draft_large
+  draft_small
+  draped_box
+  e-resize
+  e29285e634086352946a0e7090d73106
+  ew-resize
+  exchange
+  fcf1c3c7cd4491d801f1e1c78f100000
+  fcf21c00b30f7e3f83fe0dfd12e71cff
+  fd_double_arrow
+  fleur
+  forbidden
+  grab
+  grabbing
+  gumby
+  h_double_arrow
+  half-busy
+  hand
+  hand1
+  hand2
+  help
+  ibeam
+  icon
+  left-arrow
+  left_ptr_help
+  left_ptr_watch
+  left_side
+  left_tee
+  link
+  ll_angle
+  lr_angle
+  move
+  n-resize
+  ne-resize
+  nesw-resize
+  no-drop
+  not-allowed
+  ns-resize
+  nw-resize
+  nwse-resize
+  openhand
+  pencil
+  pirate
+  plus
+  pointer
+  pointer-move
+  pointing_hand
+  progress
+  question_arrow
+  right-arrow
+  right_ptr
+  right_side
+  right_tee
+  row-resize
+  s-resize
+  sb_down_arrow
+  sb_h_double_arrow
+  sb_left_arrow
+  sb_right_arrow
+  sb_up_arrow
+  sb_v_double_arrow
+  se-resize
+  size-bdiag
+  size-fdiag
+  size-hor
+  size-ver
+  size_all
+  size_bdiag
+  size_fdiag
+  size_hor
+  size_ver
+  split_h
+  split_v
+  sw-resize
+  target
+  tcross
+  text
+  top_left_arrow
+  top_left_corner
+  top_right_corner
+  top_side
+  top_tee
+  ul_angle
+  up-arrow
+  ur_angle
+  v_double_arrow
+  vertical-text
+  w-resize
+  wait
+  watch
+  wayland-cursor
+  wayland_cursor
+  whats_this
+  x-cursor
+  xterm
+  zoom-in
+  zoom-out
+)
+
+purple_cross_cursor_aliases() {
+  printf '%s\n' "${PURPLE_CROSS_CURSOR_ALIASES[@]}"
+}
+
+link_purple_cross_cursor_aliases() {
+  local cursors_dir="$1"
+  local cursor_name
+  for cursor_name in "${PURPLE_CROSS_CURSOR_ALIASES[@]}"; do
+    run_as_target ln -sf left_ptr "$cursors_dir/$cursor_name"
+  done
+}
+
+write_purple_cross_cursor_index() {
+  local index_path="$1"
+  local name="$2"
+  local inherits="$3"
+
+  run_as_target tee "$index_path" >/dev/null <<EOF
+[Icon Theme]
+Name=$name
+Inherits=$inherits
+EOF
+}
 
 detect_terminal_desktop() {
   local candidate
@@ -63,10 +253,11 @@ configure_purple_cross_default_cursor() {
     return 0
   fi
 
-  local theme_name="PurpleCrossDefault"
+  local theme_name="$PURPLE_CROSS_CURSOR_THEME_NAME"
   local theme_dir="$TARGET_HOME/.local/share/icons/$theme_name"
   local cursors_dir="$theme_dir/cursors"
   local default_theme_dir="$TARGET_HOME/.local/share/icons/default"
+  local legacy_default_theme_dir="$TARGET_HOME/.icons/default"
   local build_dir="$TARGET_HOME/.cache/isc/purple-cross-cursor-build"
 
   if ! need_cmd icotool || ! need_cmd xcursorgen; then apt_install x11-apps icoutils; fi
@@ -74,63 +265,35 @@ configure_purple_cross_default_cursor() {
   rm -rf /tmp/purple-cross-cursor 2>/dev/null || true
   run_as_target mkdir -p "$TARGET_HOME/.cache/isc"
   rm -rf "$build_dir" 2>/dev/null || true
-  install -d -m 0755 "$build_dir" "$cursors_dir" "$default_theme_dir"
+  run_as_target mkdir -p "$build_dir" "$cursors_dir" "$default_theme_dir" "$legacy_default_theme_dir"
 
-  if ! icotool -x -o "$build_dir" "$asset_path" >/dev/null 2>&1; then
+  if ! run_as_target icotool -x -o "$build_dir" "$asset_path" >/dev/null 2>&1; then
     echo "WARNING: icotool failed to extract $asset_path"; return 0
   fi
 
   local png_path
-  png_path="$(find "$build_dir" -maxdepth 1 -type f -name '*.png' -print-quit 2>/dev/null)" || true
+  png_path="$(find "$build_dir" -maxdepth 1 -type f -name '*.png' -print -quit 2>/dev/null)" || true
   if [ -z "$png_path" ]; then echo "WARNING: no PNG extracted from cursor asset"; return 0; fi
-  cp "$png_path" "$build_dir/purple-cross.png"
+  run_as_target cp "$png_path" "$build_dir/purple-cross.png"
 
-  cat >"$build_dir/cursor.conf" <<EOF
-32 9 9 $build_dir/purple-cross.png
+  run_as_target tee "$build_dir/cursor.conf" >/dev/null <<EOF
+$PURPLE_CROSS_CURSOR_SIZE 9 9 $build_dir/purple-cross.png
 EOF
 
-  if ! xcursorgen "$build_dir/cursor.conf" "$cursors_dir/left_ptr"; then
+  if ! run_as_target xcursorgen "$build_dir/cursor.conf" "$cursors_dir/left_ptr"; then
     echo "WARNING: xcursorgen failed to build Purple Cross cursor"; return 0
   fi
 
-  ln -sf left_ptr "$cursors_dir/default"
-  ln -sf left_ptr "$cursors_dir/arrow"
-  ln -sf left_ptr "$cursors_dir/top_left_arrow"
-  for cursor_name in \
-    hand1 \
-    hand2 \
-    hand \
-    pointer \
-    pointing_hand \
-    e29285e634086352946a0e7090d73106 \
-    9d800788f1b08800ae810202380a0822; do
-    ln -sf left_ptr "$cursors_dir/$cursor_name"
-  done
-  for cursor_name in \
-    xterm \
-    text \
-    ibeam \
-    vertical-text \
-    048008013003cff3c00c801001200000; do
-    ln -sf left_ptr "$cursors_dir/$cursor_name"
-  done
-
-  cat >"$theme_dir/index.theme" <<EOF
-[Icon Theme]
-Name=$theme_name
-Inherits=Yaru
-EOF
-
-  cat >"$default_theme_dir/index.theme" <<EOF
-[Icon Theme]
-Name=Default
-Inherits=$theme_name
-EOF
+  link_purple_cross_cursor_aliases "$cursors_dir"
+  write_purple_cross_cursor_index "$theme_dir/index.theme" "$theme_name" "Yaru"
+  write_purple_cross_cursor_index "$default_theme_dir/index.theme" "Default" "$theme_name"
+  write_purple_cross_cursor_index "$legacy_default_theme_dir/index.theme" "Default" "$theme_name"
 
   chown -R "$TARGET_USER:$TARGET_USER" "$build_dir" "$theme_dir" "$default_theme_dir" 2>/dev/null || true
+  chown -R "$TARGET_USER:$TARGET_USER" "$legacy_default_theme_dir" 2>/dev/null || true
   user_gsettings set org.gnome.desktop.interface cursor-theme "'$theme_name'" || true
-  user_gsettings set org.gnome.desktop.interface cursor-size 32 || true
-  rm -rf "$build_dir" 2>/dev/null || true
+  user_gsettings set org.gnome.desktop.interface cursor-size "$PURPLE_CROSS_CURSOR_SIZE" || true
+  run_as_target rm -rf "$build_dir" 2>/dev/null || true
   msg "Purple Cross cursor theme configured"
 }
 
@@ -159,7 +322,7 @@ configure_terminal_dark_theme() {
     done
   fi
   
-  local profile_id schema=""
+  local profile_id="" schema=""
   if gsettings_key_exists org.gnome.Terminal.ProfilesList default; then
     profile_id="$(user_gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null || true)"
   fi
