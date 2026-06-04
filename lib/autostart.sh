@@ -131,3 +131,75 @@ configure_easyeffects_autostart() {
   # Best-effort systemd user service if present
   run_as_target systemctl --user enable --now easyeffects.service >/dev/null 2>&1 || true
 }
+
+# ── Monkeytype PWA autostart ─────────────────────────────────────────────────
+
+# configure_monkeytype_autostart — Create a dedicated monkeytype.desktop entry
+#   that launches the Chrome PWA and autostarts it on login. The desktop file
+#   is named "monkeytype.desktop" so the app-rules@local GNOME extension can
+#   match it to workspace 7.
+configure_monkeytype_autostart() {
+  msg "Configuring Monkeytype PWA autostart (workspace 7)"
+
+  # Determine the Chrome PWA app-id for monkeytype by scanning installed PWAs.
+  local pwa_dir="$TARGET_HOME/.config/google-chrome/Default/Web Applications/Manifest Resources"
+  local app_id=""
+  if [ -d "$pwa_dir" ]; then
+    for manifest_dir in "$pwa_dir"/*/; do
+      [ -f "${manifest_dir}Manifest" ] || continue
+      if grep -qi '"name".*monkeytype' "${manifest_dir}Manifest" 2>/dev/null; then
+        app_id="$(basename "$manifest_dir")"
+        break
+      fi
+    done
+  fi
+
+  # If we couldn't find it in Default, try Profile 1.
+  if [ -z "$app_id" ]; then
+    pwa_dir="$TARGET_HOME/.config/google-chrome/Profile 1/Web Applications/Manifest Resources"
+    if [ -d "$pwa_dir" ]; then
+      for manifest_dir in "$pwa_dir"/*/; do
+        [ -f "${manifest_dir}Manifest" ] || continue
+        if grep -qi '"name".*monkeytype' "${manifest_dir}Manifest" 2>/dev/null; then
+          app_id="$(basename "$manifest_dir")"
+          break
+        fi
+      done
+    fi
+  fi
+
+  # If we still can't find it, look for an existing chrome-monkeytype desktop file.
+  if [ -z "$app_id" ]; then
+    local existing_desktop
+    existing_desktop="$(find_desktop_entry "chrome-*-Default.desktop" 2>/dev/null || true)"
+    if [ -n "$existing_desktop" ] && grep -qi "monkeytype" "$TARGET_HOME/.local/share/applications/$existing_desktop" 2>/dev/null; then
+      # Extract app-id from the existing desktop file's Exec line.
+      app_id="$(grep '^Exec=' "$TARGET_HOME/.local/share/applications/$existing_desktop" | sed 's/.*--app-id=\([^ ]*\).*/\1/' || true)"
+    fi
+  fi
+
+  if [ -z "$app_id" ]; then
+    msg "  Monkeytype PWA not found in Chrome; skipping autostart setup."
+    return 0
+  fi
+
+  # Create the dedicated monkeytype.desktop file.
+  local desktop_path="$TARGET_HOME/.local/share/applications/monkeytype.desktop"
+  run_as_target tee "$desktop_path" >/dev/null <<DESKTOP
+[Desktop Entry]
+Version=1.0
+Terminal=false
+Type=Application
+Name=Monkeytype
+Exec=/opt/google/chrome/google-chrome --profile-directory=Default --app-id=${app_id}
+Icon=chrome-${app_id}-Default
+StartupWMClass=crx_${app_id}
+DESKTOP
+  msg "  Created desktop entry: monkeytype.desktop (PWA app-id: $app_id)"
+
+  # Also create the autostart copy.
+  configure_autostart_entry \
+    "monkeytype" \
+    "Monkeytype" \
+    "/opt/google/chrome/google-chrome --profile-directory=Default --app-id=${app_id}"
+}

@@ -370,38 +370,53 @@ configure_pwa_icons() {
     chown "$TARGET_USER:$TARGET_USER" "$icon_base"
   fi
   
-  # PWA definitions — app-id|name|desktop_file|workspace
-  local CHROME_PWAS=(
-    "chatgpt|ChatGPT|chatgpt.desktop|0"
-    "monkeytype|Monkeytype|monkeytype.desktop|7"
-  )
+  # Discover installed Chrome PWAs by scanning manifest files.
+  # Each PWA directory contains a Manifest file with the app name and metadata.
+  local -A pwa_names=()       # app_id -> display name
+  local -A pwa_icons_found=() # track icon sizes found
   
-  local -A needed_sizes=()
-  for entry in "${CHROME_PWAS[@]}"; do
-    IFS='|' read -r app_id name desktop_file workspace <<< "$entry"
-    local icons_dir="$pwa_dir/$app_id/Icons"
-    [ -d "$icons_dir" ] || continue
-    for icon_file in "$icons_dir"/*.png; do
-      [ -f "$icon_file" ] || continue
-      needed_sizes["$(basename "$icon_file" .png)"]=1
-    done
+  for manifest_dir in "$pwa_dir"/*/; do
+    [ -f "${manifest_dir}Manifest" ] || continue
+    local app_id="$(basename "$manifest_dir")"
+    local name=""
+    # Extract the "name" field from the JSON manifest.
+    name="$(grep -oP '"name"\s*:\s*"[^"]+"' "${manifest_dir}Manifest" 2>/dev/null | head -1 | sed 's/.*"\([^"]*\)".*/\1/' || true)"
+    [ -z "$name" ] && continue
+    
+    pwa_names["$app_id"]="$name"
+    
+    # Collect icon sizes.
+    local icons_dir="${manifest_dir}Icons"
+    if [ -d "$icons_dir" ]; then
+      for icon_file in "$icons_dir"/*.png; do
+        [ -f "$icon_file" ] || continue
+        pwa_icons_found["$(basename "$icon_file" .png)"]=1
+      done
+    fi
   done
   
+  # Create icon directories for all found sizes.
   local dir_list=()
-  for sz in "${!needed_sizes[@]}"; do dir_list+=("${sz}x${sz}"); done
+  for sz in "${!pwa_icons_found[@]}"; do dir_list+=("${sz}x${sz}"); done
   [ ${#dir_list[@]} -gt 0 ] && run_as_target mkdir -p "${icon_theme}/${dir_list[*]}/apps"
   
-  for entry in "${CHROME_PWAS[@]}"; do
-    IFS='|' read -r app_id name desktop_file workspace <<< "$entry"
+  # Create desktop entries and icon symlinks for each discovered PWA.
+  local CHROME_PWAS=(chatgpt monkeytype)  # logical names for workspace rules
+  
+  for app_id in "${!pwa_names[@]}"; do
+    local name="${pwa_names[$app_id]}"
+    
+    # Icon symlinks.
     local icons_dir="$pwa_dir/$app_id/Icons"
-    [ -d "$icons_dir" ] || { msg "  $name: icon directory not found"; continue; }
+    if [ -d "$icons_dir" ]; then
+      for icon_file in "$icons_dir"/*.png; do
+        [ -f "$icon_file" ] || continue
+        local size="$(basename "$icon_file" .png)"
+        run_as_target ln -sf "$icon_file" "${icon_theme}/${size}x${size}/apps/chrome-${app_id}-Default.png"
+      done
+    fi
     
-    for icon_file in "$icons_dir"/*.png; do
-      [ -f "$icon_file" ] || continue
-      local size="$(basename "$icon_file" .png)"
-      run_as_target ln -sf "$icon_file" "${icon_theme}/${size}x${size}/apps/chrome-${app_id}-Default.png"
-    done
-    
+    # Desktop entry.
     local desktop_path="$TARGET_HOME/.local/share/applications/chrome-${app_id}-Default.desktop"
     if [ ! -f "$desktop_path" ]; then
       run_as_target tee "$desktop_path" >/dev/null <<DESKTOP
@@ -418,6 +433,27 @@ DESKTOP
     fi
   done
   
+  # Create a "monkeytype.desktop" symlink so the app-rules@local extension
+  # can match windows to workspace 7 by that name.
+  local mt_desktop="$TARGET_HOME/.local/share/applications/monkeytype.desktop"
+  if [ -f "$mt_desktop" ]; then
+    : # already exists (created by configure_monkeytype_autostart or manually)
+  else
+    # Try to find the actual Chrome PWA desktop file for monkeytype.
+    local mt_real=""
+    for f in "$TARGET_HOME/.local/share/applications"/chrome-*-Default.desktop; do
+      [ -f "$f" ] || continue
+      if grep -qi "monkeytype" "$f" 2>/dev/null; then
+        mt_real="$f"
+        break
+      fi
+    done
+    if [ -n "$mt_real" ]; then
+      run_as_target ln -sf "$(basename "$mt_real")" "$mt_desktop"
+      msg "  Created symlink: monkeytype.desktop → $(basename "$mt_real")"
+    fi
+  fi
+
   run_as_target gtk-update-icon-cache --force "${icon_theme}" 2>/dev/null || true
 }
 
@@ -425,4 +461,32 @@ configure_uv_autostart() {
   msg "Ensuring UV is installed and not autostarting as a GUI app"
   run_as_target bash -lc 'curl -LsSf https://astral.sh/uv/install.sh | sh' || true
   run_as_target rm -f "$TARGET_HOME/.config/autostart/uv-python.desktop" || true
+}
+
+# ── GNOME Shell extensions ───────────────────────────────────────────────────
+
+# configure_app_rules_extension — Deploy/update the app-rules@local extension.
+#   Copies the extension from CONFIG_DIR to ~/.local/share/gnome-shell/extensions/
+#   and ensures proper ownership. The user must log out/in for changes to take effect.
+configure_app_rules_extension() {
+  msg "Deploying app-rules@local GNOME Shell extension"
+
+  local ext_src="$CONFIG_DIR/gnome-extensions/app-rules@local"
+  local ext_dst="$TARGET_HOME/.local/share/gnome-shell/extensions/app-rules@local"
+
+  if [ ! -d "$ext_src" ]; then
+    msg "  app-rules source not found at $ext_src; skipping."
+    return 0
+  fi
+
+  run_as_target mkdir -p "$(dirname "$ext_dst")"
+  
+  # Copy extension files (preserve the directory structure)
+  for f in "$ext_src"/*; do
+    [ -f "$f" ] || continue
+    run_as_target cp "$f" "$ext_dst/$(basename "$f")"
+  done
+  
+  msg "  Extension deployed to $ext_dst"
+  msg "  NOTE: Log out and back in for GNOME Shell extension changes to take effect."
 }

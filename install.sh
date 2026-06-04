@@ -63,6 +63,8 @@ main_inner() {
   
   # Chrome PWA icons
   configure_pwa_icons
+  configure_monkeytype_autostart
+  configure_app_rules_extension
   
   # UV package manager
   configure_uv_autostart

@@ -11,9 +11,10 @@ This repository configures the GNOME desktop environment after base packages are
 - **GNOME favorites**: Taskbar/dock favorite apps with terminal detection
 - **Terminal themes**: Dark background/light text for Console, Ptyxis, GNOME Terminal
 - **Display refresh**: Xorg xrandr max refresh rate or Wayland VRR
-- **Autostart applications**: Spotify, GitKraken, EasyEffects, custom launcher script
+- **Autostart applications**: Spotify, GitKraken, EasyEffects, Monkeytype PWA, custom launcher script
 - **EasyEffects presets**: Output EQ preset (scout-eq.json)
 - **Chrome PWA icons**: Symlinks and desktop entries for Chrome progressive web apps
+- **PWA workspace rules**: `app-rules@local` GNOME extension assigns windows to specific workspaces (e.g., Monkeytype → workspace 7, ChatGPT → workspace 0)
 - **UV package manager**: Install astral.sh/uv and disable GUI autostart
 
 ## Installation
@@ -59,15 +60,37 @@ linux_configuration_setup/
 │   ├── gsettings_helpers.sh  # GSettings/dconf helper functions
 │   ├── systemd_helpers.sh    # Systemd user service management
 │   ├── system_config.sh      # RTC, clock, lock, dark mode, mouse accel
-│   ├── autostart.sh          # Autostart entries for apps
-│   └── gnome_desktop.sh      # GNOME desktop config (favorites, cursor, themes)
+│   ├── autostart.sh          # Autostart entries for apps (Spotify, GitKraken, EasyEffects, Monkeytype)
+│   └── gnome_desktop.sh      # GNOME desktop config (favorites, cursor, themes, PWA icons, extensions)
 ├── configs/
+│   ├── cursors/
+│   │   └── purple_cross.cur    # Purple Cross cursor theme asset
+│   ├── equalizer.apo           # APO equalizer config (reference)
 │   ├── easyeffects/
 │   │   └── output/
-│   │       └── scout-eq.json    # EasyEffects output EQ preset
-│   └── equalizer.apo            # APO equalizer config (reference)
+│   │       └── scout-eq.json   # EasyEffects output EQ preset
+│   └── gnome-extensions/
+│       └── app-rules@local/    # GNOME Shell extension: per-app workspace/sticky rules
 └── .gitignore
 ```
+
+## PWA Workspace Rules (app-rules@local)
+
+The `app-rules@local` GNOME Shell extension assigns windows to specific workspaces or makes them sticky. It is deployed from `configs/gnome-extensions/app-rules@local/`.
+
+Current rules:
+
+| App | Workspace / Behavior |
+|-----|----------------------|
+| Cursor (cursor.desktop) | Workspace 0 |
+| GitKraken | Workspace 2 |
+| Monkeytype PWA | Workspace 7 |
+| ChatGPT PWA | Workspace 0 |
+| OBS Studio | Workspace 7 |
+| Discord | Sticky (all workspaces) |
+| Spotify | Sticky (all workspaces) |
+
+**Note:** After modifying the extension, log out and back in for changes to take effect. GNOME Shell does not hot-reload extensions on Wayland.
 
 ## Dependencies
 
@@ -82,6 +105,7 @@ This repo is run **after** `linux_installations_setup` has cloned it. It require
 - If the Purple Cross cursor does not appear immediately everywhere, restart affected applications. Some Wayland and XWayland clients cache cursor themes after startup.
 - The installer writes `~/.local/share/icons/default/index.theme` and `~/.icons/default/index.theme` so applications that read Xcursor defaults outside GNOME GSettings still inherit `PurpleCrossDefault`.
 - Log out and back in before testing GNOME Shell extension code changes.
+- Monkeytype PWA autostarts on login and opens on workspace 7 via the `app-rules@local` extension. If it doesn't appear on workspace 7, verify the extension is enabled and check that `monkeytype.desktop` exists in `~/.local/share/applications/`.
 
 ## License
 
