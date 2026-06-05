@@ -260,24 +260,28 @@ configure_purple_cross_default_cursor() {
   local legacy_default_theme_dir="$TARGET_HOME/.icons/default"
   local build_dir="$TARGET_HOME/.cache/isc/purple-cross-cursor-build"
 
-  if ! need_cmd icotool || ! need_cmd xcursorgen; then apt_install x11-apps icoutils; fi
+  if ! need_cmd xcursorgen; then apt_install x11-apps; fi
+  if ! python3 -c "from PIL import Image" >/dev/null 2>&1; then
+    echo "WARNING: python3-pil is required to build the Purple Cross cursor"
+    return 0
+  fi
 
-  rm -rf /tmp/purple-cross-cursor 2>/dev/null || true
   run_as_target mkdir -p "$TARGET_HOME/.cache/isc"
   rm -rf "$build_dir" 2>/dev/null || true
   run_as_target mkdir -p "$build_dir" "$cursors_dir" "$default_theme_dir" "$legacy_default_theme_dir"
 
-  if ! run_as_target icotool -x -o "$build_dir" "$asset_path" >/dev/null 2>&1; then
-    echo "WARNING: icotool failed to extract $asset_path"; return 0
+  local png_path="$build_dir/purple-cross.png"
+  local hotspot
+  if ! hotspot="$(run_as_target python3 "$SCRIPT_DIR/scripts/extract_cursor.py" \
+    "$asset_path" "$png_path" "$PURPLE_CROSS_CURSOR_SIZE")"; then
+    echo "WARNING: failed to extract Purple Cross cursor asset"
+    return 0
   fi
 
-  local png_path
-  png_path="$(find "$build_dir" -maxdepth 1 -type f -name '*.png' -print -quit 2>/dev/null)" || true
-  if [ -z "$png_path" ]; then echo "WARNING: no PNG extracted from cursor asset"; return 0; fi
-  run_as_target cp "$png_path" "$build_dir/purple-cross.png"
-
+  local hotspot_x hotspot_y
+  read -r hotspot_x hotspot_y <<<"$hotspot"
   run_as_target tee "$build_dir/cursor.conf" >/dev/null <<EOF
-$PURPLE_CROSS_CURSOR_SIZE 9 9 $build_dir/purple-cross.png
+$PURPLE_CROSS_CURSOR_SIZE $hotspot_x $hotspot_y $png_path
 EOF
 
   if ! run_as_target xcursorgen "$build_dir/cursor.conf" "$cursors_dir/left_ptr"; then

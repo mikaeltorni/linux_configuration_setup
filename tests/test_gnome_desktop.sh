@@ -107,27 +107,14 @@ echo "--- configure_purple_cross_default_cursor ---"
 
 FAKE_BIN="$TARGET_HOME/fake-bin"
 mkdir -p "$CONFIG_DIR/cursors" "$FAKE_BIN"
-touch "$CONFIG_DIR/cursors/purple_cross.cur"
-cat >"$FAKE_BIN/icotool" <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-outdir=""
-while [ "$#" -gt 0 ]; do
-  case "$1" in
-    -o) outdir="$2"; shift 2 ;;
-    *) shift ;;
-  esac
-done
-mkdir -p "$outdir"
-printf 'fake-png\n' >"$outdir/extracted.png"
-EOF
+cp "$SCRIPT_DIR/configs/cursors/purple_cross.cur" "$CONFIG_DIR/cursors/purple_cross.cur"
 cat >"$FAKE_BIN/xcursorgen" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 output="${@: -1}"
 printf 'fake-xcursor\n' >"$output"
 EOF
-chmod +x "$FAKE_BIN/icotool" "$FAKE_BIN/xcursorgen"
+chmod +x "$FAKE_BIN/xcursorgen"
 PATH="$FAKE_BIN:$PATH"
 
 run_as_target() { "$@"; }

@@ -100,7 +100,7 @@ This repo is run **after** `linux_installations_setup` has cloned it. It require
 - GNOME Shell running with GSettings available
 - Target user's session bus at `$XDG_RUNTIME_DIR/bus`
 - `python3` for safe GSettings list parsing
-- `icotool` and `xcursorgen` for rebuilding the Purple Cross cursor theme (the installer installs `icoutils` and `x11-apps` when needed)
+- Pillow (`python3-pil`) and `xcursorgen` for rebuilding the Purple Cross cursor theme
 
 ## Troubleshooting
 
