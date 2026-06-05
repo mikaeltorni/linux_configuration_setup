@@ -236,6 +236,7 @@ configure_favorites() {
   add_favorite gitkraken.desktop gitkraken_gitkraken.desktop
   add_favorite lm-studio.desktop
   add_favorite nvidia-settings.desktop
+  add_favorite virt-manager.desktop
   
   if [ "${#FAVORITES[@]}" -gt 0 ]; then
     user_gsettings set org.gnome.shell favorite-apps "$(join_as_gsettings_array "${FAVORITES[@]}")"
