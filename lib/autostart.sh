@@ -6,7 +6,7 @@
 #     Create or copy a .desktop file into ~/.config/autostart/.
 #   - configure_spotify_autostart(): Enable Spotify autostart.
 #   - configure_gitkraken_autostart(): Enable GitKraken autostart.
-#   - configure_autostart_apps(): Create autostart_apps.sh launcher + autostart entry.
+#   - configure_autostart_apps(): Create the Kitty launcher + autostart entry.
 #   - configure_easyeffects_autostart(): Enable EasyEffects autostart + systemd service.
 #
 # Sourced after lib/helpers.sh, lib/gsettings_helpers.sh, lib/gnome_desktop.sh.
@@ -79,6 +79,10 @@ configure_spotify_autostart() {
 configure_gitkraken_autostart() {
   msg "Enabling GitKraken autostart"
 
+  # Older setup revisions used this alternate basename, causing GNOME to
+  # launch GitKraken twice when the canonical entry was later added.
+  run_as_target rm -f "$TARGET_HOME/.config/autostart/gitkraken-autostart.desktop"
+
   configure_autostart_entry \
     "gitkraken" \
     "GitKraken" \
@@ -86,9 +90,9 @@ configure_gitkraken_autostart() {
     gitkraken.desktop gitkraken_gitkraken.desktop
 }
 
-# configure_autostart_apps — Create a launcher script for GitKraken and Kitty.
+# configure_autostart_apps — Create a launcher script for Kitty.
 configure_autostart_apps() {
-   msg "Autostarting GitKraken and Kitty"
+  msg "Autostarting Kitty"
   run_as_target install -d -m 0755 "$TARGET_HOME/.local/bin"
   run_as_target tee "$TARGET_HOME/.local/bin/autostart_apps.sh" >/dev/null << 'EOF'
 #!/usr/bin/env bash
@@ -103,7 +107,6 @@ launch_if_exists() {
   fi
 }
 
-launch_if_exists gitkraken
 launch_if_exists kitty
 
 exit 0
@@ -113,7 +116,7 @@ EOF
   configure_autostart_entry \
     "autostart_apps" \
     "autostart apps" \
-    "/bin/bash -lc \"$HOME/.local/bin/autostart_apps.sh\""
+    "/bin/bash -lc \"$TARGET_HOME/.local/bin/autostart_apps.sh\""
 }
 
 # ── EasyEffects autostart ────────────────────────────────────────────────────

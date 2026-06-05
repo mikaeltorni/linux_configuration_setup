@@ -13,7 +13,7 @@ This repository configures the GNOME desktop environment after base packages are
 - **GNOME favorites**: Taskbar/dock favorite apps with terminal detection
 - **Terminal themes**: Dark background/light text for Console, Ptyxis, GNOME Terminal
 - **Display refresh**: Xorg xrandr max refresh rate or Wayland VRR
-- **Autostart applications**: Spotify, GitKraken, EasyEffects, Monkeytype PWA, custom launcher script
+- **Autostart applications**: Spotify, GitKraken, EasyEffects, Monkeytype PWA, and Kitty
 - **EasyEffects presets**: Output EQ preset (scout-eq.json)
 - **Chrome PWA icons**: Symlinks and desktop entries for Chrome progressive web apps
 - **PWA workspace rules**: `app-rules@local` GNOME extension assigns windows to specific workspaces (e.g., Monkeytype → workspace 7, ChatGPT → workspace 0)
@@ -106,6 +106,7 @@ This repo is run **after** `linux_installations_setup` has cloned it. It require
 
 - If the Purple Cross cursor does not appear immediately everywhere, restart affected applications. Some Wayland and XWayland clients cache cursor themes after startup.
 - The installer writes `~/.local/share/icons/default/index.theme` and `~/.icons/default/index.theme` so applications that read Xcursor defaults outside GNOME GSettings still inherit `PurpleCrossDefault`.
+- GitKraken uses only `~/.config/autostart/gitkraken.desktop`; the installer removes the obsolete `gitkraken-autostart.desktop` alias to prevent duplicate launches.
 - Log out and back in before testing GNOME Shell extension code changes.
 - Monkeytype PWA autostarts on login and opens on workspace 7 via the `app-rules@local` extension. If it doesn't appear on workspace 7, verify the extension is enabled and check that `monkeytype.desktop` exists in `~/.local/share/applications/`.
 
