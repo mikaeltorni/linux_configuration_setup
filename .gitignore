@@ -2,3 +2,4 @@ linux_bash_install-*.log
 *.pyc
 
 *.log
+.log/

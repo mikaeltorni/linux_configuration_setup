@@ -2,6 +2,8 @@
 
 **Phase 2 of 7** — GNOME desktop configuration, autostart applications, and system settings.
 
+Installer run logs are written to the repository-local `.log/` directory.
+
 ## Overview
 
 This repository configures the GNOME desktop environment after base packages are installed. It handles:
