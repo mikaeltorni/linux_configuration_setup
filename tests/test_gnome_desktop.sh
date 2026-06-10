@@ -64,6 +64,17 @@ assert_symlink_target() {
   fi
 }
 
+assert_file_contains() {
+  local path="$1" expected="$2" msg="$3"
+  if grep -Fq "$expected" "$path" 2>/dev/null; then
+    echo "  PASS: $msg"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $msg (missing '$expected' in '$path')"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
 echo "=========================================="
 echo "  GNOME Desktop Module Tests"
 echo "=========================================="
