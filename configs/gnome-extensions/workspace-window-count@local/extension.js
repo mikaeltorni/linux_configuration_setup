@@ -177,11 +177,14 @@ export default class WorkspaceWindowCountExtension extends Extension {
     badge.clutter_text.set_line_wrap(false);
     iconActor.add_child(badge);
 
+    // Nudge a few pixels past the icon's right edge so the trailing digit's
+    // glyph + drop shadow don't get clipped by the icon actor's bounds.
+    const RIGHT_NUDGE_PX = 4;
     const reposition = () => {
       const w = iconActor.width;
       const h = iconActor.height;
       badge.set_position(
-        Math.max(0, w - badge.width),
+        Math.max(0, w - badge.width + RIGHT_NUDGE_PX),
         Math.max(0, h - badge.height)
       );
     };
