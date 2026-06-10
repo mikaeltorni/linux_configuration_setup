@@ -368,11 +368,13 @@ configure_pwa_icons() {
   
   if [ ! -d "$pwa_dir" ]; then msg "Chrome Web Applications directory not found; skipping PWA icon setup."; return 0; fi
   
-  local icons_owner
-  icons_owner="$(stat -c '%U' "$icon_base" 2>/dev/null || echo unknown)"
-  if [ "$icons_owner" = "root" ]; then
-    msg "Fixing ownership of $icon_base to $TARGET_USER"
-    chown "$TARGET_USER:$TARGET_USER" "$icon_base"
+  if find "$icon_base" -user root -print -quit 2>/dev/null | grep -q .; then
+    if [ "$(id -u)" -eq 0 ]; then
+      msg "Fixing ownership of $icon_base to $TARGET_USER"
+      chown -R "$TARGET_USER:$TARGET_USER" "$icon_base"
+    else
+      msg "Icon theme contains root-owned files; direct PWA icon paths will be used"
+    fi
   fi
   
   # Discover installed Chrome PWAs by scanning manifest files.
@@ -381,11 +383,22 @@ configure_pwa_icons() {
   local -A pwa_icons_found=() # track icon sizes found
   
   for manifest_dir in "$pwa_dir"/*/; do
-    [ -f "${manifest_dir}Manifest" ] || continue
-    local app_id="$(basename "$manifest_dir")"
+    local app_id
+    app_id="$(basename "$manifest_dir")"
     local name=""
-    # Extract the "name" field from the JSON manifest.
-    name="$(grep -oP '"name"\s*:\s*"[^"]+"' "${manifest_dir}Manifest" 2>/dev/null | head -1 | sed 's/.*"\([^"]*\)".*/\1/' || true)"
+
+    if [ -f "${manifest_dir}Manifest" ]; then
+      # Extract the "name" field from the JSON manifest.
+      name="$(grep -oP '"name"\s*:\s*"[^"]+"' "${manifest_dir}Manifest" 2>/dev/null | head -1 | sed 's/.*"\([^"]*\)".*/\1/' || true)"
+    fi
+
+    # Chrome may retain icon resources after removing the cached manifest.
+    if [ -z "$name" ]; then
+      local existing_desktop="$TARGET_HOME/.local/share/applications/chrome-${app_id}-Default.desktop"
+      if [ -f "$existing_desktop" ]; then
+        name="$(sed -n 's/^Name=//p' "$existing_desktop" | head -1)"
+      fi
+    fi
     [ -z "$name" ] && continue
     
     pwa_names["$app_id"]="$name"
