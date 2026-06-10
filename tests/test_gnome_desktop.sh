@@ -181,6 +181,52 @@ else
   PASS=$((PASS + 1))
 fi
 
+# Test configure_pwa_icons installs every icon size and a matching desktop entry
+echo ""
+echo "--- configure_pwa_icons ---"
+
+claude_app_id="fmpnliohjhemenmnlpbfagaolkdacoja"
+claude_manifest_dir="$TARGET_HOME/.config/google-chrome/Default/Web Applications/Manifest Resources/$claude_app_id"
+mkdir -p "$claude_manifest_dir/Icons"
+printf '{"name":"Claude"}\n' >"$claude_manifest_dir/Manifest"
+printf 'claude-48\n' >"$claude_manifest_dir/Icons/48.png"
+printf 'claude-512\n' >"$claude_manifest_dir/Icons/512.png"
+
+FAKE_GTK_CACHE_LOG="$TARGET_HOME/gtk-update-icon-cache.log"
+cat >"$FAKE_BIN/gtk-update-icon-cache" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >"$FAKE_GTK_CACHE_LOG"
+EOF
+chmod +x "$FAKE_BIN/gtk-update-icon-cache"
+
+configure_pwa_icons
+
+claude_icon_name="chrome-$claude_app_id-Default.png"
+assert_symlink_target \
+  "$TARGET_HOME/.local/share/icons/hicolor/48x48/apps/$claude_icon_name" \
+  "$claude_manifest_dir/Icons/48.png" \
+  "Should install the Claude 48px icon"
+assert_symlink_target \
+  "$TARGET_HOME/.local/share/icons/hicolor/512x512/apps/$claude_icon_name" \
+  "$claude_manifest_dir/Icons/512.png" \
+  "Should install the Claude 512px icon"
+claude_desktop="$TARGET_HOME/.local/share/applications/chrome-$claude_app_id-Default.desktop"
+assert_file_contains "$claude_desktop" "Name=Claude" "Should create the Claude desktop entry"
+assert_file_contains \
+  "$claude_desktop" \
+  "Icon=$claude_manifest_dir/Icons/512.png" \
+  "Should point the Claude desktop entry directly at its largest icon"
+assert_file_contains "$FAKE_GTK_CACHE_LOG" "$TARGET_HOME/.local/share/icons/hicolor" "Should refresh the icon cache"
+
+# Chrome can remove a cached manifest while retaining PWA icons and its entry.
+rm "$claude_manifest_dir/Manifest"
+printf 'Icon=stale\nName=Claude\n' >"$claude_desktop"
+configure_pwa_icons
+assert_file_contains \
+  "$claude_desktop" \
+  "Icon=$claude_manifest_dir/Icons/512.png" \
+  "Should recover a manifest-less Claude PWA from its existing desktop entry"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 
