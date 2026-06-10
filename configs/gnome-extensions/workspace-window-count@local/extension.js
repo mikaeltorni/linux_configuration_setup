@@ -150,8 +150,8 @@ export default class WorkspaceWindowCountExtension extends Extension {
       }
       seen.add(badge);
       const count = countWindowsOnActiveWorkspace(delegate.app);
-      badge.text = count > 0 ? String(count) : '';
-      badge.visible = count > 0;
+      badge.text = count > 1 ? String(count) : '';
+      badge.visible = count > 1;
     }
     // Drop badges whose icons disappeared (taskbar rebuilt the actor).
     for (const badge of [...this._badges]) {

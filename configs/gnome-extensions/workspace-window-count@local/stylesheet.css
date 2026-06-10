@@ -1,14 +1,21 @@
-/* Bottom-right window-count badge. High-contrast so it stays legible over any
- * icon, and sits opposite the top-right notification counters to avoid overlap. */
+/* Bottom-right window-count badge. Same geometry as the original badge so it
+ * fits within the icon actor without being clipped, but the background and
+ * outline are transparent — only the numeral is visible. A dark text shadow
+ * keeps it legible over any icon. Sits opposite the top-right notification
+ * counters to avoid overlap. */
 .wwc-badge {
-  background-color: rgba(0, 0, 0, 0.85);
+  background-color: transparent;
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: 9px;
+  border: 0;
+  border-radius: 0;
   font-size: 9px;
   font-weight: bold;
   min-width: 13px;
   padding: 0 3px;
   text-align: center;
-  box-shadow: 0 0 2px 1px rgba(0, 0, 0, 0.6);
+  text-shadow:
+    -1px -1px 1px rgba(0, 0, 0, 0.95),
+     1px -1px 1px rgba(0, 0, 0, 0.95),
+    -1px  1px 1px rgba(0, 0, 0, 0.95),
+     1px  1px 1px rgba(0, 0, 0, 0.95);
 }
