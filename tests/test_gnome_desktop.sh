@@ -227,6 +227,50 @@ assert_file_contains \
   "Icon=$claude_manifest_dir/Icons/512.png" \
   "Should recover a manifest-less Claude PWA from its existing desktop entry"
 
+# Test configure_workspace_window_count_extension deploys + enables the badge extension
+echo ""
+echo "--- configure_workspace_window_count_extension ---"
+
+wwc_uuid="workspace-window-count@local"
+mkdir -p "$CONFIG_DIR/gnome-extensions/$wwc_uuid"
+cp "$SCRIPT_DIR/configs/gnome-extensions/$wwc_uuid/extension.js" \
+   "$SCRIPT_DIR/configs/gnome-extensions/$wwc_uuid/metadata.json" \
+   "$SCRIPT_DIR/configs/gnome-extensions/$wwc_uuid/stylesheet.css" \
+   "$CONFIG_DIR/gnome-extensions/$wwc_uuid/"
+
+# Mock gsettings so append_gsettings_list operates on a fake enabled list.
+WWC_ENABLED="['app-rules@local']"
+user_gsettings() {
+  if [ "$1" = "get" ]; then
+    printf '%s\n' "$WWC_ENABLED"
+  else
+    # set <schema> <key> <value>
+    WWC_ENABLED="$4"
+  fi
+}
+
+configure_workspace_window_count_extension
+
+wwc_dst="$TARGET_HOME/.local/share/gnome-shell/extensions/$wwc_uuid"
+assert_file_exists "$wwc_dst/extension.js" "Should deploy extension.js"
+assert_file_exists "$wwc_dst/metadata.json" "Should deploy metadata.json"
+assert_file_exists "$wwc_dst/stylesheet.css" "Should deploy stylesheet.css"
+assert_file_contains "$wwc_dst/metadata.json" "\"uuid\": \"$wwc_uuid\"" "metadata.json should carry the right uuid"
+assert_file_contains "$wwc_dst/extension.js" "wwc-badge" "extension.js should reference the badge style class"
+case "$WWC_ENABLED" in
+  *"$wwc_uuid"*) echo "  PASS: Should enable the extension via enabled-extensions"; PASS=$((PASS + 1)) ;;
+  *) echo "  FAIL: Should enable the extension via enabled-extensions (got '$WWC_ENABLED')"; FAIL=$((FAIL + 1)) ;;
+esac
+case "$WWC_ENABLED" in
+  *"app-rules@local"*) echo "  PASS: Should preserve already-enabled extensions"; PASS=$((PASS + 1)) ;;
+  *) echo "  FAIL: Should preserve already-enabled extensions (got '$WWC_ENABLED')"; FAIL=$((FAIL + 1)) ;;
+esac
+
+# Idempotent: enabling again must not duplicate the uuid.
+configure_workspace_window_count_extension
+wwc_occurrences="$(printf '%s' "$WWC_ENABLED" | grep -o "$wwc_uuid" | wc -l | tr -d ' ')"
+assert_eq "1" "$wwc_occurrences" "Re-running should not duplicate the enabled entry"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 
