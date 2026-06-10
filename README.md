@@ -15,7 +15,7 @@ This repository configures the GNOME desktop environment after base packages are
 - **Display refresh**: Xorg xrandr max refresh rate or Wayland VRR
 - **Autostart applications**: Spotify, GitKraken, EasyEffects, Monkeytype PWA, and Kitty
 - **EasyEffects presets**: Output EQ preset (scout-eq.json)
-- **Chrome PWA icons**: Symlinks and desktop entries for Chrome progressive web apps
+- **Chrome PWA icons**: Symlinks and desktop entries for installed Chrome progressive web apps, including Claude
 - **PWA workspace rules**: `app-rules@local` GNOME extension assigns windows to specific workspaces (e.g., Monkeytype → workspace 7, ChatGPT → workspace 0)
 - **UV package manager**: Install astral.sh/uv and disable GUI autostart
 
@@ -38,7 +38,7 @@ All configuration steps are idempotent:
 - GSettings: uses `set_if_key_exists` pattern — no duplicate values
 - Autostart entries: checks for existing `.desktop` files before creating
 - EasyEffects preset: only copies if source exists, overwrites in place
-- PWA icons: creates symlinks and desktop entries only if missing
+- PWA icons: repairs icon links for every available size and refreshes desktop entries with direct icon paths
 - Cursor theme: rebuilds the Purple Cross cursor, maps common pointer/hover/drag/resize roles back to it, and updates both modern and legacy Xcursor default inheritance paths
 
 ## Development
