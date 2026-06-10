@@ -414,41 +414,50 @@ configure_pwa_icons() {
   done
   
   # Create icon directories for all found sizes.
-  local dir_list=()
-  for sz in "${!pwa_icons_found[@]}"; do dir_list+=("${sz}x${sz}"); done
-  [ ${#dir_list[@]} -gt 0 ] && run_as_target mkdir -p "${icon_theme}/${dir_list[*]}/apps"
+  local sz
+  for sz in "${!pwa_icons_found[@]}"; do
+    run_as_target mkdir -p "${icon_theme}/${sz}x${sz}/apps" 2>/dev/null || true
+  done
   
   # Create desktop entries and icon symlinks for each discovered PWA.
   local CHROME_PWAS=(chatgpt monkeytype)  # logical names for workspace rules
   
   for app_id in "${!pwa_names[@]}"; do
     local name="${pwa_names[$app_id]}"
+    local icons_dir="$pwa_dir/$app_id/Icons"
+    local desktop_icon="chrome-${app_id}-Default"
     
     # Icon symlinks.
-    local icons_dir="$pwa_dir/$app_id/Icons"
     if [ -d "$icons_dir" ]; then
       for icon_file in "$icons_dir"/*.png; do
         [ -f "$icon_file" ] || continue
-        local size="$(basename "$icon_file" .png)"
-        run_as_target ln -sf "$icon_file" "${icon_theme}/${size}x${size}/apps/chrome-${app_id}-Default.png"
+        local size
+        size="$(basename "$icon_file" .png)"
+        run_as_target ln -sf "$icon_file" "${icon_theme}/${size}x${size}/apps/chrome-${app_id}-Default.png" 2>/dev/null || true
+      done
+
+      # An absolute path avoids stale or unwritable icon-theme caches.
+      for size in 512 256 192 128 96 64 48 32 16; do
+        if [ -f "$icons_dir/$size.png" ]; then
+          desktop_icon="$icons_dir/$size.png"
+          break
+        fi
       done
     fi
     
-    # Desktop entry.
+    # Always refresh the desktop entry so existing PWAs receive icon fixes.
     local desktop_path="$TARGET_HOME/.local/share/applications/chrome-${app_id}-Default.desktop"
-    if [ ! -f "$desktop_path" ]; then
-      run_as_target tee "$desktop_path" >/dev/null <<DESKTOP
+    run_as_target tee "$desktop_path" >/dev/null <<DESKTOP
 [Desktop Entry]
 Version=1.0
 Terminal=false
 Type=Application
 Name=$name
 Exec=/opt/google/chrome/google-chrome --profile-directory=Default --app-id=$app_id
-Icon=chrome-${app_id}-Default
+Icon=$desktop_icon
 StartupWMClass=crx_${app_id}
 DESKTOP
-      msg "  $name: created desktop entry"
-    fi
+    msg "  $name: refreshed desktop entry"
   done
   
   # Create a "monkeytype.desktop" symlink so the app-rules@local extension
