@@ -6,7 +6,6 @@
 #   - gsettings_key_exists(schema, key): Check if a key exists in a schema.
 #   - user_gsettings_set_if_key_exists(schema, key, value): Set only if key exists.
 #   - set_gsettings_strv(schema, key, values...): Set a string-array (strv) key.
-#   - set_gsettings_strv_if_key_exists(schema, key, values...): Set strv only if key exists.
 #   - join_as_gsettings_array(values...): Format values as a GSettings array string.
 #   - append_gsettings_list(schema, key, value): Append a value to a list (idempotent).
 #   - remove_gsettings_list(schema, key, value): Remove a value from a list.
@@ -29,13 +28,6 @@ user_gsettings_set_if_key_exists() {
 set_gsettings_strv() {
   local schema="$1" key="$2"; shift 2
   user_gsettings set "$schema" "$key" "$(join_as_gsettings_array "$@")"
-}
-
-set_gsettings_strv_if_key_exists() {
-  local schema="$1" key="$2"; shift 2
-  if gsettings_key_exists "$schema" "$key"; then
-    set_gsettings_strv "$schema" "$key" "$@" || true
-  fi
 }
 
 join_as_gsettings_array() {

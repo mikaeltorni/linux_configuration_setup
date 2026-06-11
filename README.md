@@ -60,7 +60,6 @@ linux_configuration_setup/
 │   ├── helpers.sh          # Core utilities (msg, run_as_target, etc.)
 │   ├── logging.sh          # Centralized logging with levels
 │   ├── gsettings_helpers.sh  # GSettings/dconf helper functions
-│   ├── systemd_helpers.sh    # Systemd user service management
 │   ├── system_config.sh      # RTC, clock, lock, dark mode, mouse accel
 │   ├── autostart.sh          # Autostart entries for apps (Spotify, GitKraken, EasyEffects, Monkeytype)
 │   └── gnome_desktop.sh      # GNOME desktop config (favorites, cursor, themes, PWA icons, extensions)

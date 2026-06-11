@@ -420,8 +420,6 @@ configure_pwa_icons() {
   done
   
   # Create desktop entries and icon symlinks for each discovered PWA.
-  local CHROME_PWAS=(chatgpt monkeytype)  # logical names for workspace rules
-  
   for app_id in "${!pwa_names[@]}"; do
     local name="${pwa_names[$app_id]}"
     local icons_dir="$pwa_dir/$app_id/Icons"
