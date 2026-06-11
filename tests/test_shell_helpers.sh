@@ -96,6 +96,43 @@ else
     fail_test "ensure_root" "should have exited when not root"
 fi
 
+# Test apt_install skips already-installed packages (no apt-get invocation)
+# dpkg reports success (installed); apt-get is mocked to record any calls.
+test_apt_install_skip() {
+    local marker="$TARGET_HOME/apt-get-called"
+    rm -f "$marker"
+    (
+        dpkg() { return 0; }                       # pretend every package is installed
+        apt-get() { echo called >>"$marker"; }     # should never run
+        log() { :; }                               # silence logging
+        apt_install already-here >/dev/null 2>&1
+    )
+    if [ ! -f "$marker" ]; then
+        pass_test "apt_install skips packages that are already installed"
+    else
+        fail_test "apt_install" "should not call apt-get when package is present"
+    fi
+}
+test_apt_install_skip
+
+# Test apt_install installs missing packages (apt-get install is invoked)
+test_apt_install_missing() {
+    local marker="$TARGET_HOME/apt-get-install"
+    rm -f "$marker"
+    (
+        dpkg() { return 1; }                       # pretend nothing is installed
+        apt-get() { [ "$1" = "install" ] && echo "$*" >>"$marker"; return 0; }
+        log() { :; }
+        apt_install needs-install >/dev/null 2>&1
+    )
+    if grep -q "needs-install" "$marker" 2>/dev/null; then
+        pass_test "apt_install installs missing packages via apt-get"
+    else
+        fail_test "apt_install" "should call apt-get install for missing package"
+    fi
+}
+test_apt_install_missing
+
 # ── gsettings_helpers.sh tests ──────────────────────────────────────────────
 source lib/gsettings_helpers.sh
 
