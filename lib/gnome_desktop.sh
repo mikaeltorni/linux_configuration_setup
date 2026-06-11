@@ -250,7 +250,7 @@ configure_purple_cross_default_cursor() {
 
   local asset_path="$CONFIG_DIR/cursors/purple_cross.cur"
   if [ ! -f "$asset_path" ]; then
-    echo "WARNING: Purple Cross cursor asset not found at $asset_path — skipping cursor setup"
+    log "warn" "Purple Cross cursor asset not found at $asset_path — skipping cursor setup"
     return 0
   fi
 
@@ -263,7 +263,7 @@ configure_purple_cross_default_cursor() {
 
   if ! need_cmd xcursorgen; then apt_install x11-apps; fi
   if ! python3 -c "from PIL import Image" >/dev/null 2>&1; then
-    echo "WARNING: python3-pil is required to build the Purple Cross cursor"
+    log "warn" "python3-pil is required to build the Purple Cross cursor — skipping cursor setup"
     return 0
   fi
 
@@ -275,7 +275,7 @@ configure_purple_cross_default_cursor() {
   local hotspot
   if ! hotspot="$(run_as_target python3 "$SCRIPT_DIR/scripts/extract_cursor.py" \
     "$asset_path" "$png_path" "$PURPLE_CROSS_CURSOR_SIZE")"; then
-    echo "WARNING: failed to extract Purple Cross cursor asset"
+    log "warn" "failed to extract Purple Cross cursor asset — skipping cursor setup"
     return 0
   fi
 
@@ -286,7 +286,7 @@ $PURPLE_CROSS_CURSOR_SIZE $hotspot_x $hotspot_y $png_path
 EOF
 
   if ! run_as_target xcursorgen "$build_dir/cursor.conf" "$cursors_dir/left_ptr"; then
-    echo "WARNING: xcursorgen failed to build Purple Cross cursor"; return 0
+    log "warn" "xcursorgen failed to build Purple Cross cursor — skipping cursor setup"; return 0
   fi
 
   link_purple_cross_cursor_aliases "$cursors_dir"
