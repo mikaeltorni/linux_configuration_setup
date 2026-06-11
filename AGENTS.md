@@ -10,6 +10,10 @@ complete setup.
 Keep installation steps idempotent and verify the clean-install path for every
 change.
 
+Window-count badges are owned by `linux_taskbar_window_count`; keep GNOME
+desktop settings work in this repository focused on configuration outside that
+extension.
+
 ## Reloading GNOME Shell
 
 When a change needs GNOME Shell to reload (extensions, themes, shell-side

@@ -517,35 +517,3 @@ configure_app_rules_extension() {
   msg "  Extension deployed to $ext_dst"
   msg "  NOTE: Log out and back in for GNOME Shell extension changes to take effect."
 }
-
-# configure_workspace_window_count_extension — Deploy/enable the
-#   workspace-window-count@local extension. It draws a bottom-right badge on
-#   each taskbar app icon counting that app's windows on the current workspace.
-#   Copies the extension into the user's extensions dir, enables it via
-#   org.gnome.shell enabled-extensions, and fixes ownership.
-configure_workspace_window_count_extension() {
-  msg "Deploying workspace-window-count@local GNOME Shell extension"
-
-  local uuid="workspace-window-count@local"
-  local ext_src="$CONFIG_DIR/gnome-extensions/$uuid"
-  local ext_dst="$TARGET_HOME/.local/share/gnome-shell/extensions/$uuid"
-
-  if [ ! -d "$ext_src" ]; then
-    msg "  workspace-window-count source not found at $ext_src; skipping."
-    return 0
-  fi
-
-  run_as_target mkdir -p "$ext_dst"
-
-  # Copy extension files (extension.js, metadata.json, stylesheet.css).
-  for f in "$ext_src"/*; do
-    [ -f "$f" ] || continue
-    run_as_target cp "$f" "$ext_dst/$(basename "$f")"
-  done
-
-  # Enable it (idempotent — append_gsettings_list de-duplicates).
-  append_gsettings_list org.gnome.shell enabled-extensions "$uuid" || true
-
-  msg "  Extension deployed to $ext_dst and enabled"
-  msg "  NOTE: Log out and back in for GNOME Shell extension changes to take effect."
-}

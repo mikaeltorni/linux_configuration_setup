@@ -17,7 +17,6 @@ This repository configures the GNOME desktop environment after base packages are
 - **EasyEffects presets**: Output EQ preset (scout-eq.json)
 - **Chrome PWA icons**: Symlinks and desktop entries for installed Chrome progressive web apps, including Claude
 - **PWA workspace rules**: `app-rules@local` GNOME extension assigns windows to specific workspaces (e.g., Monkeytype → workspace 7, ChatGPT → workspace 0)
-- **Workspace window count badges**: `workspace-window-count@local` GNOME extension draws a bottom-right badge on each taskbar app icon counting that app's windows on the current workspace
 - **UV package manager**: Install astral.sh/uv and disable GUI autostart
 
 ## Installation
@@ -74,7 +73,6 @@ linux_configuration_setup/
 │   │       └── scout-eq.json   # EasyEffects output EQ preset
 │   └── gnome-extensions/
 │       ├── app-rules@local/    # GNOME Shell extension: per-app workspace/sticky rules
-│       └── workspace-window-count@local/  # GNOME Shell extension: per-workspace window count badges
 └── .gitignore
 ```
 
@@ -96,18 +94,7 @@ Current rules:
 
 **Note:** After modifying the extension, log out and back in for changes to take effect. GNOME Shell does not hot-reload extensions on Wayland.
 
-## Workspace Window Count Badges (workspace-window-count@local)
-
-The `workspace-window-count@local` GNOME Shell extension draws a small badge in the
-**bottom-right** corner of every taskbar app icon (Dash to Panel / stock dash),
-showing how many windows of that app are open on the **current** workspace. The
-badge updates as windows open, close, switch workspaces, or as you change
-workspace. Bottom-right is chosen deliberately so it never overlaps the
-top-right notification counters. It is deployed and enabled from
-`configs/gnome-extensions/workspace-window-count@local/`.
-
-**Note:** Log out and back in (or on X11, restart GNOME Shell) for the extension
-to load after install.
+Window-count badges are owned by `linux_taskbar_window_count` and installed separately from that repository.
 
 ## Dependencies
 

@@ -65,7 +65,6 @@ main_inner() {
   configure_pwa_icons
   configure_monkeytype_autostart
   configure_app_rules_extension
-  configure_workspace_window_count_extension
 
   # UV package manager
   configure_uv_autostart
