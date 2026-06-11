@@ -19,6 +19,10 @@ INSTALLER_LOG_LEVEL="${INSTALLER_LOG_LEVEL:-info}"
 _LOG_CURRENT_THRESHOLD=$_LOG_LEVEL_INFO
 INSTALLER_PRODUCTION="${INSTALLER_PRODUCTION:-0}"
 
+# setup_logging — Set the active log threshold from a level name and export the
+#   resolved level so child processes inherit it.
+#   Args: $1 — level name (verbose/debug/info/warn/error); defaults to info.
+#   Returns: 0.
 setup_logging() {
   local level="${1:-info}"
   case "${level,,}" in
@@ -32,6 +36,11 @@ setup_logging() {
   export INSTALLER_LOG_LEVEL="${level^^}"
 }
 
+# log — Emit a timestamped log line to stderr if the message level meets the
+#   active threshold. Uses JSON output when INSTALLER_PRODUCTION=1, otherwise a
+#   human-readable format.
+#   Args: $1 — level name; $2.. — message text.
+#   Returns: 0 (messages below the threshold are silently dropped).
 log() {
   local level="${1:-info}" msg="${*:2}"
   local threshold=0
@@ -54,6 +63,9 @@ log() {
   fi
 }
 
+# log_verbose/log_debug/log_info/log_warn/log_error — Convenience wrappers that
+#   call log() at a fixed level.
+#   Args: $@ — message text. Returns: 0.
 log_verbose() { log "verbose" "$@"; }
 log_debug()   { log "debug" "$@"; }
 log_info()    { log "info" "$@"; }
@@ -63,12 +75,18 @@ log_error()   { log "error" "$@"; }
 _timed_start_time=0
 _timed_start_label=""
 
+# timed_start — Record the current time and label to begin a timing span.
+#   Args: $1 — label for the operation (defaults to "operation"). Returns: 0.
 timed_start() {
   local label="${1:-operation}"
   _timed_start_label="$label"
   _timed_start_time=$(date +%s%N)
 }
 
+# timed_end — Log the elapsed milliseconds since the matching timed_start and
+#   reset the timing state.
+#   Args: $1 — optional label override (defaults to the timed_start label).
+#   Returns: 0 on success; 1 if called without a preceding timed_start.
 timed_end() {
   if [[ -z "${_timed_start_time:-}" ]]; then
     log "warn" "timed_end called without timed_start"
@@ -83,6 +101,10 @@ timed_end() {
   _timed_start_label=""
 }
 
+# try_operation — Run a command, logging start and success/failure, and store
+#   its exit code in the global TRY_OP_RC for the caller to inspect.
+#   Args: $1 — operation name; $@ (after shift) — command and arguments.
+#   Returns: 0 (the command's status is exposed via TRY_OP_RC, not the return).
 TRY_OP_RC=0
 try_operation() {
   local operation_name="$1"; shift
@@ -96,6 +118,10 @@ try_operation() {
   fi
 }
 
+# graceful_fail — Log a non-critical failure and return success so the caller
+#   can continue (graceful degradation for optional steps).
+#   Args: $1 — operation name; $@ (after shift) — optional message.
+#   Returns: always 0.
 graceful_fail() {
   local operation_name="$1"; shift
   local msg="${*:-$operation_name failed}"

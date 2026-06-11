@@ -2,14 +2,18 @@
 # gnome_desktop.sh — GNOME desktop configuration helpers
 #
 # Components:
-#   - detect_terminal_desktop(): Detect the first available terminal emulator.
-#   - configure_favorites(): Configure GNOME dock favorites.
 #   - purple_cross_cursor_aliases(): Print cursor role names forced to Purple Cross.
 #   - link_purple_cross_cursor_aliases(): Link all cursor roles to the Purple Cross cursor.
 #   - write_purple_cross_cursor_index(): Write cursor theme inheritance metadata.
+#   - detect_terminal_desktop(): Detect the first available terminal emulator.
+#   - first_existing_desktop(): Return the first existing .desktop from candidates.
+#   - configure_favorites(): Configure GNOME dock favorites.
 #   - configure_purple_cross_default_cursor(): Install Purple Cross cursor theme.
 #   - configure_terminal_dark_theme(): Set terminal to dark background with light text.
 #   - configure_display_refresh(): Configure display refresh rate settings.
+#   - configure_pwa_icons(): Create Chrome PWA desktop entries and icon symlinks.
+#   - configure_uv_autostart(): Install the UV package manager (no GUI autostart).
+#   - configure_app_rules_extension(): Deploy the app-rules@local GNOME extension.
 
 PURPLE_CROSS_CURSOR_THEME_NAME="PurpleCrossDefault"
 PURPLE_CROSS_CURSOR_SIZE=32
@@ -174,10 +178,16 @@ PURPLE_CROSS_CURSOR_ALIASES=(
   zoom-out
 )
 
+# purple_cross_cursor_aliases — Print, one per line, every cursor role name that
+#   is aliased to the Purple Cross cursor (used by tests and for linking).
+#   Args: none. Returns: 0 and prints the alias list.
 purple_cross_cursor_aliases() {
   printf '%s\n' "${PURPLE_CROSS_CURSOR_ALIASES[@]}"
 }
 
+# link_purple_cross_cursor_aliases — Symlink every cursor role name to the built
+#   left_ptr cursor so all roles render as the Purple Cross.
+#   Args: $1 — cursors directory to populate. Returns: 0.
 link_purple_cross_cursor_aliases() {
   local cursors_dir="$1"
   local cursor_name
@@ -186,6 +196,10 @@ link_purple_cross_cursor_aliases() {
   done
 }
 
+# write_purple_cross_cursor_index — Write an index.theme file describing a cursor
+#   theme's display name and the theme it inherits from.
+#   Args: $1 — index.theme path; $2 — theme name; $3 — inherited theme name.
+#   Returns: the exit status of the underlying write.
 write_purple_cross_cursor_index() {
   local index_path="$1"
   local name="$2"
@@ -198,6 +212,10 @@ Inherits=$inherits
 EOF
 }
 
+# detect_terminal_desktop — Detect the preferred installed terminal emulator.
+#   Args: none.
+#   Returns: 0 and prints the matching .desktop id, or "kitty.desktop" as a
+#     fallback when none are installed.
 detect_terminal_desktop() {
   local candidate
   for candidate in kitty.desktop org.gnome.Terminal.desktop org.gnome.Console.desktop org.gnome.Ptyxis.desktop; do
@@ -206,12 +224,20 @@ detect_terminal_desktop() {
   echo "kitty.desktop"
 }
 
+# first_existing_desktop — Print the first existing .desktop entry from the given
+#   candidates, or nothing if none exist (never fails the caller).
+#   Args: $@ — candidate desktop ids. Returns: 0.
 first_existing_desktop() { find_desktop_entry "$@" || true; }
 
+# configure_favorites — Build the GNOME dash favorite-apps list from the apps
+#   that are actually installed and apply it.
+#   Args: none. Returns: 0.
 configure_favorites() {
   local terminal_desktop
   terminal_desktop="$(detect_terminal_desktop)"
   
+  # add_favorite — Append the first installed candidate to the FAVORITES list.
+  #   Args: $@ — candidate desktop ids. Returns: 0.
   add_favorite() {
     local entry
     entry="$(first_existing_desktop "$@")"
@@ -245,6 +271,12 @@ configure_favorites() {
   fi
 }
 
+# configure_purple_cross_default_cursor — Build and install the Purple Cross
+#   cursor theme from the bundled .cur asset, alias every cursor role to it, and
+#   set it as the user's cursor theme. Installs xcursorgen (x11-apps) on demand.
+#   Args: none.
+#   Returns: 0. Logs a warning and returns early if the asset or required tools
+#     (python3-pil) are missing, so a clean install never aborts here.
 configure_purple_cross_default_cursor() {
   msg "Configuring Purple Cross default cursor"
 
@@ -302,6 +334,10 @@ EOF
   msg "Purple Cross cursor theme configured"
 }
 
+# configure_terminal_dark_theme — Force a dark background with light text across
+#   the installed terminals (GNOME Console, Ptyxis, and legacy GNOME Terminal),
+#   touching only the keys/profiles that exist on this machine.
+#   Args: none. Returns: 0.
 configure_terminal_dark_theme() {
   msg "Setting terminal to dark background with light text"
   
@@ -341,6 +377,10 @@ configure_terminal_dark_theme() {
   fi
 }
 
+# configure_display_refresh — Maximise the display refresh rate. On Xorg it sets
+#   each connected monitor to its highest mode via xrandr; on Wayland it enables
+#   mutter's variable-refresh-rate experimental feature.
+#   Args: none. Returns: 0.
 configure_display_refresh() {
   if [[ "$SESSION_TYPE" =~ ^(x11|xorg)$ ]]; then
     msg "Xorg: setting MAX refresh per monitor via xrandr (best effort)"
@@ -360,6 +400,12 @@ configure_display_refresh() {
   fi
 }
 
+# configure_pwa_icons — Discover installed Chrome PWAs by scanning their manifest
+#   resources, then (re)create a .desktop entry and themed icon symlinks for each
+#   so they show correct names/icons. Also ensures a monkeytype.desktop alias for
+#   the app-rules@local workspace mapping.
+#   Args: none.
+#   Returns: 0. Returns early when Chrome's Web Applications directory is absent.
 configure_pwa_icons() {
   msg "Setting up Chrome PWA icons and desktop entries"
   local pwa_dir="$TARGET_HOME/.config/google-chrome/Default/Web Applications/Manifest Resources"
@@ -482,6 +528,9 @@ DESKTOP
   run_as_target gtk-update-icon-cache --force "${icon_theme}" 2>/dev/null || true
 }
 
+# configure_uv_autostart — Install the UV Python package manager for the target
+#   user and remove any stale autostart entry so UV never launches as a GUI app.
+#   Args: none. Returns: 0 (installation is best-effort).
 configure_uv_autostart() {
   msg "Ensuring UV is installed and not autostarting as a GUI app"
   run_as_target bash -lc 'curl -LsSf https://astral.sh/uv/install.sh | sh' || true

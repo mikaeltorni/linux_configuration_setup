@@ -15,7 +15,14 @@
 # Must be sourced after SCRIPT_DIR, CONFIG_DIR, TARGET_USER, TARGET_HOME,
 # RUNTIME_DIR, DISPLAY_VAL, USER_BUS are set.
 
+# msg — Print a user-facing message to stdout with an "==> " arrow prefix.
+#   Args: $* — message text to display.
+#   Returns: always 0.
 msg() { printf "\n==> %s\n" "$*"; }
+
+# need_cmd — Test whether a command is available on PATH.
+#   Args: $1 — command name to look up.
+#   Returns: 0 if the command exists, non-zero otherwise.
 need_cmd() { command -v "$1" >/dev/null 2>&1; }
 
 # apt_install — Ensure one or more apt packages are installed (idempotent).
@@ -49,6 +56,10 @@ apt_install() {
   DEBIAN_FRONTEND=noninteractive apt-get install -y "${missing[@]}"
 }
 
+# toml_string_array — Format a named bash array as a TOML string array literal.
+#   Escapes backslashes and double quotes in each element.
+#   Args: $1 — name of the array variable to format (passed by name).
+#   Returns: 0 and prints e.g. ["a", "b"]; non-zero if the array is unreadable.
 toml_string_array() {
   local ref="$1" item result="[" sep="" arr=()
   eval "arr=(\"\${$ref[@]}\")" || return 1
@@ -62,6 +73,11 @@ toml_string_array() {
   printf '%s\n' "$result"
 }
 
+# run_as_target — Run a command as the target (non-root) user with the desktop
+#   session environment (HOME, XDG_RUNTIME_DIR, DBUS, DISPLAY) populated so that
+#   gsettings/systemctl --user calls reach the live session.
+#   Args: $@ — command and arguments to execute.
+#   Returns: the exit status of the executed command.
 run_as_target() {
   sudo -H -u "$TARGET_USER" env \
     HOME="$TARGET_HOME" \
@@ -73,6 +89,9 @@ run_as_target() {
     "$@"
 }
 
+# ensure_root — Abort the installer if it is not running as root.
+#   Args: none.
+#   Returns: 0 if root; otherwise logs an error and exits the process with 1.
 ensure_root() {
   if [ "$(id -u)" -ne 0 ]; then
     log "error" "Please run with sudo: sudo bash $0"
@@ -81,6 +100,11 @@ ensure_root() {
   fi
 }
 
+# ensure_session_bus — Abort if the target user has no live D-Bus session bus
+#   (required for gsettings/systemctl --user to affect the running desktop).
+#   Args: none.
+#   Returns: 0 if the session bus socket exists; otherwise logs an error,
+#     prints guidance, and exits the process with 1.
 ensure_session_bus() {
   if [ ! -S "${RUNTIME_DIR}/bus" ]; then
     log "error" "No user session bus at ${RUNTIME_DIR}/bus"
@@ -99,6 +123,11 @@ DESKTOP_DIRS=(
   "$TARGET_HOME/.local/share/applications"
 )
 
+# find_desktop_file_path — Locate the full path of a .desktop file by name.
+#   Searches the standard system, snap, and per-user application directories.
+#   Args: $1 — desktop entry name, with or without the ".desktop" suffix.
+#   Returns: 0 and prints the absolute path of the first match; non-zero if no
+#     matching file is found.
 find_desktop_file_path() {
   local name="$1"
   local dir path="$name"
@@ -114,6 +143,11 @@ find_desktop_file_path() {
   return 1
 }
 
+# find_desktop_entry — Return the basename of the first existing .desktop entry
+#   from a list of candidates (useful when an app ships under several ids).
+#   Args: $@ — candidate desktop entry names, in priority order.
+#   Returns: 0 and prints the matching "<name>.desktop" basename; non-zero if
+#     none of the candidates exist.
 find_desktop_entry() {
   local candidate
   for candidate in "$@"; do
