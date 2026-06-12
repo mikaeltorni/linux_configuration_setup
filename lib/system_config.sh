@@ -16,6 +16,14 @@
 # configure_rtc — Set the hardware clock to local time.
 configure_rtc() {
   msg "Setting RTC to local time"
+  if [ "$(timedatectl show --property=LocalRTC --value 2>/dev/null)" = "yes" ]; then
+    msg "RTC already set to local time"
+    return 0
+  fi
+  if ! is_root; then
+    note_sudo_required "timedatectl set-local-rtc 1 --adjust-system-clock"
+    return 0
+  fi
   timedatectl set-local-rtc 1 --adjust-system-clock
 }
 
@@ -74,6 +82,13 @@ disable_mouse_acceleration() {
 
   # X11 fallback to enforce libinput flat profile
   if [ -d /etc/X11 ]; then
+    if [ -f /etc/X11/xorg.conf.d/90-libinput-no-accel.conf ]; then
+      return 0
+    fi
+    if ! is_root; then
+      note_sudo_required "write /etc/X11/xorg.conf.d/90-libinput-no-accel.conf (libinput flat profile)"
+      return 0
+    fi
     install -d -m 0755 /etc/X11/xorg.conf.d
     cat >/etc/X11/xorg.conf.d/90-libinput-no-accel.conf <<'EOF'
 Section "InputClass"

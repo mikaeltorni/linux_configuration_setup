@@ -12,7 +12,8 @@
 #   - UV package manager setup
 #   - Tmux defaults
 #
-# Usage: sudo bash install.sh
+# Usage: bash install.sh        # user-level config; root-only steps are skipped and reported
+#        sudo bash install.sh   # full configuration including system-level steps
 
 set -euo pipefail
 
@@ -37,8 +38,7 @@ INSTALLER_NO_REBOOT="${INSTALLER_NO_REBOOT:-0}"
 
 main_inner() {
   ensure_session_bus
-  ensure_root
-  
+
   msg "=== Linux Configuration Setup ==="
   
   # System-level configuration
@@ -70,7 +70,8 @@ main_inner() {
   
   # Tmux defaults
   configure_tmux_defaults
-  
+
+  report_sudo_required
   msg "=== Linux Configuration Setup Complete ==="
 }
 

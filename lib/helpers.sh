@@ -25,6 +25,29 @@ msg() { printf "\n==> %s\n" "$*"; }
 #   Returns: 0 if the command exists, non-zero otherwise.
 need_cmd() { command -v "$1" >/dev/null 2>&1; }
 
+# is_root — Test whether the script runs with root privileges.
+#   Args: none. Returns: 0 when root, non-zero otherwise.
+is_root() { [ "$(id -u)" -eq 0 ]; }
+
+# Root-only steps skipped during a non-root run; reported at the end.
+SUDO_REQUIRED_STEPS=()
+
+# note_sudo_required — Record a skipped root-only step for the final report.
+#   Args: $1 — human-readable description of the skipped step. Returns: 0.
+note_sudo_required() {
+  SUDO_REQUIRED_STEPS+=("$1")
+  msg "SKIP (requires sudo): $1"
+}
+
+# report_sudo_required — Print all root-only steps skipped this run, if any.
+#   Args: none. Returns: 0.
+report_sudo_required() {
+  [ "${#SUDO_REQUIRED_STEPS[@]}" -eq 0 ] && return 0
+  msg "The following steps still require root and were skipped:"
+  printf '    - %s\n' "${SUDO_REQUIRED_STEPS[@]}"
+  msg "Apply them with: sudo bash install.sh"
+}
+
 # apt_install — Ensure one or more apt packages are installed (idempotent).
 #   Skips packages that are already present and only refreshes the apt cache
 #   when at least one package is missing, so it is safe to call repeatedly on a
@@ -48,6 +71,11 @@ apt_install() {
   if ! need_cmd apt-get; then
     log "error" "apt_install: apt-get not available; cannot install ${missing[*]}"
     return 1
+  fi
+
+  if ! is_root; then
+    note_sudo_required "apt install ${missing[*]}"
+    return 0
   fi
 
   log "info" "Installing apt packages: ${missing[*]}"
@@ -79,14 +107,25 @@ toml_string_array() {
 #   Args: $@ — command and arguments to execute.
 #   Returns: the exit status of the executed command.
 run_as_target() {
-  sudo -H -u "$TARGET_USER" env \
-    HOME="$TARGET_HOME" \
-    USER="$TARGET_USER" \
-    LOGNAME="$TARGET_USER" \
-    XDG_RUNTIME_DIR="$RUNTIME_DIR" \
-    DBUS_SESSION_BUS_ADDRESS="$USER_BUS" \
-    DISPLAY="$DISPLAY_VAL" \
-    "$@"
+  if [ "$(id -un)" = "$TARGET_USER" ]; then
+    env \
+      HOME="$TARGET_HOME" \
+      USER="$TARGET_USER" \
+      LOGNAME="$TARGET_USER" \
+      XDG_RUNTIME_DIR="$RUNTIME_DIR" \
+      DBUS_SESSION_BUS_ADDRESS="$USER_BUS" \
+      DISPLAY="$DISPLAY_VAL" \
+      "$@"
+  else
+    sudo -H -u "$TARGET_USER" env \
+      HOME="$TARGET_HOME" \
+      USER="$TARGET_USER" \
+      LOGNAME="$TARGET_USER" \
+      XDG_RUNTIME_DIR="$RUNTIME_DIR" \
+      DBUS_SESSION_BUS_ADDRESS="$USER_BUS" \
+      DISPLAY="$DISPLAY_VAL" \
+      "$@"
+  fi
 }
 
 # ensure_root — Abort the installer if it is not running as root.
