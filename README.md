@@ -48,6 +48,7 @@ All configuration steps are idempotent:
 Run the shell and Python tests before changing installer behavior:
 
 ```bash
+bash tests/test_cursor_theme.sh
 bash tests/test_gnome_desktop.sh
 bash tests/test_pwa_icons.sh
 bash tests/test_shell_helpers.sh
@@ -65,7 +66,8 @@ linux_configuration_setup/
 │   ├── gsettings_helpers.sh  # GSettings/dconf helper functions
 │   ├── system_config.sh      # RTC, clock, lock, dark mode, mouse accel
 │   ├── autostart.sh          # Autostart entries for apps (Spotify, GitKraken, EasyEffects, Monkeytype)
-│   ├── gnome_desktop.sh      # GNOME desktop config (favorites, cursor, themes, extensions)
+│   ├── cursor_theme.sh       # Purple Cross cursor build, aliases, and defaults
+│   ├── gnome_desktop.sh      # GNOME desktop config (favorites, terminal themes, display, extensions)
 │   └── pwa_icons.sh          # Chrome PWA desktop entries and icon links
 ├── configs/
 │   ├── cursors/

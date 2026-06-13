@@ -33,6 +33,7 @@ source "$SCRIPT_DIR/lib/gsettings_helpers.sh"
 source "$SCRIPT_DIR/lib/system_config.sh"
 source "$SCRIPT_DIR/lib/autostart.sh"
 source "$SCRIPT_DIR/lib/gnome_desktop.sh"
+source "$SCRIPT_DIR/lib/cursor_theme.sh"
 source "$SCRIPT_DIR/lib/pwa_icons.sh"
 
 INSTALLER_NO_REBOOT="${INSTALLER_NO_REBOOT:-0}"
