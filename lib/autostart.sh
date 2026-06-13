@@ -7,6 +7,7 @@
 #   - configure_spotify_autostart(): Enable Spotify autostart.
 #   - configure_gitkraken_autostart(): Enable GitKraken autostart.
 #   - configure_autostart_apps(): Create the Kitty launcher + autostart entry.
+#   - configure_kitty_defaults(): Ensure Kitty config disables the close prompt.
 #   - configure_easyeffects_autostart(): Enable EasyEffects autostart + systemd service.
 #
 # Sourced after lib/helpers.sh, lib/gsettings_helpers.sh, lib/gnome_desktop.sh.
@@ -117,6 +118,30 @@ EOF
     "autostart_apps" \
     "autostart apps" \
     "/bin/bash -lc \"$TARGET_HOME/.local/bin/autostart_apps.sh\""
+}
+
+# ── Kitty terminal defaults ──────────────────────────────────────────────────
+
+# configure_kitty_defaults — Ensure ~/.config/kitty/kitty.conf disables the
+#   "Are you sure you want to close this OS window" confirmation prompt by
+#   setting `confirm_os_window_close 0`.
+#   Idempotent: creates the file if absent, replaces an existing
+#   confirm_os_window_close line, or appends the setting — without disturbing
+#   any other lines (e.g. allow_remote_control added by other tooling).
+configure_kitty_defaults() {
+  msg "Configuring Kitty defaults (disable close-window confirmation)"
+
+  run_as_target bash -lc '
+set -eu
+conf="$HOME/.config/kitty/kitty.conf"
+mkdir -p "$(dirname "$conf")"
+if [ ! -f "$conf" ]; then
+  printf "# Managed by linux_configuration_setup.\nconfirm_os_window_close 0\n" > "$conf"
+elif grep -q "^confirm_os_window_close" "$conf"; then
+  sed -i "s/^confirm_os_window_close.*/confirm_os_window_close 0/" "$conf"
+else
+  printf "\n# Do not prompt when closing an OS window that has running programs.\nconfirm_os_window_close 0\n" >> "$conf"
+fi'
 }
 
 # ── EasyEffects autostart ────────────────────────────────────────────────────

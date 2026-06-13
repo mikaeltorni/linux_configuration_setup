@@ -60,6 +60,7 @@ main_inner() {
   configure_spotify_autostart
   configure_gitkraken_autostart
   configure_autostart_apps
+  configure_kitty_defaults
   configure_easyeffects_autostart
   
   # Chrome PWA icons
