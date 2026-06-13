@@ -24,6 +24,7 @@ mkdir -p "$TARGET_HOME/.local/share/applications"
 source "$SCRIPT_DIR/lib/helpers.sh"
 source "$SCRIPT_DIR/lib/gsettings_helpers.sh"
 source "$SCRIPT_DIR/lib/gnome_desktop.sh"
+source "$SCRIPT_DIR/lib/pwa_icons.sh"
 DESKTOP_DIRS=("$TARGET_HOME/.local/share/applications")
 
 PASS=0

@@ -49,6 +49,7 @@ Run the shell and Python tests before changing installer behavior:
 
 ```bash
 bash tests/test_gnome_desktop.sh
+bash tests/test_pwa_icons.sh
 bash tests/test_shell_helpers.sh
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
@@ -64,7 +65,8 @@ linux_configuration_setup/
 │   ├── gsettings_helpers.sh  # GSettings/dconf helper functions
 │   ├── system_config.sh      # RTC, clock, lock, dark mode, mouse accel
 │   ├── autostart.sh          # Autostart entries for apps (Spotify, GitKraken, EasyEffects, Monkeytype)
-│   └── gnome_desktop.sh      # GNOME desktop config (favorites, cursor, themes, PWA icons, extensions)
+│   ├── gnome_desktop.sh      # GNOME desktop config (favorites, cursor, themes, extensions)
+│   └── pwa_icons.sh          # Chrome PWA desktop entries and icon links
 ├── configs/
 │   ├── cursors/
 │   │   └── purple_cross.cur    # Purple Cross cursor theme asset
