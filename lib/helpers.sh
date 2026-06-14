@@ -7,7 +7,6 @@
 #   - apt_install(pkgs...): Idempotently install missing apt packages.
 #   - toml_string_array(name): Format a bash array as a TOML string array.
 #   - run_as_target(cmd...): Execute a command as the target user.
-#   - ensure_root(): Exit with error if not running as root.
 #   - ensure_session_bus(): Exit with error if session bus is missing.
 #   - find_desktop_file_path(name): Find full path to a .desktop file.
 #   - find_desktop_entry(candidates...): Find basename of first existing .desktop.
@@ -125,17 +124,6 @@ run_as_target() {
       DBUS_SESSION_BUS_ADDRESS="$USER_BUS" \
       DISPLAY="$DISPLAY_VAL" \
       "$@"
-  fi
-}
-
-# ensure_root — Abort the installer if it is not running as root.
-#   Args: none.
-#   Returns: 0 if root; otherwise logs an error and exits the process with 1.
-ensure_root() {
-  if [ "$(id -u)" -ne 0 ]; then
-    log "error" "Please run with sudo: sudo bash $0"
-    echo "Please run with sudo: sudo bash $0"
-    exit 1
   fi
 }
 

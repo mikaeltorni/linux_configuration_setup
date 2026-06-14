@@ -2,7 +2,7 @@
 # test_shell_helpers.sh — Shell helper simulation tests.
 # Runs without modifying the system (no GSettings changes, no package installs).
 
-set -uo pipefail  # Note: removed -e so ensure_root exit doesn't abort us
+set -uo pipefail  # Note: -e removed so a failed assertion doesn't abort the run
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
@@ -87,13 +87,6 @@ if [ "$result" = "custom.desktop" ]; then
     pass_test "find_desktop_entry returns basename of first match"
 else
     fail_test "find_desktop_entry" "expected 'custom.desktop', got '${result:-<none>}'"
-fi
-
-# Test ensure_root detects non-root (run in subshell so exit doesn't kill us)
-if ! bash -c 'source lib/helpers.sh; ensure_root' 2>/dev/null; then
-    pass_test "ensure_root exits when not root"
-else
-    fail_test "ensure_root" "should have exited when not root"
 fi
 
 # Test apt_install skips already-installed packages (no apt-get invocation)
