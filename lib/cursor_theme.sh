@@ -2,7 +2,6 @@
 # cursor_theme.sh - Purple Cross cursor theme configuration.
 #
 # Public functions:
-#   - purple_cross_cursor_aliases(): Print cursor role names forced to Purple Cross.
 #   - link_purple_cross_cursor_aliases(): Link all cursor roles to Purple Cross.
 #   - write_purple_cross_cursor_index(): Write cursor theme inheritance metadata.
 #   - configure_purple_cross_default_cursor(): Install the Purple Cross theme.
@@ -169,13 +168,6 @@ PURPLE_CROSS_CURSOR_ALIASES=(
   zoom-in
   zoom-out
 )
-
-# purple_cross_cursor_aliases - Print, one per line, every cursor role name that
-#   is aliased to the Purple Cross cursor (used by tests and for linking).
-#   Args: none. Returns: 0 and prints the alias list.
-purple_cross_cursor_aliases() {
-  printf '%s\n' "${PURPLE_CROSS_CURSOR_ALIASES[@]}"
-}
 
 # link_purple_cross_cursor_aliases - Symlink every cursor role name to the built
 #   left_ptr cursor so all roles render as the Purple Cross.
