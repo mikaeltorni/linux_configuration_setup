@@ -36,46 +36,34 @@ source "$SCRIPT_DIR/lib/gnome_desktop.sh"
 source "$SCRIPT_DIR/lib/cursor_theme.sh"
 source "$SCRIPT_DIR/lib/pwa_icons.sh"
 
+# Component selection runtime and this repository's component manifest. The
+# runtime provides --list-components / --select / --default / interactive
+# selection; the manifest maps each component id to a configure_* step above.
+# Load the shared installer component framework. Its single source of truth is
+# the linux_installation_scripts_functions repository (cloned as a sibling by
+# installation_scripts, or downloaded on demand) -- no per-repo vendored copy.
+for __isc_d in "${ISC_FUNCTIONS_DIR:-}" \
+               "$SCRIPT_DIR/../linux_installation_scripts_functions" \
+               "$HOME/projects/linux_installation_scripts_functions"; do
+  [ -n "$__isc_d" ] && [ -f "$__isc_d/component_loader.sh" ] && { source "$__isc_d/component_loader.sh"; break; }
+done
+declare -F isc_activate_components >/dev/null 2>&1 || \
+  source <(curl -fsSL "https://raw.githubusercontent.com/mikaeltorni/linux_installation_scripts_functions/${ISC_FUNCTIONS_REF:-master}/component_loader.sh")
+isc_activate_components
+source "$SCRIPT_DIR/installer/components.sh"
+
 INSTALLER_NO_REBOOT="${INSTALLER_NO_REBOOT:-0}"
 
+# main_inner — Run the selected configuration components. Selection is resolved
+# by component_main (interactive menu, --select, --default, or defaults when not
+# on a TTY). report_sudo_required summarizes any skipped root-only steps.
 main_inner() {
-  ensure_session_bus
-
   msg "=== Linux Configuration Setup ==="
-  
-  # System-level configuration
-  configure_rtc
-  configure_clock_calendar
-  configure_disable_auto_lock
-  configure_dark_mode
-  disable_mouse_acceleration
-  
-  # GNOME desktop configuration
-  configure_favorites
-  configure_purple_cross_default_cursor
-  configure_terminal_dark_theme
-  configure_display_refresh
-  
-  # Autostart applications
-  configure_spotify_autostart
-  configure_gitkraken_autostart
-  configure_autostart_apps
-  configure_kitty_defaults
-  configure_easyeffects_autostart
-  
-  # Chrome PWA icons
-  configure_pwa_icons
-  configure_monkeytype_autostart
-  configure_app_rules_extension
-
-  # UV package manager
-  configure_uv_autostart
-  
-  # Tmux defaults
-  configure_tmux_defaults
-
+  component_main "$@"
+  local rc=$?
   report_sudo_required
   msg "=== Linux Configuration Setup Complete ==="
+  return $rc
 }
 
 run_and_log_with_reboot() {
@@ -84,10 +72,10 @@ run_and_log_with_reboot() {
   log_dir="$SCRIPT_DIR/.log"
   mkdir -p "$log_dir"
   log_file="$log_dir/linux_configuration_setup-$ts.log"
-  
+
   main_inner "$@" 2>&1 | tee "$log_file"
   msg "All done. Log file written to: $log_file"
-  
+
   if [[ "${INSTALLER_NO_REBOOT:-0}" == "1" ]]; then
     msg "Skipping reboot due to INSTALLER_NO_REBOOT=1"
   else
@@ -97,5 +85,10 @@ run_and_log_with_reboot() {
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    run_and_log_with_reboot "$@"
+  # Listing/help must print only their output (the master installer parses
+  # --list-components), so bypass the logging/reboot wrapper for those.
+  case "${1:-}" in
+    --list-components|--help|-h) component_main "$@"; exit $? ;;
+  esac
+  run_and_log_with_reboot "$@"
 fi
