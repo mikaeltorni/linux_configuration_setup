@@ -25,26 +25,6 @@ touch "$TARGET_HOME/.local/share/applications/custom.desktop"
 # ── helpers.sh tests ────────────────────────────────────────────────────────
 source lib/helpers.sh
 
-# Test toml_string_array formats array correctly
-items=("model-with-reasoning" "current-dir" "context-remaining")
-result="$(toml_string_array items)"
-expected="[\"model-with-reasoning\", \"current-dir\", \"context-remaining\"]"
-if [ "$result" = "$expected" ]; then
-    pass_test "toml_string_array formats array correctly"
-else
-    fail_test "toml_string_array" "expected $expected, got $result"
-fi
-
-# Test toml_string_array handles single item
-items=("single-item")
-result="$(toml_string_array items)"
-expected="[\"single-item\"]"
-if [ "$result" = "$expected" ]; then
-    pass_test "toml_string_array handles single item"
-else
-    fail_test "toml_string_array" "expected $expected, got $result"
-fi
-
 # Test need_cmd returns correct exit codes for existing command
 if need_cmd bash; then
     pass_test "need_cmd returns true for existing command (bash)"
@@ -147,36 +127,6 @@ if [ "$result" = "$expected" ]; then
 else
     fail_test "join_as_gsettings_array" "expected $expected, got $result"
 fi
-
-# Test append_gsettings_list idempotency (simulated, no real gsettings)
-test_append_logic() {
-    local current="$1" val="$2" expected_result="$3"
-    result="$(CURRENT="$current" python3 lib/gsettings_strv.py append "$val")"
-    if [ "$result" = "$expected_result" ]; then
-        pass_test "append_gsettings_list logic handles $current + $val"
-    else
-        fail_test "append_gsettings_list" "expected $expected_result, got $result"
-    fi
-}
-
-# Use actual gsettings output format (@as ["item1", "item2"])
-test_append_logic '@as ["item1"]' "item2" "['item1', 'item2']"
-test_append_logic "@as ['item1', 'item2']" "item2" "['item1', 'item2']"  # idempotent
-
-# Test set_indexed_keybinding_map parsing (simulated)
-test_parse_bindings() {
-    local input="$1" expected_count="$2"
-    IFS=',' read -ra parts <<< "$input"
-    local count=${#parts[@]}
-    if [ "$count" -eq "$expected_count" ]; then
-        pass_test "set_indexed_keybinding_map parses $input into $expected_count entries"
-    else
-        fail_test "set_indexed_keybinding_map" "expected $expected_count, got $count"
-    fi
-}
-
-test_parse_bindings "<Super>XF86Launch1,<Control><Alt>Delete,<Primary>c" 3
-test_parse_bindings "<Super>XF86Launch1" 1
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

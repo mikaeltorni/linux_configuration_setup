@@ -5,7 +5,6 @@
 #   - msg(msg): User-facing message with arrow prefix.
 #   - need_cmd(cmd): Check if a command exists in PATH.
 #   - apt_install(pkgs...): Idempotently install missing apt packages.
-#   - toml_string_array(name): Format a bash array as a TOML string array.
 #   - run_as_target(cmd...): Execute a command as the target user.
 #   - ensure_session_bus(): Exit with error if session bus is missing.
 #   - find_desktop_file_path(name): Find full path to a .desktop file.
@@ -81,23 +80,6 @@ apt_install() {
   DEBIAN_FRONTEND=noninteractive apt-get update -y >/dev/null 2>&1 || \
     log "warn" "apt_install: 'apt-get update' failed; attempting install anyway"
   DEBIAN_FRONTEND=noninteractive apt-get install -y "${missing[@]}"
-}
-
-# toml_string_array — Format a named bash array as a TOML string array literal.
-#   Escapes backslashes and double quotes in each element.
-#   Args: $1 — name of the array variable to format (passed by name).
-#   Returns: 0 and prints e.g. ["a", "b"]; non-zero if the array is unreadable.
-toml_string_array() {
-  local ref="$1" item result="[" sep="" arr=()
-  eval "arr=(\"\${$ref[@]}\")" || return 1
-  for item in "${arr[@]}"; do
-    item="${item//\\/\\\\}"
-    item="${item//\"/\\\"}"
-    result+="${sep}\"${item}\""
-    sep=", "
-  done
-  result+="]"
-  printf '%s\n' "$result"
 }
 
 # run_as_target — Run a command as the target (non-root) user with the desktop
