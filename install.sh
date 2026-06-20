@@ -66,6 +66,10 @@ main_inner() {
   return $rc
 }
 
+# run_and_log_with_reboot — Run main_inner, tee all output to a timestamped log
+#   under SCRIPT_DIR/.log, and print the final reboot/log-out guidance.
+#   Args: $@ — arguments forwarded to main_inner (component selection flags).
+#   Returns: 0 (the log file is always written; reboot is never performed).
 run_and_log_with_reboot() {
   local ts log_dir log_file
   ts=$(date +"%Y%m%d-%H%M%S")

@@ -13,7 +13,10 @@
 
 # ── RTC configuration ────────────────────────────────────────────────────────
 
-# configure_rtc — Set the hardware clock to local time.
+# configure_rtc — Set the hardware clock to local time (dual-boot clock fix).
+#   Args: none.
+#   Returns: 0 when RTC is already local, the step is skipped (non-root), or
+#     timedatectl succeeds; non-zero if timedatectl fails while running as root.
 configure_rtc() {
   msg "Setting RTC to local time"
   if [ "$(timedatectl show --property=LocalRTC --value 2>/dev/null)" = "yes" ]; then
@@ -30,6 +33,7 @@ configure_rtc() {
 # ── Clock & calendar configuration ───────────────────────────────────────────
 
 # configure_clock_calendar — Enable weekday + week numbers in GNOME clock/calendar.
+#   Args: none. Returns: 0 (best-effort; only sets keys the schema defines).
 configure_clock_calendar() {
   msg "Enabling weekday + week numbers in GNOME clock/calendar"
   user_gsettings_set_if_key_exists org.gnome.desktop.interface clock-show-weekday true
@@ -39,6 +43,7 @@ configure_clock_calendar() {
 # ── Screen lock configuration ────────────────────────────────────────────────
 
 # configure_disable_auto_lock — Disable screen auto-lock and idle activation.
+#   Args: none. Returns: 0 (each gsettings write is best-effort).
 configure_disable_auto_lock() {
   msg "Disabling screen auto-lock"
   user_gsettings set org.gnome.desktop.session idle-delay 0 || true
@@ -50,6 +55,7 @@ configure_disable_auto_lock() {
 
 # configure_dark_mode — Enable dark mode system-wide.
 #   Sets GTK theme (Adwaita-dark or Yaru-dark), icon theme, and user-theme extension.
+#   Args: none. Returns: 0 (each gsettings write is best-effort).
 configure_dark_mode() {
   msg "Enabling dark mode system-wide"
 
@@ -71,6 +77,10 @@ configure_dark_mode() {
 
 # disable_mouse_acceleration — Set flat mouse/touchpad acceleration profile.
 #   Configures GNOME settings for both Wayland and Xorg, plus an X11 libinput fallback.
+#   Args: none.
+#   Returns: 0 when settings are applied, the X11 config already exists, or the
+#     root-only file write is deferred (non-root); non-zero if writing the
+#     /etc/X11 config fails while running as root.
 disable_mouse_acceleration() {
   msg "Disabling mouse acceleration (flat profile)"
 
@@ -105,6 +115,7 @@ EOF
 # ── Tmux configuration ───────────────────────────────────────────────────────
 
 # configure_tmux_defaults — Install .tmux.conf from CONFIG_DIR for the target user.
+#   Args: none. Returns: 0 (logs a warning and skips if the source is missing).
 configure_tmux_defaults() {
   msg "Configuring tmux defaults for $TARGET_USER"
 

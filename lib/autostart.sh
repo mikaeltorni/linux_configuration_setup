@@ -24,6 +24,7 @@
 #     $2: Display name for the entry
 #     $3: Exec command string
 #     $@: Candidate desktop filenames to search for
+#   Returns: 0 (file copy/creation is best-effort and never aborts the caller).
 configure_autostart_entry() {
   local dest_basename="$1"
   local entry_name="$2"
@@ -67,6 +68,7 @@ fi' || true
 # ── Application-specific autostart ───────────────────────────────────────────
 
 # configure_spotify_autostart — Enable Spotify to start on login.
+#   Args: none. Returns: 0.
 configure_spotify_autostart() {
   msg "Enabling Spotify autostart"
 
@@ -78,6 +80,7 @@ configure_spotify_autostart() {
 }
 
 # configure_gitkraken_autostart — Enable GitKraken to start on login.
+#   Args: none. Returns: 0.
 configure_gitkraken_autostart() {
   msg "Enabling GitKraken autostart"
 
@@ -92,7 +95,9 @@ configure_gitkraken_autostart() {
     gitkraken.desktop gitkraken_gitkraken.desktop
 }
 
-# configure_autostart_apps — Create a launcher script for Kitty.
+# configure_autostart_apps — Create the Kitty launcher script and its autostart
+#   entry so Kitty opens on login.
+#   Args: none. Returns: 0.
 configure_autostart_apps() {
   msg "Autostarting Kitty"
   run_as_target install -d -m 0755 "$TARGET_HOME/.local/bin"
@@ -102,8 +107,7 @@ set -u
 
 launch_if_exists() {
   local cmd="$1"
-  # Shift first argument; safe even if empty
-    shift
+  shift  # drop the command name; remaining args pass through to the launch
   if command -v "$cmd" >/dev/null 2>&1; then
     "$cmd" "$@" &
   fi
@@ -148,6 +152,7 @@ fi'
 # ── EasyEffects autostart ────────────────────────────────────────────────────
 
 # configure_easyeffects_autostart — Enable EasyEffects autostart + systemd service.
+#   Args: none. Returns: 0 (the systemd enable step is best-effort).
 configure_easyeffects_autostart() {
   msg "Ensuring EasyEffects autostarts"
 
@@ -167,6 +172,7 @@ configure_easyeffects_autostart() {
 #   that launches the Chrome PWA and autostarts it on login. The desktop file
 #   is named "monkeytype.desktop" so the app-rules@local GNOME extension can
 #   match it to workspace 7.
+#   Args: none. Returns: 0 (skips cleanly if the Monkeytype PWA is not found).
 configure_monkeytype_autostart() {
   msg "Configuring Monkeytype PWA autostart (workspace 7)"
 

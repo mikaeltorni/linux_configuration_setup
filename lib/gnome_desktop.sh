@@ -150,6 +150,7 @@ configure_uv_autostart() {
 # configure_app_rules_extension — Deploy/update the app-rules@local extension.
 #   Copies the extension from CONFIG_DIR to ~/.local/share/gnome-shell/extensions/
 #   and ensures proper ownership. The user must log out/in for changes to take effect.
+#   Args: none. Returns: 0 (skips cleanly if the extension source is missing).
 configure_app_rules_extension() {
   msg "Deploying app-rules@local GNOME Shell extension"
 
