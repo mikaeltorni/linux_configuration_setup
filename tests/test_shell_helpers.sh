@@ -115,6 +115,7 @@ test_apt_install_missing() {
     (
         dpkg() { return 1; }                       # pretend nothing is installed
         apt-get() { [ "$1" = "install" ] && echo "$*" >>"$marker"; return 0; }
+        is_root() { return 0; }
         log() { :; }
         apt_install needs-install >/dev/null 2>&1
     )
@@ -147,26 +148,10 @@ else
     fail_test "join_as_gsettings_array" "expected $expected, got $result"
 fi
 
-# Test append_gsettings_list idempotency (simulated — no real gsettings)
-# Simulates the Python heredoc logic from gsettings_helpers.sh
+# Test append_gsettings_list idempotency (simulated, no real gsettings)
 test_append_logic() {
     local current="$1" val="$2" expected_result="$3"
-    # The CURRENT env var should match actual gsettings output format: @as ["item1", "item2"]
-    result="$(CURRENT="$current" VAL="$val" python3 - <<'PY'
-import ast, os
-cur_raw = os.environ.get("CURRENT", "").strip()
-if cur_raw.startswith("@as "):
-    cur_raw = cur_raw[4:].strip()
-try:
-    cur = ast.literal_eval(cur_raw) if cur_raw else []
-except Exception:
-    cur = []
-val = os.environ["VAL"]
-if val not in cur:
-    cur.append(val)
-print("[" + ", ".join(f"'{v}'" for v in cur) + "]")
-PY
-)"
+    result="$(CURRENT="$current" python3 lib/gsettings_strv.py append "$val")"
     if [ "$result" = "$expected_result" ]; then
         pass_test "append_gsettings_list logic handles $current + $val"
     else
