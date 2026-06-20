@@ -174,6 +174,7 @@ PURPLE_CROSS_CURSOR_ALIASES=(
 #   Args: $1 - cursors directory to populate. Returns: 0.
 link_purple_cross_cursor_aliases() {
   local cursors_dir="$1"
+  log "debug" "link_purple_cross_cursor_aliases: linking ${#PURPLE_CROSS_CURSOR_ALIASES[@]} roles in $cursors_dir"
   local cursor_name
   for cursor_name in "${PURPLE_CROSS_CURSOR_ALIASES[@]}"; do
     run_as_target ln -sf left_ptr "$cursors_dir/$cursor_name"
@@ -189,6 +190,7 @@ write_purple_cross_cursor_index() {
   local name="$2"
   local inherits="$3"
 
+  log "debug" "write_purple_cross_cursor_index: $index_path (Name=$name, Inherits=$inherits)"
   run_as_target tee "$index_path" >/dev/null <<EOF
 [Icon Theme]
 Name=$name

@@ -15,6 +15,7 @@
 #   Returns: 0 and prints the matching .desktop id, or "kitty.desktop" as a
 #     fallback when none are installed.
 detect_terminal_desktop() {
+  log "debug" "detect_terminal_desktop: probing installed terminal emulators"
   local candidate
   for candidate in kitty.desktop org.gnome.Terminal.desktop org.gnome.Console.desktop org.gnome.Ptyxis.desktop; do
     if find_desktop_file_path "$candidate" >/dev/null 2>&1; then echo "$candidate"; return 0; fi
@@ -25,7 +26,7 @@ detect_terminal_desktop() {
 # first_existing_desktop — Print the first existing .desktop entry from the given
 #   candidates, or nothing if none exist (never fails the caller).
 #   Args: $@ — candidate desktop ids. Returns: 0.
-first_existing_desktop() { find_desktop_entry "$@" || true; }
+first_existing_desktop() { log "debug" "first_existing_desktop: $*"; find_desktop_entry "$@" || true; }
 
 # configure_favorites — Build the GNOME dash favorite-apps list from the apps
 #   that are actually installed and apply it.

@@ -32,6 +32,7 @@ configure_autostart_entry() {
   local candidates=("$@")
   local desktop_src=""
 
+  log "debug" "configure_autostart_entry: dest=$dest_basename name='$entry_name' candidates='${candidates[*]}'"
   run_as_target mkdir -p "$TARGET_HOME/.config/autostart"
 
   for candidate in "${candidates[@]}"; do

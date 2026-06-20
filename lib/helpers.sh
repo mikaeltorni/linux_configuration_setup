@@ -13,6 +13,13 @@
 # Must be sourced after SCRIPT_DIR, CONFIG_DIR, TARGET_USER, TARGET_HOME,
 # RUNTIME_DIR, DISPLAY_VAL, USER_BUS are set.
 
+# Ensure the centralized logger is available so every helper can emit log lines
+# even when this file is sourced on its own (e.g. in tests). Idempotent:
+# install.sh also sources logging.sh explicitly, and re-sourcing is harmless.
+if ! declare -F log >/dev/null 2>&1; then
+  source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/logging.sh"
+fi
+
 # msg — Print a user-facing message to stdout with an "==> " arrow prefix.
 #   Args: $* — message text to display.
 #   Returns: always 0.
@@ -21,11 +28,11 @@ msg() { printf "\n==> %s\n" "$*"; }
 # need_cmd — Test whether a command is available on PATH.
 #   Args: $1 — command name to look up.
 #   Returns: 0 if the command exists, non-zero otherwise.
-need_cmd() { command -v "$1" >/dev/null 2>&1; }
+need_cmd() { log "debug" "need_cmd: checking for '$1'"; command -v "$1" >/dev/null 2>&1; }
 
 # is_root — Test whether the script runs with root privileges.
 #   Args: none. Returns: 0 when root, non-zero otherwise.
-is_root() { [ "$(id -u)" -eq 0 ]; }
+is_root() { log "debug" "is_root: euid=$(id -u)"; [ "$(id -u)" -eq 0 ]; }
 
 # Root-only steps skipped during a non-root run; reported at the end.
 SUDO_REQUIRED_STEPS=()
@@ -88,6 +95,7 @@ apt_install() {
 #   Args: $@ — command and arguments to execute.
 #   Returns: the exit status of the executed command.
 run_as_target() {
+  log "debug" "run_as_target: $*"
   if [ "$(id -un)" = "$TARGET_USER" ]; then
     env \
       HOME="$TARGET_HOME" \
@@ -139,6 +147,7 @@ DESKTOP_DIRS=(
 #     matching file is found.
 find_desktop_file_path() {
   local name="$1"
+  log "debug" "find_desktop_file_path: looking up '$name'"
   local dir path="$name"
   if [[ "$name" != *.desktop ]]; then
     path="${name}.desktop"
@@ -158,6 +167,7 @@ find_desktop_file_path() {
 #   Returns: 0 and prints the matching "<name>.desktop" basename; non-zero if
 #     none of the candidates exist.
 find_desktop_entry() {
+  log "debug" "find_desktop_entry: candidates: $*"
   local candidate
   for candidate in "$@"; do
     if find_desktop_file_path "$candidate" >/dev/null; then
