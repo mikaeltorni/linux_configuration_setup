@@ -6,6 +6,19 @@
 
 Installer run logs are written to the repository-local `.log/` directory.
 
+## Repository dependencies
+
+This repository installs and runs **standalone** — it has no hard dependency on
+any sibling setup repository.
+
+- **Build-time (soft):** the shared installer component framework
+  [`linux_installation_scripts_functions`](https://github.com/mikaeltorni/linux_installation_scripts_functions) —
+  loaded from a sibling checkout when present, otherwise downloaded on demand,
+  so a missing checkout never blocks installation.
+
+See the full cross-repository map in
+[installation_scripts/DEPENDENCIES.md](https://github.com/mikaeltorni/installation_scripts/blob/master/DEPENDENCIES.md).
+
 ## Overview
 
 This repository configures the GNOME desktop environment after base packages are installed. It handles:
