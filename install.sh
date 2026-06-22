@@ -27,10 +27,25 @@ DISPLAY_VAL="${DISPLAY:-:0}"
 USER_BUS="unix:path=${RUNTIME_DIR}/bus"
 SESSION_TYPE="${XDG_SESSION_TYPE:-unknown}"
 
-source "$SCRIPT_DIR/lib/helpers.sh"
 source "$SCRIPT_DIR/lib/logging.sh"
+
+# Load the shared installer framework + shared install-time helpers (single
+# source of truth in linux_installation_scripts_functions) before any library or
+# step uses run_as_target/msg/apt_install. No vendored copy: resolve a sibling
+# checkout or download on demand.
+for __isc_d in "${ISC_FUNCTIONS_DIR:-}" \
+               "$SCRIPT_DIR/../linux_installation_scripts_functions" \
+               "$HOME/projects/linux_installation_scripts_functions"; do
+  [ -n "$__isc_d" ] && [ -f "$__isc_d/component_loader.sh" ] && { source "$__isc_d/component_loader.sh"; break; }
+done
+declare -F isc_load_helpers >/dev/null 2>&1 || \
+  source <(curl -fsSL "https://raw.githubusercontent.com/mikaeltorni/linux_installation_scripts_functions/${ISC_FUNCTIONS_REF:-master}/component_loader.sh")
+isc_load_helpers
+
+source "$SCRIPT_DIR/lib/helpers.sh"
 source "$SCRIPT_DIR/lib/gsettings_helpers.sh"
 source "$SCRIPT_DIR/lib/system_config.sh"
+source "$SCRIPT_DIR/lib/keyring.sh"
 source "$SCRIPT_DIR/lib/autostart.sh"
 source "$SCRIPT_DIR/lib/gnome_desktop.sh"
 source "$SCRIPT_DIR/lib/cursor_theme.sh"
@@ -38,17 +53,9 @@ source "$SCRIPT_DIR/lib/pwa_icons.sh"
 
 # Component selection runtime and this repository's component manifest. The
 # runtime provides --list-components / --select / --default / interactive
-# selection; the manifest maps each component id to a configure_* step above.
-# Load the shared installer component framework. Its single source of truth is
-# the linux_installation_scripts_functions repository (cloned as a sibling by
-# installation_scripts, or downloaded on demand) -- no per-repo vendored copy.
-for __isc_d in "${ISC_FUNCTIONS_DIR:-}" \
-               "$SCRIPT_DIR/../linux_installation_scripts_functions" \
-               "$HOME/projects/linux_installation_scripts_functions"; do
-  [ -n "$__isc_d" ] && [ -f "$__isc_d/component_loader.sh" ] && { source "$__isc_d/component_loader.sh"; break; }
-done
-declare -F isc_activate_components >/dev/null 2>&1 || \
-  source <(curl -fsSL "https://raw.githubusercontent.com/mikaeltorni/linux_installation_scripts_functions/${ISC_FUNCTIONS_REF:-master}/component_loader.sh")
+# selection; the manifest maps each component id to a configure_* step above. The
+# framework was already resolved above (for isc_load_helpers); activate the
+# component runtime from the same checkout.
 isc_activate_components
 source "$SCRIPT_DIR/installer/components.sh"
 

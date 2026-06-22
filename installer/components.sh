@@ -21,6 +21,7 @@ ISC_COMPONENTS=(
   "rtc|Local-time RTC (dual-boot clock fix)|on|configure_rtc"
   "clock_calendar|Clock and calendar display|on|configure_clock_calendar"
   "disable_auto_lock|Disable screen auto-lock|on|configure_disable_auto_lock"
+  "passwordless_keyring|Prompt-free login keyring|on|configure_passwordless_keyring"
   "dark_mode|Dark mode and themes|on|configure_dark_mode"
   "mouse_accel|Disable mouse acceleration|on|disable_mouse_acceleration"
   "favorites|Dock favorite apps|on|configure_favorites"
