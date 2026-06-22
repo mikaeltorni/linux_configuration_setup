@@ -20,6 +20,8 @@ mkdir -p \
   "$TARGET_HOME/.local/share/applications" \
   "$RUNTIME_DIR"
 
+log() { :; }  # silence shared-helper debug logging in this harness
+source "$SCRIPT_DIR/../linux_installation_scripts_functions/installer_helpers.sh"
 source "$SCRIPT_DIR/lib/helpers.sh"
 source "$SCRIPT_DIR/lib/autostart.sh"
 

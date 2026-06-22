@@ -23,6 +23,10 @@ mkdir -p "$TARGET_HOME/.local/share/applications"
 touch "$TARGET_HOME/.local/share/applications/custom.desktop"
 
 # ── helpers.sh tests ────────────────────────────────────────────────────────
+# Shared helpers (need_cmd, apt_install, run_as_target, …) live in the framework;
+# repo-specific helpers (find_desktop_*) live in lib/helpers.sh.
+log() { :; }  # silence the framework helpers' debug logging in this harness
+source "$ROOT_DIR/../linux_installation_scripts_functions/installer_helpers.sh"
 source lib/helpers.sh
 
 # Test need_cmd returns correct exit codes for existing command
