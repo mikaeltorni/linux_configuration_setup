@@ -24,6 +24,7 @@ See the full cross-repository map in
 This repository configures the GNOME desktop environment after base packages are installed. It handles:
 
 - **System configuration**: RTC to local time, clock/calendar display, screen auto-lock
+- **Prompt-free credentials**: passwordless GNOME Login keyring for automatic-login sessions
 - **Dark mode**: GTK theme, icon theme, cursor theme (Purple Cross)
 - **GNOME favorites**: Taskbar/dock favorite apps with terminal detection
 - **Terminal themes**: Dark background/light text for Console, Ptyxis, GNOME Terminal
@@ -50,11 +51,21 @@ sudo bash install.sh
 ## Idempotency
 
 All configuration steps are idempotent:
+
 - GSettings: uses `set_if_key_exists` pattern — no duplicate values
 - Autostart entries: checks for existing `.desktop` files before creating
 - EasyEffects preset: only copies if source exists, overwrites in place
 - PWA icons: repairs icon links for every available size and refreshes desktop entries with direct icon paths
 - Cursor theme: rebuilds the Purple Cross cursor, maps common pointer/hover/drag/resize roles back to it, and updates both modern and legacy Xcursor default inheritance paths
+
+The `passwordless_keyring` component keeps Secret Service enabled but removes
+its at-rest password. This prevents unlock dialogs during automatic login and
+when applications access stored credentials. Existing items are migrated into
+a verified replacement without touching the running keyring daemon. A one-shot
+user service activates it before GNOME Keyring starts on the next reboot, and
+retains the prior encrypted files under
+`~/.local/state/linux-configuration-setup/keyring-backups/` for rollback. The
+passwordless keyring is not protected by an at-rest password.
 
 ## Development
 
@@ -173,7 +184,6 @@ or none, and **Enter** installs the selection. Components:
 | `app_rules` | App window rules extension | on |
 | `uv_setup` | UV package manager setup | on |
 | `tmux_defaults` | Tmux defaults | on |
-
 
 ## Disclaimer
 
