@@ -105,6 +105,12 @@ source "$SCRIPT_DIR/lib/cursor_theme.sh"
 
 theme_dir="$TARGET_HOME/.local/share/icons/$PURPLE_CROSS_CURSOR_THEME_NAME"
 legacy_theme_dir="$TARGET_HOME/.icons/$PURPLE_CROSS_CURSOR_THEME_NAME"
+source_cursor_dir="$TARGET_HOME/source-icons/TestTheme/cursors"
+mkdir -p "$source_cursor_dir"
+printf 'source cursor\n' >"$source_cursor_dir/text-field-role"
+printf 'source cursor\n' >"$source_cursor_dir/custom.cur"
+printf 'source cursor\n' >"$source_cursor_dir/left_ptr"
+PURPLE_CROSS_CURSOR_DISCOVERY_DIRS=("$TARGET_HOME/source-icons")
 assert_eq "48" "$PURPLE_CROSS_CURSOR_SIZE" "uses a visible cursor size"
 
 configure_purple_cross_default_cursor
@@ -159,6 +165,8 @@ cursor_dir="$theme_dir/cursors"
 assert_file_exists "$cursor_dir/left_ptr" "builds the primary cursor"
 assert_symlink_target "$cursor_dir/default" "left_ptr" "links the default cursor role"
 assert_symlink_target "$cursor_dir/text" "left_ptr" "links the text cursor role"
+assert_symlink_target "$cursor_dir/text-field-role" "left_ptr" "links discovered text-field roles"
+assert_symlink_target "$cursor_dir/custom.cur" "left_ptr" "links discovered application-specific roles"
 assert_symlink_target "$cursor_dir/grabbing" "left_ptr" "links the grabbing cursor role"
 assert_symlink_target "$cursor_dir/nwse-resize" "left_ptr" "links a resize cursor role"
 assert_file_contains \
@@ -193,7 +201,12 @@ assert_path_absent \
   "$TARGET_HOME/.cache/isc/purple-cross-cursor-build" \
   "removes temporary build files"
 
-expected_alias_count="${#PURPLE_CROSS_CURSOR_ALIASES[@]}"
+expected_alias_count="$(
+  {
+    printf '%s\n' "${PURPLE_CROSS_CURSOR_ALIASES[@]}"
+    printf '%s\n' text-field-role custom.cur
+  } | sort -u | wc -l
+)"
 actual_alias_count="$(find "$cursor_dir" -maxdepth 1 -type l | wc -l)"
 assert_eq "$expected_alias_count" "$actual_alias_count" "links every declared cursor alias"
 

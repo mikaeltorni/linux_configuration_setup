@@ -2,12 +2,19 @@
 # cursor_theme.sh - Purple Cross cursor theme configuration.
 #
 # Public functions:
+#   - collect_purple_cross_cursor_aliases(): Print cursor roles to alias.
 #   - link_purple_cross_cursor_aliases(): Link all cursor roles to Purple Cross.
 #   - write_purple_cross_cursor_index(): Write cursor theme inheritance metadata.
 #   - configure_purple_cross_default_cursor(): Install the Purple Cross theme.
 
 PURPLE_CROSS_CURSOR_THEME_NAME="PurpleCrossDefault"
 PURPLE_CROSS_CURSOR_SIZE=48
+PURPLE_CROSS_CURSOR_DISCOVERY_DIRS=(
+  "$TARGET_HOME/.icons"
+  "$TARGET_HOME/.local/share/icons"
+  /usr/share/icons
+  /usr/share/pixmaps
+)
 
 PURPLE_CROSS_CURSOR_ALIASES=(
   00000000000000020006000e7e9ffc3f
@@ -169,16 +176,50 @@ PURPLE_CROSS_CURSOR_ALIASES=(
   zoom-out
 )
 
+# collect_purple_cross_cursor_aliases - Print unique cursor role names that
+#   should resolve to the Purple Cross. Includes a maintained fallback list plus
+#   every cursor filename discovered from installed themes, so toolkit-specific
+#   roles do not fall back to their original shape.
+#   Args: none. Returns: 0.
+collect_purple_cross_cursor_aliases() {
+  local -A seen=()
+  local cursor_name search_root path
+
+  for cursor_name in "${PURPLE_CROSS_CURSOR_ALIASES[@]}"; do
+    if [ -n "$cursor_name" ] && [ "$cursor_name" != "left_ptr" ]; then
+      seen["$cursor_name"]=1
+    fi
+  done
+
+  for search_root in "${PURPLE_CROSS_CURSOR_DISCOVERY_DIRS[@]}"; do
+    [ -d "$search_root" ] || continue
+    while IFS= read -r -d '' path; do
+      cursor_name="${path##*/}"
+      if [ -n "$cursor_name" ] && [ "$cursor_name" != "left_ptr" ]; then
+        seen["$cursor_name"]=1
+      fi
+    done < <(find "$search_root" -path '*/cursors/*' \( -type f -o -type l \) -print0 2>/dev/null)
+  done
+
+  if [ "${#seen[@]}" -eq 0 ]; then
+    return 0
+  fi
+  printf '%s\0' "${!seen[@]}" | sort -z
+}
+
 # link_purple_cross_cursor_aliases - Symlink every cursor role name to the built
 #   left_ptr cursor so all roles render as the Purple Cross.
 #   Args: $1 - cursors directory to populate. Returns: 0.
 link_purple_cross_cursor_aliases() {
   local cursors_dir="$1"
-  log "debug" "link_purple_cross_cursor_aliases: linking ${#PURPLE_CROSS_CURSOR_ALIASES[@]} roles in $cursors_dir"
+  log "debug" "link_purple_cross_cursor_aliases: linking cursor roles in $cursors_dir"
   local cursor_name
-  for cursor_name in "${PURPLE_CROSS_CURSOR_ALIASES[@]}"; do
+  local linked_count=0
+  while IFS= read -r -d '' cursor_name; do
     run_as_target ln -sf left_ptr "$cursors_dir/$cursor_name"
-  done
+    linked_count=$((linked_count + 1))
+  done < <(collect_purple_cross_cursor_aliases)
+  log "debug" "link_purple_cross_cursor_aliases: linked $linked_count roles in $cursors_dir"
 }
 
 # write_purple_cross_cursor_index - Write an index.theme file describing a

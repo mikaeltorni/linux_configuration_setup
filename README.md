@@ -57,7 +57,7 @@ All configuration steps are idempotent:
 - Autostart entries: checks for existing `.desktop` files before creating
 - EasyEffects preset: only copies if source exists, overwrites in place
 - PWA icons: repairs icon links for every available size and refreshes desktop entries with direct icon paths
-- Cursor theme: rebuilds the Purple Cross cursor at 48px for visibility, maps common pointer/hover/drag/resize roles back to it, updates both modern and legacy Xcursor default inheritance paths, and exposes the generated theme through `~/.icons/PurpleCrossDefault`
+- Cursor theme: rebuilds the Purple Cross cursor at 48px for visibility, maps every discovered pointer/text/hover/drag/resize role back to it, updates both modern and legacy Xcursor default inheritance paths, and exposes the generated theme through `~/.icons/PurpleCrossDefault`
 
 The `passwordless_keyring` component keeps Secret Service enabled but removes
 its at-rest password. This prevents unlock dialogs during automatic login and
