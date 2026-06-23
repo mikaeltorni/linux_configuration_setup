@@ -100,6 +100,7 @@ assert_eq() {
   fi
 }
 
+source "$SCRIPT_DIR/lib/helpers.sh"
 source "$SCRIPT_DIR/lib/cursor_theme.sh"
 
 theme_dir="$TARGET_HOME/.local/share/icons/$PURPLE_CROSS_CURSOR_THEME_NAME"
@@ -134,6 +135,8 @@ EOF
 chmod +x "$FAKE_BIN/python3" "$FAKE_BIN/xcursorgen"
 PATH="$FAKE_BIN:$PATH"
 export PATH
+PYTHON_CANDIDATES=python3
+export PYTHON_CANDIDATES
 
 FAKE_PIL_AVAILABLE=0
 export FAKE_PIL_AVAILABLE

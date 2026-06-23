@@ -219,9 +219,10 @@ configure_purple_cross_default_cursor() {
   local default_theme_dir="$TARGET_HOME/.local/share/icons/default"
   local legacy_default_theme_dir="$TARGET_HOME/.icons/default"
   local build_dir="$TARGET_HOME/.cache/isc/purple-cross-cursor-build"
+  local python_bin
 
   if ! need_cmd xcursorgen; then apt_install x11-apps; fi
-  if ! python3 -c "from PIL import Image" >/dev/null 2>&1; then
+  if ! python_bin="$(find_python_with_module PIL)"; then
     log "warn" "python3-pil is required to build the Purple Cross cursor — skipping cursor setup"
     return 0
   fi
@@ -232,7 +233,8 @@ configure_purple_cross_default_cursor() {
 
   local png_path="$build_dir/purple-cross.png"
   local hotspot
-  if ! hotspot="$(run_as_target python3 "$SCRIPT_DIR/scripts/extract_cursor.py" \
+  log "debug" "configure_purple_cross_default_cursor: using $python_bin for cursor extraction"
+  if ! hotspot="$(run_as_target "$python_bin" "$SCRIPT_DIR/scripts/extract_cursor.py" \
     "$asset_path" "$png_path" "$PURPLE_CROSS_CURSOR_SIZE")"; then
     log "warn" "failed to extract Purple Cross cursor asset — skipping cursor setup"
     return 0

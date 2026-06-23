@@ -15,6 +15,24 @@ DESKTOP_DIRS=(
   "$TARGET_HOME/.local/share/applications"
 )
 
+# find_python_with_module — Print a Python executable that can import a module.
+#   Checks PATH first, then /usr/bin/python3 so user-managed Python shims do not
+#   hide APT-provided desktop bindings during clean installs.
+#   PYTHON_CANDIDATES may override the candidate list for tests.
+#   Args: $1 — module import name. Returns: 0 and prints the executable path.
+find_python_with_module() {
+  local module="$1"
+  local candidate
+  for candidate in ${PYTHON_CANDIDATES:-python3 /usr/bin/python3}; do
+    if command -v "$candidate" >/dev/null 2>&1 &&
+       "$candidate" -c "import ${module}" >/dev/null 2>&1; then
+      command -v "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
 # find_desktop_file_path — Locate the full path of a .desktop file by name.
 #   Searches the standard system, snap, and per-user application directories.
 #   Args: $1 — desktop entry name, with or without the ".desktop" suffix.

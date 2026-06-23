@@ -65,6 +65,13 @@ test_find_desktop() {
 test_find_desktop "custom.desktop" "$TARGET_HOME/.local/share/applications/custom.desktop"
 test_find_desktop "nonexistent.desktop" ""
 
+result="$(find_python_with_module sys)" || true
+if [ -n "$result" ]; then
+    pass_test "find_python_with_module finds a Python with stdlib modules"
+else
+    fail_test "find_python_with_module" "should find Python for sys"
+fi
+
 # Test find_desktop_entry returns basename of first match
 result="$(find_desktop_entry custom.desktop nonexistent.desktop)" || true
 if [ "$result" = "custom.desktop" ]; then
