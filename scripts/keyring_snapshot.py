@@ -6,13 +6,18 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import logging
 import os
 from pathlib import Path
 
 import gi
 
+from logging_utils import get_logger, log_call
+
 gi.require_version("Secret", "1")
 from gi.repository import Gio, GLib, Secret  # noqa: E402
+
+LOGGER = get_logger("keyring-snapshot", "python-helpers.log")
 
 
 def load_service() -> Secret.Service:
@@ -28,6 +33,7 @@ def load_service() -> Secret.Service:
     return service
 
 
+@log_call(LOGGER, logging.INFO)
 def export_items(path: Path) -> int:
     """Write all user items to a mode-0600 JSON snapshot."""
     items: list[dict[str, object]] = []
@@ -39,6 +45,7 @@ def export_items(path: Path) -> int:
             # This legacy helper unlocks another encrypted keyring. Restoring it
             # would reintroduce the prompt that this migration removes.
             if "keyring" in attributes:
+                LOGGER.info("Skipping legacy keyring-unlock helper item")
                 continue
             item.load_secret_sync(None)
             value = item.get_secret()
@@ -58,10 +65,12 @@ def export_items(path: Path) -> int:
     with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
         json.dump(items, handle, separators=(",", ":"), sort_keys=True)
     os.chmod(path, 0o600)
+    LOGGER.info("Exported %d keyring item(s) to %s", len(items), path)
     print(f"Exported {len(items)} keyring item(s)")
     return len(items)
 
 
+@log_call(LOGGER)
 def login_collection(service: Secret.Service) -> Secret.Collection:
     """Find the passwordless Login collection created by PAM initialization."""
     for collection in service.get_collections():
@@ -80,6 +89,7 @@ def create_raw_item(
     content_type: str,
 ) -> None:
     """Create an item through D-Bus so arbitrary binary secrets are retained."""
+    LOGGER.info("Creating keyring item %r with content type %s", label, content_type)
     service_proxy = Gio.DBusProxy.new_for_bus_sync(
         Gio.BusType.SESSION,
         Gio.DBusProxyFlags.NONE,
@@ -120,6 +130,7 @@ def create_raw_item(
         raise RuntimeError(f"Secret Service requested an unexpected prompt for {label!r}")
 
 
+@log_call(LOGGER, logging.INFO)
 def import_items(path: Path) -> int:
     """Restore snapshot items into Login and make it the default collection."""
     with path.open(encoding="utf-8") as handle:
@@ -138,22 +149,27 @@ def import_items(path: Path) -> int:
             raw_secret,
             item["content_type"],
         )
+    LOGGER.info("Restored %d keyring item(s) from %s", len(items), path)
     print(f"Restored {len(items)} keyring item(s)")
     return len(items)
 
 
+@log_call(LOGGER, logging.INFO)
 def check_keyring() -> None:
     """Require an unlocked Login collection and verify the default alias."""
     service = load_service()
     collection = login_collection(service)
     default = Secret.Collection.for_alias_sync(service, "default", 0, None)
     if default is None or default.get_object_path() != collection.get_object_path():
+        LOGGER.error("Login collection is not the default keyring collection")
         raise RuntimeError("Login is not the default keyring collection")
+    LOGGER.info("Prompt-free Login keyring is unlocked and default")
     print("Prompt-free Login keyring is unlocked")
 
 
 def store_test_item(attribute: str, value: str, password: str) -> None:
     """Create one fixture item for the isolated integration test."""
+    LOGGER.info("Storing isolated keyring migration test items")
     service = load_service()
     collection = login_collection(service)
     service.set_alias_sync("default", collection, None)
@@ -176,6 +192,7 @@ def store_test_item(attribute: str, value: str, password: str) -> None:
 
 def verify_test_item(attribute: str, value: str, password: str) -> None:
     """Verify the isolated integration-test fixture after restoration."""
+    LOGGER.info("Verifying isolated keyring migration test items")
     service = load_service()
     collection = login_collection(service)
     collection.load_items_sync(None)
@@ -186,8 +203,10 @@ def verify_test_item(attribute: str, value: str, password: str) -> None:
         if secret is not None:
             restored[item.get_attributes().get("xdg:schema", "")] = secret.get()
     if restored.get("keyring.migration.test") != password.encode():
+        LOGGER.error("Migrated text item did not retain its secret")
         raise RuntimeError("Migrated text item did not retain its secret")
     if restored.get("keyring.migration.binary-test") != bytes([0x94, 0x00, 0xFF]):
+        LOGGER.error("Migrated binary item did not retain its secret")
         raise RuntimeError("Migrated binary item did not retain its secret")
 
 
@@ -208,6 +227,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    LOGGER.info("Running keyring snapshot command: %s", args.command)
     if args.command == "export":
         export_items(args.path)
     elif args.command == "import":

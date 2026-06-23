@@ -3,7 +3,7 @@
 
 # _build_passwordless_keyring — Restore items into an isolated empty-password keyring.
 _build_passwordless_keyring() {
-  local snapshot="$1" staging_home="$2" helper="$3"
+  local snapshot="$1" staging_home="$2" helper="$3" python_bin="$4"
 
   run_as_target install -d -m 0700 "$staging_home" || return
   run_as_target env HOME="$staging_home" \
@@ -14,14 +14,15 @@ _build_passwordless_keyring() {
       install -d -m 0700 "$XDG_RUNTIME_DIR"
       printf "\n" | gnome-keyring-daemon --login >/dev/null
       gnome-keyring-daemon --start --components=secrets >/dev/null
-      python3 "$1" import "$2"
-      python3 "$1" check
-    ' bash "$helper" "$snapshot"
+      "$3" "$1" import "$2"
+      "$3" "$1" check
+    ' bash "$helper" "$snapshot" "$python_bin"
 }
 
 # _install_keyring_activation — Install and enable the next-boot activation unit.
 _install_keyring_activation() {
   local activator="$SCRIPT_DIR/scripts/activate_passwordless_keyring.sh"
+  local logging_lib="$SCRIPT_DIR/lib/logging.sh"
   local unit="$SCRIPT_DIR/configs/systemd/passwordless-keyring-activation.service"
   local unlock_dropin="$SCRIPT_DIR/configs/systemd/gnome-keyring-daemon.service.d/passwordless-login-unlock.conf"
   local libexec_dir="$TARGET_HOME/.local/libexec/linux-configuration-setup"
@@ -33,6 +34,8 @@ _install_keyring_activation() {
   run_as_target install -d -m 0755 "$keyring_dropin_dir" || return
   run_as_target install -m 0700 "$activator" \
     "$libexec_dir/activate-passwordless-keyring" || return
+  run_as_target install -m 0644 "$logging_lib" \
+    "$libexec_dir/logging.sh" || return
   run_as_target install -m 0644 "$unit" \
     "$unit_dir/passwordless-keyring-activation.service" || return
   run_as_target install -m 0644 "$unlock_dropin" \
@@ -70,7 +73,7 @@ configure_passwordless_keyring() {
   local marker="$state_dir/passwordless-keyring-v1"
   local pending_dir="$state_dir/passwordless-keyring-pending"
   local keyring_dir="$TARGET_HOME/.local/share/keyrings"
-  local migration_dir snapshot staging_home
+  local migration_dir snapshot staging_home python_bin
 
   msg "Configuring prompt-free GNOME login keyring"
   if ! need_cmd systemctl; then
@@ -82,13 +85,18 @@ configure_passwordless_keyring() {
   if run_as_target test -f "$marker" &&
      run_as_target test -f "$keyring_dir/login.keyring" &&
      [[ "$(run_as_target bash -c 'cat "$1" 2>/dev/null' bash "$keyring_dir/default")" == "login" ]]; then
-    if run_as_target python3 "$helper" check >/dev/null 2>&1; then
+    if ! python_bin="$(find_python_with_module gi)" ||
+       ! run_as_target "$python_bin" -c 'import gi; gi.require_version("Secret", "1")'; then
+      log "error" "Python Secret Service bindings are unavailable"
+      return 1
+    fi
+    if run_as_target "$python_bin" "$helper" check >/dev/null 2>&1; then
       msg "Prompt-free login keyring is already configured"
       return 0
     fi
     msg "Restarting GNOME Keyring daemon to apply prompt-free unlock"
     run_as_target systemctl --user restart gnome-keyring-daemon.service || return
-    if run_as_target python3 "$helper" check >/dev/null 2>&1; then
+    if run_as_target "$python_bin" "$helper" check >/dev/null 2>&1; then
       msg "Prompt-free login keyring is already configured"
       return 0
     fi
@@ -101,28 +109,31 @@ configure_passwordless_keyring() {
     return 0
   fi
 
-  for command in python3 gnome-keyring-daemon dbus-run-session; do
+  for command in gnome-keyring-daemon dbus-run-session; do
     if ! need_cmd "$command"; then
       log "error" "Required command is unavailable: $command"
       return 1
     fi
   done
-  if ! run_as_target python3 -c 'import gi; gi.require_version("Secret", "1")'; then
+  if [ -z "${python_bin:-}" ] &&
+     { ! python_bin="$(find_python_with_module gi)" ||
+       ! run_as_target "$python_bin" -c 'import gi; gi.require_version("Secret", "1")'; }; then
     log "error" "Python Secret Service bindings are unavailable"
     return 1
   fi
+  log "debug" "configure_passwordless_keyring: using $python_bin for Secret Service migration"
 
   migration_dir="$(run_as_target mktemp -d "$RUNTIME_DIR/keyring-migration.XXXXXX")" || return
   snapshot="$migration_dir/items.json"
   staging_home="$migration_dir/staging-home"
 
-  if ! run_as_target python3 "$helper" export "$snapshot"; then
+  if ! run_as_target "$python_bin" "$helper" export "$snapshot"; then
     log "error" "Keyring migration requires all collections to be unlocked once"
     run_as_target rm -rf "$migration_dir"
     return 1
   fi
 
-  if ! _build_passwordless_keyring "$snapshot" "$staging_home" "$helper" ||
+  if ! _build_passwordless_keyring "$snapshot" "$staging_home" "$helper" "$python_bin" ||
      ! _stage_passwordless_keyring "$staging_home" "$pending_dir" ||
      ! _install_keyring_activation; then
     log "error" "Could not stage the passwordless Login keyring"

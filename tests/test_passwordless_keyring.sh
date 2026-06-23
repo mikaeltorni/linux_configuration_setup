@@ -10,6 +10,7 @@ UNIT="$ROOT_DIR/configs/systemd/passwordless-keyring-activation.service"
 UNLOCK_DROPIN="$ROOT_DIR/configs/systemd/gnome-keyring-daemon.service.d/passwordless-login-unlock.conf"
 SANDBOX="$(mktemp -d)"
 trap 'rm -rf "$SANDBOX"' EXIT
+PYTHON_BIN="${PYTHON_BIN:-/usr/bin/python3}"
 
 test -x "$HELPER"
 test -x "$ACTIVATOR"
@@ -19,8 +20,11 @@ rg -q 'passwordless_keyring\|Prompt-free login keyring\|on\|configure_passwordle
   "$ROOT_DIR/installer/components.sh"
 rg -q 'source "\$SCRIPT_DIR/lib/keyring.sh"' "$ROOT_DIR/install.sh"
 rg -q 'gnome-keyring-daemon --login' "$ROOT_DIR/lib/keyring.sh"
+rg -q 'install -m 0644 "\$logging_lib"' "$ROOT_DIR/lib/keyring.sh"
+rg -q 'source "\$script_dir/logging.sh"' "$ACTIVATOR"
 rg -q 'dbus-run-session' "$ROOT_DIR/lib/keyring.sh"
-rg -q 'python3 "\$helper" check' "$ROOT_DIR/lib/keyring.sh"
+rg -q 'find_python_with_module gi' "$ROOT_DIR/lib/keyring.sh"
+rg -q '"\$python_bin" "\$helper" export' "$ROOT_DIR/lib/keyring.sh"
 rg -q 'passwordless-keyring-pending' "$ROOT_DIR/lib/keyring.sh"
 rg -q 'gnome-keyring-daemon.service.d/passwordless-login-unlock.conf' "$ROOT_DIR/lib/keyring.sh"
 rg -q 'Before=gnome-keyring-daemon.socket gnome-keyring-daemon.service' "$UNIT"
@@ -59,10 +63,10 @@ ACTIVE_HOME="$SANDBOX/active"
 SNAPSHOT="$SANDBOX/items.json"
 
 run_keyring_session "$SOURCE_HOME" "test-password" \
-  "python3 '$HELPER' store-test-item account demo 'test-secret'; python3 '$HELPER' export '$SNAPSHOT'"
+  "'$PYTHON_BIN' '$HELPER' store-test-item account demo 'test-secret'; '$PYTHON_BIN' '$HELPER' export '$SNAPSHOT'"
 
 test "$(stat -c %a "$SNAPSHOT")" = 600
-python3 - "$SNAPSHOT" <<'PY'
+"$PYTHON_BIN" - "$SNAPSHOT" <<'PY'
 import json
 import sys
 
@@ -74,14 +78,14 @@ assert text_item["secret"] != "test-secret"
 PY
 
 run_keyring_session "$DEST_HOME" "" \
-  "python3 '$HELPER' import '$SNAPSHOT'; python3 '$HELPER' verify-test-item account demo 'test-secret'"
+  "'$PYTHON_BIN' '$HELPER' import '$SNAPSHOT'; '$PYTHON_BIN' '$HELPER' verify-test-item account demo 'test-secret'"
 
 test "$(cat "$DEST_HOME/.local/share/keyrings/default")" = login
 
 # Reopen the generated files in a fresh daemon to prove that an empty PAM login
 # password unlocks the on-disk keyring, not merely the process that created it.
 run_keyring_session "$DEST_HOME" "" \
-  "python3 '$HELPER' check; python3 '$HELPER' verify-test-item account demo 'test-secret'"
+  "'$PYTHON_BIN' '$HELPER' check; '$PYTHON_BIN' '$HELPER' verify-test-item account demo 'test-secret'"
 
 # Reproduce the systemd foreground daemon path. Without --unlock this path
 # leaves Login locked; the installed drop-in starts the daemon with one empty
@@ -97,11 +101,11 @@ HOME="$DEST_HOME" XDG_CONFIG_HOME="$DEST_HOME/.config" \
     daemon_pid=$!
     trap "kill $daemon_pid 2>/dev/null || true" EXIT
     for _ in 1 2 3 4 5; do
-      python3 "$1" check >/dev/null 2>&1 && exit 0
+      "$2" "$1" check >/dev/null 2>&1 && exit 0
       sleep 0.2
     done
-    python3 "$1" check
-  ' bash "$HELPER"
+    "$2" "$1" check
+  ' bash "$HELPER" "$PYTHON_BIN"
 
 # Activation happens while no daemon is touching the files. Verify that it
 # preserves the encrypted originals, installs the staged keyring, and is safe
@@ -128,6 +132,6 @@ backup_hashes="$(find "$backup_dir" -maxdepth 1 -type f -print0 |
   sort -z | xargs -0 sha256sum | sed "s|$backup_dir/||")"
 test "$backup_hashes" = "$original_hashes"
 run_keyring_session "$ACTIVE_HOME" "" \
-  "python3 '$HELPER' check; python3 '$HELPER' verify-test-item account demo 'test-secret'"
+  "'$PYTHON_BIN' '$HELPER' check; '$PYTHON_BIN' '$HELPER' verify-test-item account demo 'test-secret'"
 
 echo "passwordless keyring tests passed"
