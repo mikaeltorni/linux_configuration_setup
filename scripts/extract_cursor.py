@@ -12,9 +12,15 @@ from __future__ import annotations
 import argparse
 import struct
 from dataclasses import dataclass
+from logging import INFO
 from pathlib import Path
 
 from PIL import Image
+
+from logging_utils import get_logger, log_call
+
+
+LOGGER = get_logger("cursor-extractor", "python-helpers.log")
 
 
 @dataclass(frozen=True)
@@ -27,6 +33,7 @@ class CursorEntry:
     hotspot_y: int
 
 
+@log_call(LOGGER)
 def read_largest_cursor_entry(cursor_path: Path) -> CursorEntry:
     """Return metadata for the largest image in a Windows CUR file."""
     data = cursor_path.read_bytes()
@@ -56,6 +63,7 @@ def read_largest_cursor_entry(cursor_path: Path) -> CursorEntry:
     return max(entries, key=lambda entry: (entry.width * entry.height, entry.width))
 
 
+@log_call(LOGGER, INFO)
 def extract_cursor(cursor_path: Path, output_path: Path, size: int | None) -> tuple[int, int]:
     """Extract the largest CUR image and return its output hotspot."""
     entry = read_largest_cursor_entry(cursor_path)
@@ -79,6 +87,7 @@ def extract_cursor(cursor_path: Path, output_path: Path, size: int | None) -> tu
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     image.save(output_path, "PNG")
+    LOGGER.info("Saved cursor PNG to %s at %sx%s", output_path, output_size, output_size)
     return hotspot_x, hotspot_y
 
 
@@ -94,6 +103,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     """Run cursor extraction and print the output hotspot."""
     args = parse_args()
+    LOGGER.info("Running cursor extraction from %s to %s", args.input, args.output)
     hotspot_x, hotspot_y = extract_cursor(args.input, args.output, args.size)
     print(f"{hotspot_x} {hotspot_y}")
 
