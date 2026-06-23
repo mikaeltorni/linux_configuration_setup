@@ -57,7 +57,7 @@ All configuration steps are idempotent:
 - Autostart entries: checks for existing `.desktop` files before creating
 - EasyEffects preset: only copies if source exists, overwrites in place
 - PWA icons: repairs icon links for every available size and refreshes desktop entries with direct icon paths
-- Cursor theme: rebuilds the Purple Cross cursor, maps common pointer/hover/drag/resize roles back to it, and updates both modern and legacy Xcursor default inheritance paths
+- Cursor theme: rebuilds the Purple Cross cursor at 48px for visibility, maps common pointer/hover/drag/resize roles back to it, updates both modern and legacy Xcursor default inheritance paths, and exposes the generated theme through `~/.icons/PurpleCrossDefault`
 
 The `passwordless_keyring` component keeps Secret Service enabled but removes
 its at-rest password. This prevents unlock dialogs during automatic login and
@@ -144,7 +144,7 @@ This repo is run **after** `linux_installations_setup` has cloned it. It require
 ## Troubleshooting
 
 - If the Purple Cross cursor does not appear immediately everywhere, restart affected applications. Some Wayland and XWayland clients cache cursor themes after startup.
-- The installer writes `~/.local/share/icons/default/index.theme` and `~/.icons/default/index.theme` so applications that read Xcursor defaults outside GNOME GSettings still inherit `PurpleCrossDefault`.
+- The installer writes `~/.local/share/icons/default/index.theme` and `~/.icons/default/index.theme`, then links `~/.icons/PurpleCrossDefault` to the generated theme so applications that read Xcursor defaults outside GNOME GSettings can load it.
 - GitKraken uses only `~/.config/autostart/gitkraken.desktop`; the installer removes the obsolete `gitkraken-autostart.desktop` alias to prevent duplicate launches.
 - Log out and back in before testing GNOME Shell extension code changes.
 - Monkeytype PWA autostarts on login and opens on workspace 7 via the `app-rules@local` extension. If it doesn't appear on workspace 7, verify the extension is enabled and check that `monkeytype.desktop` exists in `~/.local/share/applications/`.

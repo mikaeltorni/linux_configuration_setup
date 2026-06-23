@@ -104,6 +104,8 @@ source "$SCRIPT_DIR/lib/helpers.sh"
 source "$SCRIPT_DIR/lib/cursor_theme.sh"
 
 theme_dir="$TARGET_HOME/.local/share/icons/$PURPLE_CROSS_CURSOR_THEME_NAME"
+legacy_theme_dir="$TARGET_HOME/.icons/$PURPLE_CROSS_CURSOR_THEME_NAME"
+assert_eq "48" "$PURPLE_CROSS_CURSOR_SIZE" "uses a visible cursor size"
 
 configure_purple_cross_default_cursor
 assert_path_absent "$theme_dir" "skips cleanly when the bundled asset is missing"
@@ -171,6 +173,10 @@ assert_file_contains \
   "$TARGET_HOME/.icons/default/index.theme" \
   "Inherits=$PURPLE_CROSS_CURSOR_THEME_NAME" \
   "writes the legacy default cursor inheritance"
+assert_symlink_target \
+  "$legacy_theme_dir" \
+  "../.local/share/icons/$PURPLE_CROSS_CURSOR_THEME_NAME" \
+  "exposes the cursor theme through Xcursor's legacy search path"
 assert_file_contains \
   "$TARGET_HOME/gsettings.log" \
   "cursor-theme '$PURPLE_CROSS_CURSOR_THEME_NAME'" \

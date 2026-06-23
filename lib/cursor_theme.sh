@@ -7,7 +7,7 @@
 #   - configure_purple_cross_default_cursor(): Install the Purple Cross theme.
 
 PURPLE_CROSS_CURSOR_THEME_NAME="PurpleCrossDefault"
-PURPLE_CROSS_CURSOR_SIZE=32
+PURPLE_CROSS_CURSOR_SIZE=48
 
 PURPLE_CROSS_CURSOR_ALIASES=(
   00000000000000020006000e7e9ffc3f
@@ -218,6 +218,8 @@ configure_purple_cross_default_cursor() {
   local cursors_dir="$theme_dir/cursors"
   local default_theme_dir="$TARGET_HOME/.local/share/icons/default"
   local legacy_default_theme_dir="$TARGET_HOME/.icons/default"
+  local legacy_theme_dir="$TARGET_HOME/.icons/$theme_name"
+  local legacy_theme_target="../.local/share/icons/$theme_name"
   local build_dir="$TARGET_HOME/.cache/isc/purple-cross-cursor-build"
   local python_bin
 
@@ -255,8 +257,15 @@ EOF
   write_purple_cross_cursor_index "$default_theme_dir/index.theme" "Default" "$theme_name"
   write_purple_cross_cursor_index "$legacy_default_theme_dir/index.theme" "Default" "$theme_name"
 
+  log "debug" "configure_purple_cross_default_cursor: linking $legacy_theme_dir to $legacy_theme_target for Xcursor clients"
+  rm -rf "$legacy_theme_dir" 2>/dev/null || true
+  if ! run_as_target ln -s "$legacy_theme_target" "$legacy_theme_dir"; then
+    log "warn" "failed to expose Purple Cross cursor theme at $legacy_theme_dir"
+  fi
+
   chown -R "$TARGET_USER:$TARGET_USER" "$build_dir" "$theme_dir" "$default_theme_dir" 2>/dev/null || true
   chown -R "$TARGET_USER:$TARGET_USER" "$legacy_default_theme_dir" 2>/dev/null || true
+  chown -h "$TARGET_USER:$TARGET_USER" "$legacy_theme_dir" 2>/dev/null || true
   user_gsettings set org.gnome.desktop.interface cursor-theme "'$theme_name'" || true
   user_gsettings set org.gnome.desktop.interface cursor-size "$PURPLE_CROSS_CURSOR_SIZE" || true
   run_as_target rm -rf "$build_dir" 2>/dev/null || true
