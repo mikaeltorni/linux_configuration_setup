@@ -23,15 +23,20 @@ _build_passwordless_keyring() {
 _install_keyring_activation() {
   local activator="$SCRIPT_DIR/scripts/activate_passwordless_keyring.sh"
   local unit="$SCRIPT_DIR/configs/systemd/passwordless-keyring-activation.service"
+  local unlock_dropin="$SCRIPT_DIR/configs/systemd/gnome-keyring-daemon.service.d/passwordless-login-unlock.conf"
   local libexec_dir="$TARGET_HOME/.local/libexec/linux-configuration-setup"
   local unit_dir="$TARGET_HOME/.config/systemd/user"
+  local keyring_dropin_dir="$unit_dir/gnome-keyring-daemon.service.d"
 
   run_as_target install -d -m 0700 "$libexec_dir" || return
   run_as_target install -d -m 0755 "$unit_dir" || return
+  run_as_target install -d -m 0755 "$keyring_dropin_dir" || return
   run_as_target install -m 0700 "$activator" \
     "$libexec_dir/activate-passwordless-keyring" || return
   run_as_target install -m 0644 "$unit" \
     "$unit_dir/passwordless-keyring-activation.service" || return
+  run_as_target install -m 0644 "$unlock_dropin" \
+    "$keyring_dropin_dir/passwordless-login-unlock.conf" || return
   run_as_target systemctl --user daemon-reload || return
   run_as_target systemctl --user enable passwordless-keyring-activation.service \
     >/dev/null || return
@@ -68,21 +73,35 @@ configure_passwordless_keyring() {
   local migration_dir snapshot staging_home
 
   msg "Configuring prompt-free GNOME login keyring"
+  if ! need_cmd systemctl; then
+    log "error" "Required command is unavailable: systemctl"
+    return 1
+  fi
+  _install_keyring_activation || return
+
   if run_as_target test -f "$marker" &&
      run_as_target test -f "$keyring_dir/login.keyring" &&
-     [[ "$(run_as_target bash -c 'cat "$1" 2>/dev/null' bash "$keyring_dir/default")" == "login" ]] &&
-     run_as_target python3 "$helper" check >/dev/null; then
-    msg "Prompt-free login keyring is already configured"
-    return 0
+     [[ "$(run_as_target bash -c 'cat "$1" 2>/dev/null' bash "$keyring_dir/default")" == "login" ]]; then
+    if run_as_target python3 "$helper" check >/dev/null 2>&1; then
+      msg "Prompt-free login keyring is already configured"
+      return 0
+    fi
+    msg "Restarting GNOME Keyring daemon to apply prompt-free unlock"
+    run_as_target systemctl --user restart gnome-keyring-daemon.service || return
+    if run_as_target python3 "$helper" check >/dev/null 2>&1; then
+      msg "Prompt-free login keyring is already configured"
+      return 0
+    fi
+    log "error" "Existing Login keyring is still locked after applying the passwordless service override"
+    return 1
   fi
 
   if run_as_target test -f "$pending_dir/ready"; then
-    _install_keyring_activation || return
     msg "Passwordless Login keyring is already staged for the next boot"
     return 0
   fi
 
-  for command in python3 gnome-keyring-daemon dbus-run-session systemctl; do
+  for command in python3 gnome-keyring-daemon dbus-run-session; do
     if ! need_cmd "$command"; then
       log "error" "Required command is unavailable: $command"
       return 1

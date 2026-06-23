@@ -7,12 +7,14 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HELPER="$ROOT_DIR/scripts/keyring_snapshot.py"
 ACTIVATOR="$ROOT_DIR/scripts/activate_passwordless_keyring.sh"
 UNIT="$ROOT_DIR/configs/systemd/passwordless-keyring-activation.service"
+UNLOCK_DROPIN="$ROOT_DIR/configs/systemd/gnome-keyring-daemon.service.d/passwordless-login-unlock.conf"
 SANDBOX="$(mktemp -d)"
 trap 'rm -rf "$SANDBOX"' EXIT
 
 test -x "$HELPER"
 test -x "$ACTIVATOR"
 test -f "$UNIT"
+test -f "$UNLOCK_DROPIN"
 rg -q 'passwordless_keyring\|Prompt-free login keyring\|on\|configure_passwordless_keyring' \
   "$ROOT_DIR/installer/components.sh"
 rg -q 'source "\$SCRIPT_DIR/lib/keyring.sh"' "$ROOT_DIR/install.sh"
@@ -20,8 +22,13 @@ rg -q 'gnome-keyring-daemon --login' "$ROOT_DIR/lib/keyring.sh"
 rg -q 'dbus-run-session' "$ROOT_DIR/lib/keyring.sh"
 rg -q 'python3 "\$helper" check' "$ROOT_DIR/lib/keyring.sh"
 rg -q 'passwordless-keyring-pending' "$ROOT_DIR/lib/keyring.sh"
+rg -q 'gnome-keyring-daemon.service.d/passwordless-login-unlock.conf' "$ROOT_DIR/lib/keyring.sh"
 rg -q 'Before=gnome-keyring-daemon.socket gnome-keyring-daemon.service' "$UNIT"
 rg -q 'WantedBy=sockets.target' "$UNIT"
+rg -q '^ExecStart=$' "$UNLOCK_DROPIN"
+rg -q 'gnome-keyring-daemon --foreground --unlock --components=pkcs11,secrets --control-directory=%t/keyring' "$UNLOCK_DROPIN"
+rg -q '^StandardInput=data$' "$UNLOCK_DROPIN"
+rg -q '^StandardInputData=Cg==$' "$UNLOCK_DROPIN"
 if rg -q 'systemctl --user stop|kill|pkill|killall' "$ROOT_DIR/lib/keyring.sh"; then
   echo "keyring migration must not terminate the live desktop daemon" >&2
   exit 1
@@ -75,6 +82,26 @@ test "$(cat "$DEST_HOME/.local/share/keyrings/default")" = login
 # password unlocks the on-disk keyring, not merely the process that created it.
 run_keyring_session "$DEST_HOME" "" \
   "python3 '$HELPER' check; python3 '$HELPER' verify-test-item account demo 'test-secret'"
+
+# Reproduce the systemd foreground daemon path. Without --unlock this path
+# leaves Login locked; the installed drop-in starts the daemon with one empty
+# password line on stdin.
+HOME="$DEST_HOME" XDG_CONFIG_HOME="$DEST_HOME/.config" \
+  dbus-run-session -- bash -euo pipefail -c '
+    export XDG_RUNTIME_DIR="$HOME/runtime-systemd"
+    mkdir -p "$XDG_RUNTIME_DIR"
+    chmod 700 "$XDG_RUNTIME_DIR"
+    printf "\n" | gnome-keyring-daemon --foreground --unlock \
+      --components=secrets --control-directory="$XDG_RUNTIME_DIR/keyring" \
+      >/dev/null 2>&1 &
+    daemon_pid=$!
+    trap "kill $daemon_pid 2>/dev/null || true" EXIT
+    for _ in 1 2 3 4 5; do
+      python3 "$1" check >/dev/null 2>&1 && exit 0
+      sleep 0.2
+    done
+    python3 "$1" check
+  ' bash "$HELPER"
 
 # Activation happens while no daemon is touching the files. Verify that it
 # preserves the encrypted originals, installs the staged keyring, and is safe

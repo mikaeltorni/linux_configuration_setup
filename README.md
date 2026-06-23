@@ -63,6 +63,8 @@ its at-rest password. This prevents unlock dialogs during automatic login and
 when applications access stored credentials. Existing items are migrated into
 a verified replacement without touching the running keyring daemon. A one-shot
 user service activates it before GNOME Keyring starts on the next reboot, and
+the GNOME Keyring user service is started with the empty-password unlock path
+so the replacement stays prompt-free across later daemon starts. The migration
 retains the prior encrypted files under
 `~/.local/state/linux-configuration-setup/keyring-backups/` for rollback. The
 passwordless keyring is not protected by an at-rest password.
