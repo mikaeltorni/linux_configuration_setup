@@ -4,7 +4,8 @@
 
 **Phase 2 of 7** — GNOME desktop configuration, autostart applications, and system settings.
 
-Installer run logs are written to the repository-local `.log/` directory.
+Installer run logs and Python helper diagnostics are written to the
+repository-local `.log/` directory.
 
 ## Repository dependencies
 
@@ -87,7 +88,7 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 linux_configuration_setup/
 ├── install.sh              # Configuration entry point
 ├── lib/
-│   ├── helpers.sh          # Core utilities (msg, run_as_target, etc.)
+│   ├── helpers.sh          # Repository-specific helpers and Python selection
 │   ├── logging.sh          # Centralized logging with levels
 │   ├── gsettings_helpers.sh  # GSettings/dconf helper functions
 │   ├── system_config.sh      # RTC, clock, lock, dark mode, mouse accel
@@ -95,6 +96,11 @@ linux_configuration_setup/
 │   ├── cursor_theme.sh       # Purple Cross cursor build, aliases, and defaults
 │   ├── gnome_desktop.sh      # GNOME desktop config (favorites, terminal themes, display, extensions)
 │   └── pwa_icons.sh          # Chrome PWA desktop entries and icon links
+├── scripts/
+│   ├── logging_utils.py      # Centralized Python logging and call tracing
+│   ├── extract_cursor.py     # CUR-to-PNG cursor extraction helper
+│   ├── keyring_snapshot.py   # Secret Service export/import helper
+│   └── activate_passwordless_keyring.sh  # Next-boot keyring activator
 ├── configs/
 │   ├── cursors/
 │   │   └── purple_cross.cur    # Purple Cross cursor theme asset
