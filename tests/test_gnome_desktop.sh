@@ -77,6 +77,19 @@ assert_file_contains() {
   fi
 }
 
+assert_file_mode() {
+  local path="$1" expected="$2" msg="$3"
+  local actual=""
+  actual="$(stat -c '%a' "$path" 2>/dev/null || true)"
+  if [ "$actual" = "$expected" ]; then
+    echo "  PASS: $msg"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $msg (expected mode '$expected', got '${actual:-<missing>}')"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
 echo "=========================================="
 echo "  GNOME Desktop Module Tests"
 echo "=========================================="
@@ -140,6 +153,23 @@ else
   echo "  PASS: Should skip unavailable Console/Ptyxis schemas"
   PASS=$((PASS + 1))
 fi
+
+# Test configure_app_rules_extension creates a clean-home destination directory
+# before copying the bundled extension files.
+echo ""
+echo "--- configure_app_rules_extension ---"
+
+CONFIG_DIR="$TARGET_HOME/configs"
+mkdir -p "$CONFIG_DIR/gnome-extensions/app-rules@local"
+printf '{"uuid":"app-rules@local"}\n' >"$CONFIG_DIR/gnome-extensions/app-rules@local/metadata.json"
+printf 'extension source\n' >"$CONFIG_DIR/gnome-extensions/app-rules@local/extension.js"
+
+configure_app_rules_extension
+
+app_rules_dst="$TARGET_HOME/.local/share/gnome-shell/extensions/app-rules@local"
+assert_file_exists "$app_rules_dst" "Should create the app-rules extension directory"
+assert_file_mode "$app_rules_dst/metadata.json" "644" "Should install metadata.json with a stable file mode"
+assert_file_contains "$app_rules_dst/extension.js" "extension source" "Should copy extension.js into the destination"
 
 # Test configure_pwa_icons installs every icon size and a matching desktop entry
 echo ""

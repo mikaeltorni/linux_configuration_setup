@@ -162,12 +162,13 @@ configure_app_rules_extension() {
     return 0
   fi
 
-  run_as_target mkdir -p "$(dirname "$ext_dst")"
+  run_as_target install -d -m 0755 "$(dirname "$ext_dst")" "$ext_dst"
   
   # Copy extension files (preserve the directory structure)
   for f in "$ext_src"/*; do
     [ -f "$f" ] || continue
-    run_as_target cp "$f" "$ext_dst/$(basename "$f")"
+    log "debug" "configure_app_rules_extension: deploying $(basename "$f")"
+    run_as_target install -m 0644 "$f" "$ext_dst/$(basename "$f")"
   done
   
   msg "  Extension deployed to $ext_dst"
