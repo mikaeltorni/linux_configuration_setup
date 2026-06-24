@@ -26,12 +26,13 @@ This repository configures the GNOME desktop environment after base packages are
 
 - **System configuration**: RTC to local time, clock/calendar display, screen auto-lock
 - **Prompt-free credentials**: passwordless GNOME Login keyring for automatic-login sessions
-- **Dark mode**: GTK theme, icon theme, cursor theme (Purple Cross)
-- **GNOME favorites**: Taskbar/dock favorite apps with terminal detection
+- **Color scheme**: Dark by default; set `DESKTOP_COLOR_SCHEME=light` (or type `light` at the prompt) for light mode. `DESKTOP_GTK_THEME` / `DESKTOP_ICON_THEME` override the GTK/icon theme names
+- **Cursor theme**: Bundled Purple Cross by default; set `CURSOR_SOURCE_FILE=/path/to/your.cur` (or type a path) to build the theme from your own cursor image
+- **GNOME favorites**: Installed-app dock list by default; set `FAVORITES_APPS=app1.desktop,app2.desktop` (or type a list) to fully customize the dock
 - **Terminal themes**: Dark background/light text for Console, Ptyxis, GNOME Terminal
 - **Display refresh**: Xorg xrandr max refresh rate or Wayland VRR
 - **Autostart applications**: Spotify, GitKraken, EasyEffects, Monkeytype PWA, and Kitty
-- **EasyEffects presets**: Output EQ preset (scout-eq.json)
+- **EasyEffects EQ preset**: Installs an output EQ preset into `~/.config/easyeffects/output/`. Defaults to the bundled `equalizer.apo`; set `EASYEFFECTS_EQ_FILE=/path/to/your.json` (or type a path at the interactive prompt) to install your own EQ file instead
 - **Chrome PWA icons**: Symlinks and desktop entries for installed Chrome progressive web apps, including Claude
 - **PWA workspace rules**: `app-rules@local` GNOME extension assigns windows to specific workspaces (e.g., Monkeytype → workspace 7, ChatGPT → workspace 0)
 - **UV package manager**: Install astral.sh/uv and disable GUI autostart
@@ -48,6 +49,16 @@ sudo bash install.sh
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `INSTALLER_NO_REBOOT` | `0` | Set to `1` to skip reboot message |
+| `DESKTOP_COLOR_SCHEME` | `dark` | `dark` or `light` color scheme (`dark_mode` component) |
+| `DESKTOP_GTK_THEME` | _(auto)_ | Override the GTK theme name (`dark_mode` component) |
+| `DESKTOP_ICON_THEME` | `Yaru` | Override the icon theme name (`dark_mode` component) |
+| `FAVORITES_APPS` | _(installed apps)_ | Comma/space-separated `.desktop` ids for the dock (`favorites` component) |
+| `CURSOR_SOURCE_FILE` | bundled `purple_cross.cur` | Path to your own cursor image (`cursor_theme` component) |
+| `EASYEFFECTS_EQ_FILE` | bundled `equalizer.apo` | Path to your own EasyEffects EQ file (`easyeffects_eq` component) |
+
+These overrides are read from the environment on non-interactive runs (including
+the master installer); on an interactive terminal each prompts with its default
+pre-filled so you can edit or accept it.
 
 ## Idempotency
 
@@ -176,17 +187,19 @@ or none, and **Enter** installs the selection. Components:
 | `rtc` | Local-time RTC (dual-boot clock fix) | on |
 | `clock_calendar` | Clock and calendar display | on |
 | `disable_auto_lock` | Disable screen auto-lock | on |
-| `dark_mode` | Dark mode and themes | on |
+| `passwordless_keyring` | Prompt-free login keyring | on |
+| `dark_mode` | Color scheme and themes (override with `DESKTOP_COLOR_SCHEME`) | on |
 | `mouse_accel` | Disable mouse acceleration | on |
-| `favorites` | Dock favorite apps | on |
-| `cursor_theme` | Purple cross cursor theme | on |
+| `favorites` | Dock favorite apps (override with `FAVORITES_APPS`) | on |
+| `cursor_theme` | Purple cross cursor theme (override with `CURSOR_SOURCE_FILE`) | on |
 | `terminal_theme` | Terminal dark theme | on |
 | `display_refresh` | Display refresh rate / VRR | on |
 | `spotify_autostart` | Spotify autostart | on |
 | `gitkraken_autostart` | GitKraken autostart | on |
 | `autostart_apps` | General autostart applications | on |
 | `kitty_defaults` | Kitty terminal defaults | on |
-| `easyeffects` | EasyEffects autostart and EQ presets | on |
+| `easyeffects_autostart` | EasyEffects autostart | on |
+| `easyeffects_eq` | EasyEffects output EQ preset (override with `EASYEFFECTS_EQ_FILE`) | on |
 | `pwa_icons` | Chrome PWA icons and desktop entries | on |
 | `monkeytype_autostart` | Monkeytype autostart | on |
 | `app_rules` | App window rules extension | on |

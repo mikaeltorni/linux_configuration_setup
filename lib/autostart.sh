@@ -9,6 +9,7 @@
 #   - configure_autostart_apps(): Create the Kitty launcher + autostart entry.
 #   - configure_kitty_defaults(): Ensure Kitty config disables the close prompt.
 #   - configure_easyeffects_autostart(): Enable EasyEffects autostart + systemd service.
+#   - configure_easyeffects_eq(): Install an EasyEffects output EQ preset (user-supplied or bundled).
 #
 # Sourced after lib/helpers.sh, lib/gsettings_helpers.sh, lib/gnome_desktop.sh.
 # Depends on: msg, run_as_target, find_desktop_file_path
@@ -164,6 +165,49 @@ configure_easyeffects_autostart() {
 
   # Best-effort systemd user service if present
   run_as_target systemctl --user enable --now easyeffects.service >/dev/null 2>&1 || true
+}
+
+# configure_easyeffects_eq — Install an EasyEffects output EQ preset.
+#   The preset source is resolved with full user customization in mind:
+#     1. EASYEFFECTS_EQ_FILE env var (used by non-interactive/master-installer runs).
+#     2. An interactive prompt (only when stdin is a TTY) whose default — shown as
+#        the pre-typed value — is the bundled preset; the user may type the path
+#        to their own EQ file instead.
+#     3. The bundled preset at CONFIG_DIR/equalizer.apo.
+#   The resolved file is copied into ~/.config/easyeffects/output/ preserving its
+#   basename. JSON presets are picked up directly by EasyEffects; APO files (the
+#   bundled default) can be imported from there via the equalizer's APO import.
+#   Args: none. Returns: 0 (skips cleanly when no EQ file is available).
+configure_easyeffects_eq() {
+  msg "Installing EasyEffects output EQ preset"
+
+  local default_eq="$CONFIG_DIR/equalizer.apo"
+  local eq_src
+  eq_src="$(resolve_user_value EASYEFFECTS_EQ_FILE \
+    "  EasyEffects EQ file to install: " "$default_eq")"
+  [ -z "$eq_src" ] && eq_src="$default_eq"
+
+  # Expand a leading ~ for user-typed paths.
+  case "$eq_src" in
+    "~/"*) eq_src="$TARGET_HOME/${eq_src#~/}" ;;
+    "~")   eq_src="$TARGET_HOME" ;;
+  esac
+
+  if [ ! -f "$eq_src" ]; then
+    log "warn" "configure_easyeffects_eq: EQ file '$eq_src' not found; falling back to bundled preset"
+    eq_src="$default_eq"
+  fi
+  if [ ! -f "$eq_src" ]; then
+    log "warn" "configure_easyeffects_eq: no EQ file available ('$eq_src' missing); skipping"
+    return 0
+  fi
+
+  local dest_dir="$TARGET_HOME/.config/easyeffects/output"
+  run_as_target install -d -m 0755 "$dest_dir"
+  local dest="$dest_dir/$(basename "$eq_src")"
+  run_as_target cp -f "$eq_src" "$dest"
+  run_as_target chmod 0644 "$dest"
+  msg "  Installed EQ preset: $dest"
 }
 
 # ── Monkeytype PWA autostart ─────────────────────────────────────────────────

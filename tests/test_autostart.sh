@@ -112,3 +112,34 @@ if [ "$count" -ne 1 ]; then
 fi
 
 printf 'PASS: configure_kitty_defaults disables the close prompt idempotently\n'
+
+# ── configure_easyeffects_eq ─────────────────────────────────────────────────
+
+CONFIG_DIR="$TARGET_HOME/configs"
+mkdir -p "$CONFIG_DIR"
+printf 'Preamp: 0 db\nFilter 1: ON PK Fc 20 Hz Gain 1 dB Q 1\n' >"$CONFIG_DIR/equalizer.apo"
+
+EQ_DEST_DIR="$TARGET_HOME/.config/easyeffects/output"
+
+# Case 1: no override → installs the bundled equalizer.apo preset.
+rm -rf "$EQ_DEST_DIR"
+unset EASYEFFECTS_EQ_FILE
+configure_easyeffects_eq </dev/null
+assert_file_exists "$EQ_DEST_DIR/equalizer.apo" "bundled EQ preset installed by default"
+assert_grep '^Preamp: 0 db$' "$EQ_DEST_DIR/equalizer.apo" "bundled EQ content copied"
+
+# Case 2: EASYEFFECTS_EQ_FILE points at the user's own EQ file.
+USER_EQ="$TARGET_HOME/my-custom.json"
+printf '{"output":{"equalizer":{"mode":"custom"}}}\n' >"$USER_EQ"
+rm -rf "$EQ_DEST_DIR"
+EASYEFFECTS_EQ_FILE="$USER_EQ" configure_easyeffects_eq </dev/null
+assert_file_exists "$EQ_DEST_DIR/my-custom.json" "user-supplied EQ file installed under its own name"
+assert_grep '"mode":"custom"' "$EQ_DEST_DIR/my-custom.json" "user EQ content copied verbatim"
+assert_file_missing "$EQ_DEST_DIR/equalizer.apo" "bundled default not installed when overridden"
+
+# Case 3: a missing override path falls back to the bundled preset.
+rm -rf "$EQ_DEST_DIR"
+EASYEFFECTS_EQ_FILE="$TARGET_HOME/does-not-exist.json" configure_easyeffects_eq </dev/null
+assert_file_exists "$EQ_DEST_DIR/equalizer.apo" "missing override falls back to bundled preset"
+
+printf 'PASS: configure_easyeffects_eq installs bundled or user-supplied EQ files\n'

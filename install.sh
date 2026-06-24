@@ -7,7 +7,7 @@
 #   - Terminal dark themes
 #   - Display refresh rate / VRR
 #   - Autostart applications (Spotify, GitKraken, EasyEffects)
-#   - EasyEffects EQ presets
+#   - EasyEffects EQ preset (bundled or user-supplied via EASYEFFECTS_EQ_FILE)
 #   - Chrome PWA icons and desktop entries
 #   - UV package manager setup
 #   - Tmux defaults
