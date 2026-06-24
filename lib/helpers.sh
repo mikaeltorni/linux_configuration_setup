@@ -15,6 +15,34 @@ DESKTOP_DIRS=(
   "$TARGET_HOME/.local/share/applications"
 )
 
+# resolve_user_value — Resolve a customizable setting with full user control.
+#   Precedence: a preset environment-variable value (non-interactive /
+#   master-installer runs) > an interactive prompt pre-filled with the default
+#   (the user edits or accepts it) > the default itself. The interactive prompt
+#   only fires when both stdin and stdout are a TTY, so non-interactive installs
+#   stay prompt-free and reproducible.
+#   Args: $1 — env var NAME to honor; $2 — prompt text; $3 — default value.
+#   Returns: 0 and prints the resolved value (may be empty if the user clears it).
+resolve_user_value() {
+  local env_name="$1" prompt="$2" default="$3"
+  local preset="${!env_name-}"
+
+  if [ -n "$preset" ]; then
+    printf '%s' "$preset"
+    return 0
+  fi
+
+  if [ -t 0 ] && [ -t 1 ]; then
+    local reply=""
+    # Pre-fill the line editor with the default so the user can edit or accept it.
+    read -r -e -i "$default" -p "$prompt" reply </dev/tty || reply="$default"
+    printf '%s' "$reply"
+    return 0
+  fi
+
+  printf '%s' "$default"
+}
+
 # find_python_with_module — Print a Python executable that can import a module.
 #   Checks PATH first, then /usr/bin/python3 so user-managed Python shims do not
 #   hide APT-provided desktop bindings during clean installs.

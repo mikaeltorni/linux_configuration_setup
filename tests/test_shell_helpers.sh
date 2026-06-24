@@ -118,6 +118,31 @@ test_apt_install_missing() {
 }
 test_apt_install_missing
 
+# ── resolve_user_value tests ────────────────────────────────────────────────
+# Non-interactive (no TTY in the harness): the env var wins, else the default.
+
+result="$(MY_OVERRIDE='/custom/path' resolve_user_value MY_OVERRIDE 'prompt: ' '/default')"
+if [ "$result" = "/custom/path" ]; then
+    pass_test "resolve_user_value honors the environment override"
+else
+    fail_test "resolve_user_value" "expected '/custom/path', got '${result:-<none>}'"
+fi
+
+result="$(unset MY_OVERRIDE; resolve_user_value MY_OVERRIDE 'prompt: ' '/default' </dev/null)"
+if [ "$result" = "/default" ]; then
+    pass_test "resolve_user_value falls back to the default when non-interactive"
+else
+    fail_test "resolve_user_value" "expected '/default', got '${result:-<none>}'"
+fi
+
+# An empty (but set) override is treated as unset so the default still applies.
+result="$(MY_OVERRIDE='' resolve_user_value MY_OVERRIDE 'prompt: ' '/default' </dev/null)"
+if [ "$result" = "/default" ]; then
+    pass_test "resolve_user_value treats an empty override as unset"
+else
+    fail_test "resolve_user_value" "expected '/default' for empty override, got '${result:-<none>}'"
+fi
+
 # ── gsettings_helpers.sh tests ──────────────────────────────────────────────
 source lib/gsettings_helpers.sh
 
