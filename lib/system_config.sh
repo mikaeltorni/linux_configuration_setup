@@ -5,7 +5,7 @@
 #   - configure_rtc(): Set RTC to local time via timedatectl.
 #   - configure_clock_calendar(): Enable weekday + week numbers in GNOME clock/calendar.
 #   - configure_disable_auto_lock(): Disable screen auto-lock (idle-delay=0, lock-enabled=false).
-#   - configure_dark_mode(): Enable dark mode system-wide (GTK theme, icon theme, user-theme).
+#   - configure_dark_mode(): Configure the desktop color scheme (dark/light) and GTK/icon/user themes.
 #   - disable_mouse_acceleration(): Set flat mouse/touchpad acceleration + X11 libinput fallback.
 #
 # Sourced after lib/helpers.sh and lib/gsettings_helpers.sh.
@@ -53,20 +53,40 @@ configure_disable_auto_lock() {
 
 # ── Dark mode configuration ──────────────────────────────────────────────────
 
-# configure_dark_mode — Enable dark mode system-wide.
-#   Sets GTK theme (Adwaita-dark or Yaru-dark), icon theme, and user-theme extension.
+# configure_dark_mode — Configure the desktop color scheme and themes.
+#   Customizable: DESKTOP_COLOR_SCHEME (or an interactive entry) chooses
+#   "dark" (default) or "light"; DESKTOP_GTK_THEME / DESKTOP_ICON_THEME are
+#   optional env-only overrides of the GTK and icon theme names. Sets the GNOME
+#   color-scheme, GTK theme, icon theme, and the user-theme extension to match.
 #   Args: none. Returns: 0 (each gsettings write is best-effort).
 configure_dark_mode() {
-  msg "Enabling dark mode system-wide"
+  msg "Configuring desktop color scheme and themes"
 
-  local gtk_theme="Adwaita-dark"
-  if [ -d /usr/share/themes/Yaru-dark ]; then
-    gtk_theme="Yaru-dark"
+  local mode
+  mode="$(resolve_user_value DESKTOP_COLOR_SCHEME \
+    "  Color scheme (dark/light): " "dark")"
+  mode="$(printf '%s' "$mode" | tr '[:upper:]' '[:lower:]')"
+
+  local color_scheme gtk_theme icon_theme="Yaru"
+  if [ "$mode" = "light" ]; then
+    color_scheme="prefer-light"
+    gtk_theme="Adwaita"
+    [ -d /usr/share/themes/Yaru ] && gtk_theme="Yaru"
+  else
+    mode="dark"
+    color_scheme="prefer-dark"
+    gtk_theme="Adwaita-dark"
+    [ -d /usr/share/themes/Yaru-dark ] && gtk_theme="Yaru-dark"
   fi
 
-  user_gsettings set org.gnome.desktop.interface color-scheme "'prefer-dark'" || true
+  # Optional explicit theme overrides (env-only; no extra prompts).
+  gtk_theme="${DESKTOP_GTK_THEME:-$gtk_theme}"
+  icon_theme="${DESKTOP_ICON_THEME:-$icon_theme}"
+
+  msg "  Applying $mode color scheme (GTK: $gtk_theme, icons: $icon_theme)"
+  user_gsettings set org.gnome.desktop.interface color-scheme "'$color_scheme'" || true
   user_gsettings set org.gnome.desktop.interface gtk-theme "'$gtk_theme'" || true
-  user_gsettings set org.gnome.desktop.interface icon-theme "'Yaru'" || true
+  user_gsettings set org.gnome.desktop.interface icon-theme "'$icon_theme'" || true
 
   if gsettings list-schemas 2>/dev/null | grep -q 'org.gnome.shell.extensions.user-theme'; then
     user_gsettings set org.gnome.shell.extensions.user-theme name "'$gtk_theme'" || true

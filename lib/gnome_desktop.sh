@@ -41,6 +41,7 @@ configure_favorites() {
     local entry
     entry="$(first_existing_desktop "$@")"
     [ -n "${entry:-}" ] && FAVORITES+=("$entry")
+    return 0  # never fail the caller under set -e when an app is absent
   }
   
   msg "Setting favorites on the taskbar"
@@ -64,6 +65,24 @@ configure_favorites() {
   add_favorite nvidia-settings.desktop
   add_favorite virt-manager.desktop
   
+  # Allow the user to fully customize the dock favorites. The default offered is
+  # the installed-app list computed above (comma-joined); FAVORITES_APPS or an
+  # interactive entry overrides it with a verbatim, comma/space-separated list of
+  # .desktop ids.
+  local default_csv="" entry
+  for entry in "${FAVORITES[@]}"; do
+    [ -n "$entry" ] || continue
+    default_csv="${default_csv:+$default_csv,}$entry"
+  done
+
+  local resolved
+  resolved="$(resolve_user_value FAVORITES_APPS \
+    "  Dock favorite apps (comma-separated .desktop ids): " "$default_csv")"
+
+  # Split on commas and whitespace, scoping IFS to just this read.
+  FAVORITES=()
+  IFS=', ' read -r -a FAVORITES <<<"$resolved"
+
   if [ "${#FAVORITES[@]}" -gt 0 ]; then
     user_gsettings set org.gnome.shell favorite-apps "$(join_as_gsettings_array "${FAVORITES[@]}")"
   else

@@ -248,7 +248,21 @@ EOF
 configure_purple_cross_default_cursor() {
   msg "Configuring Purple Cross default cursor"
 
-  local asset_path="$CONFIG_DIR/cursors/purple_cross.cur"
+  # The cursor source is user-customizable: CURSOR_SOURCE_FILE (or an interactive
+  # entry) may point at the user's own .cur/.png cursor image; the default is the
+  # bundled Purple Cross asset. A leading ~ is expanded for typed paths.
+  local default_asset="$CONFIG_DIR/cursors/purple_cross.cur"
+  local asset_path
+  asset_path="$(resolve_user_value CURSOR_SOURCE_FILE \
+    "  Cursor source image (.cur/.png): " "$default_asset")"
+  case "$asset_path" in
+    "~/"*) asset_path="$TARGET_HOME/${asset_path#~/}" ;;
+    "~")   asset_path="$TARGET_HOME" ;;
+  esac
+  if [ ! -f "$asset_path" ]; then
+    log "warn" "Cursor source '$asset_path' not found; falling back to bundled Purple Cross asset"
+    asset_path="$default_asset"
+  fi
   if [ ! -f "$asset_path" ]; then
     log "warn" "Purple Cross cursor asset not found at $asset_path — skipping cursor setup"
     return 0

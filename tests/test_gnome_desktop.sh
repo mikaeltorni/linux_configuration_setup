@@ -42,6 +42,9 @@ assert_eq() {
   fi
 }
 
+pass() { echo "  PASS: $1"; PASS=$((PASS + 1)); }
+fail() { echo "  FAIL: $1"; FAIL=$((FAIL + 1)); }
+
 assert_file_exists() {
   local path="$1" msg="$2"
   if [ -e "$path" ]; then
@@ -220,6 +223,57 @@ assert_file_contains \
   "$claude_desktop" \
   "Icon=$claude_manifest_dir/Icons/512.png" \
   "Should recover a manifest-less Claude PWA from its existing desktop entry"
+
+# Test configure_favorites honors a user-supplied app list
+echo ""
+echo "--- configure_favorites (customizable) ---"
+
+source "$SCRIPT_DIR/lib/gsettings_helpers.sh"
+source "$SCRIPT_DIR/lib/system_config.sh"
+
+run_as_target() { "$@"; }
+GSETTINGS_CALL_LOG="$TARGET_HOME/gsettings-favorites.log"
+>"$GSETTINGS_CALL_LOG"
+user_gsettings() {
+  printf '%s\n' "$*" >>"$GSETTINGS_CALL_LOG"
+  [ "$1" = "get" ] && return 1
+  return 0
+}
+gsettings_key_exists() { return 1; }
+gsettings() { return 1; }  # used by configure_dark_mode's user-theme probe
+
+FAVORITES_APPS="alpha.desktop, beta.desktop gamma.desktop" configure_favorites
+if grep -q "favorite-apps \['alpha.desktop', 'beta.desktop', 'gamma.desktop'\]" "$GSETTINGS_CALL_LOG"; then
+  pass "configure_favorites applies the user-supplied FAVORITES_APPS list"
+else
+  fail "configure_favorites applies the user-supplied FAVORITES_APPS list"
+fi
+
+>"$GSETTINGS_CALL_LOG"
+unset FAVORITES_APPS
+touch "$TARGET_HOME/.local/share/applications/org.remmina.Remmina.desktop"
+configure_favorites </dev/null
+if grep -q "org.remmina.Remmina.desktop" "$GSETTINGS_CALL_LOG"; then
+  pass "configure_favorites includes Remmina when installed"
+else
+  fail "configure_favorites includes Remmina when installed"
+fi
+
+# Test configure_dark_mode respects the color-scheme override
+echo ""
+echo "--- configure_dark_mode (dark/light) ---"
+
+>"$GSETTINGS_CALL_LOG"
+configure_dark_mode </dev/null
+assert_file_contains "$GSETTINGS_CALL_LOG" "color-scheme 'prefer-dark'" "defaults to the dark color scheme"
+
+>"$GSETTINGS_CALL_LOG"
+DESKTOP_COLOR_SCHEME=light configure_dark_mode </dev/null
+assert_file_contains "$GSETTINGS_CALL_LOG" "color-scheme 'prefer-light'" "DESKTOP_COLOR_SCHEME=light selects the light scheme"
+
+>"$GSETTINGS_CALL_LOG"
+DESKTOP_GTK_THEME="My-Theme" configure_dark_mode </dev/null
+assert_file_contains "$GSETTINGS_CALL_LOG" "gtk-theme 'My-Theme'" "DESKTOP_GTK_THEME overrides the GTK theme name"
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
