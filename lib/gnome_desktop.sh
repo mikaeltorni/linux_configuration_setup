@@ -60,6 +60,7 @@ configure_favorites() {
   add_favorite update-manager.desktop
   add_favorite gitkraken.desktop gitkraken_gitkraken.desktop
   add_favorite lm-studio.desktop
+  add_favorite org.remmina.Remmina.desktop remmina.desktop
   add_favorite nvidia-settings.desktop
   add_favorite virt-manager.desktop
   
