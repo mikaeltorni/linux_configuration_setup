@@ -50,6 +50,8 @@ source "$SCRIPT_DIR/lib/autostart.sh"
 source "$SCRIPT_DIR/lib/gnome_desktop.sh"
 source "$SCRIPT_DIR/lib/cursor_theme.sh"
 source "$SCRIPT_DIR/lib/pwa_icons.sh"
+source "$SCRIPT_DIR/lib/dash_to_panel.sh"
+source "$SCRIPT_DIR/lib/lifecycle.sh"
 
 # Component selection runtime and this repository's component manifest. The
 # runtime provides --list-components / --select / --default / interactive
@@ -99,7 +101,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   # Listing/help must print only their output (the master installer parses
   # --list-components), so bypass the logging/reboot wrapper for those.
   case "${1:-}" in
-    --list-components|--help|-h) component_main "$@"; exit $? ;;
+    --list-components|--detect|--help|-h|--uninstall|--uninstall=*) component_main "$@"; exit $? ;;
   esac
   run_and_log_with_reboot "$@"
 fi

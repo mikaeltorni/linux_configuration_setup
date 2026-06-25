@@ -17,26 +17,32 @@ ISC_REPO_LABEL="GNOME desktop configuration"
 # Run once before any selected component (ensures the user session bus).
 ISC_PREFLIGHT="ensure_session_bus"
 
+# Entry format: "id|label|default|function[|detect_fn[|uninstall_fn]]". Where a
+# component omits the trailing fields, detection falls back to an install
+# receipt and its [u] action clears that receipt (no live reversal): this is
+# intentional for the keyring re-encryption and the shared/generated assets
+# whose reversal would be ambiguous or risky.
 ISC_COMPONENTS=(
-  "rtc|Local-time RTC (dual-boot clock fix)|on|configure_rtc"
-  "clock_calendar|Clock and calendar display|on|configure_clock_calendar"
-  "disable_auto_lock|Disable screen auto-lock|on|configure_disable_auto_lock"
-  "passwordless_keyring|Prompt-free login keyring|on|configure_passwordless_keyring"
-  "dark_mode|Color scheme and themes (dark default; DESKTOP_COLOR_SCHEME=light)|on|configure_dark_mode"
-  "mouse_accel|Disable mouse acceleration|on|disable_mouse_acceleration"
-  "favorites|Dock favorite apps (override with FAVORITES_APPS)|on|configure_favorites"
-  "cursor_theme|Purple cross cursor theme (override with CURSOR_SOURCE_FILE)|on|configure_purple_cross_default_cursor"
+  "rtc|Local-time RTC (dual-boot clock fix)|on|configure_rtc|detect_rtc|uninstall_rtc"
+  "clock_calendar|Clock and calendar display|on|configure_clock_calendar|detect_clock_calendar|uninstall_clock_calendar"
+  "disable_auto_lock|Disable screen auto-lock|on|configure_disable_auto_lock|detect_disable_auto_lock|uninstall_disable_auto_lock"
+  "passwordless_keyring|Prompt-free login keyring|on|configure_passwordless_keyring|detect_passwordless_keyring"
+  "dark_mode|Color scheme and themes (dark default; DESKTOP_COLOR_SCHEME=light)|on|configure_dark_mode|detect_dark_mode|uninstall_dark_mode"
+  "mouse_accel|Disable mouse acceleration|on|disable_mouse_acceleration|detect_mouse_accel|uninstall_mouse_accel"
+  "favorites|Dock favorite apps (override with FAVORITES_APPS)|on|configure_favorites|detect_favorites|uninstall_favorites"
+  "cursor_theme|Purple cross cursor theme (override with CURSOR_SOURCE_FILE)|on|configure_purple_cross_default_cursor|detect_cursor_theme|uninstall_cursor_theme"
   "terminal_theme|Terminal dark theme|on|configure_terminal_dark_theme"
-  "display_refresh|Display refresh rate / VRR|on|configure_display_refresh"
+  "display_refresh|Display refresh rate / VRR|on|configure_display_refresh|detect_display_refresh|uninstall_display_refresh"
   "spotify_autostart|Spotify autostart|on|configure_spotify_autostart"
-  "gitkraken_autostart|GitKraken autostart|on|configure_gitkraken_autostart"
-  "autostart_apps|General autostart applications|on|configure_autostart_apps"
+  "gitkraken_autostart|GitKraken autostart|on|configure_gitkraken_autostart|detect_gitkraken_autostart|uninstall_gitkraken_autostart"
+  "autostart_apps|General autostart applications|on|configure_autostart_apps|detect_autostart_apps|uninstall_autostart_apps"
   "kitty_defaults|Kitty terminal defaults|on|configure_kitty_defaults"
   "easyeffects_autostart|EasyEffects autostart|on|configure_easyeffects_autostart"
-  "easyeffects_eq|EasyEffects output EQ preset (set EASYEFFECTS_EQ_FILE for a custom file)|on|configure_easyeffects_eq"
+  "easyeffects_eq|EasyEffects output EQ preset (set EASYEFFECTS_EQ_FILE for a custom file)|on|configure_easyeffects_eq|detect_easyeffects_eq|uninstall_easyeffects_eq"
   "pwa_icons|Chrome PWA icons and desktop entries|on|configure_pwa_icons"
   "monkeytype_autostart|Monkeytype autostart|on|configure_monkeytype_autostart"
-  "app_rules|App window rules extension|on|configure_app_rules_extension"
-  "uv_setup|UV package manager setup|on|configure_uv_autostart"
-  "tmux_defaults|Tmux defaults|on|configure_tmux_defaults"
+  "app_rules|App window rules extension|on|configure_app_rules_extension|detect_app_rules|uninstall_app_rules"
+  "uv_setup|UV package manager setup|on|configure_uv_autostart|detect_uv_setup|uninstall_uv_setup"
+  "tmux_defaults|Tmux defaults|on|configure_tmux_defaults|detect_tmux_defaults|uninstall_tmux_defaults"
+  "dash_to_panel|Dash-to-Panel layout (replaces Ubuntu Dock)|on|configure_dash_to_panel|detect_dash_to_panel|uninstall_dash_to_panel"
 )
