@@ -28,7 +28,7 @@ detect_cursor_theme()      { local v; v="$(cfg_get org.gnome.desktop.interface c
 detect_display_refresh()   { local v; v="$(cfg_get org.gnome.mutter experimental-features)"; [ -n "$v" ] && [ "$v" != "@as []" ] && [ "$v" != "[]" ]; }
 detect_gitkraken_autostart() { [ -f "$TARGET_HOME/.config/autostart/gitkraken.desktop" ]; }
 detect_autostart_apps()    { [ -f "$TARGET_HOME/.local/bin/autostart_apps.sh" ]; }
-detect_easyeffects_eq()    { ls "$TARGET_HOME"/.config/easyeffects/output/*.json >/dev/null 2>&1; }
+detect_easyeffects_eq()    { ls "$TARGET_HOME"/.config/easyeffects/output/* >/dev/null 2>&1; }
 detect_app_rules()         { [ -d "$TARGET_HOME/.local/share/gnome-shell/extensions/app-rules@local" ]; }
 detect_uv_setup()          { [ -x "$TARGET_HOME/.local/bin/uv" ] && [ ! -e "$TARGET_HOME/.config/autostart/uv-python.desktop" ]; }
 detect_tmux_defaults()     { [ -f "$TARGET_HOME/.tmux.conf" ]; }
