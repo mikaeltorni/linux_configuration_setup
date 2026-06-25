@@ -259,6 +259,19 @@ else
   fail "configure_favorites includes Remmina when installed"
 fi
 
+>"$GSETTINGS_CALL_LOG"
+touch "$TARGET_HOME/.local/share/applications/org.gnome.Nautilus.desktop"
+touch "$TARGET_HOME/.local/share/applications/google-chrome.desktop"
+SELECTED_FAVORITE_APPS="google-chrome.desktop" configure_favorites </dev/null
+if grep -q "org.gnome.Nautilus.desktop" "$GSETTINGS_CALL_LOG" && \
+   grep -q "google-chrome.desktop" "$GSETTINGS_CALL_LOG" && \
+   ! grep -q "org.remmina.Remmina.desktop" "$GSETTINGS_CALL_LOG"; then
+  pass "configure_favorites merges selected program favourites with baseline entries"
+else
+  fail "configure_favorites merges selected program favourites with baseline entries"
+fi
+unset SELECTED_FAVORITE_APPS
+
 # Test configure_dark_mode respects the color-scheme override
 echo ""
 echo "--- configure_dark_mode (dark/light) ---"

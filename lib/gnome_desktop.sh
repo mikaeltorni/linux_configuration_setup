@@ -34,6 +34,7 @@ first_existing_desktop() { log "debug" "first_existing_desktop: $*"; find_deskto
 configure_favorites() {
   local terminal_desktop
   terminal_desktop="$(detect_terminal_desktop)"
+  local selected_program_favorites="${SELECTED_FAVORITE_APPS:-}"
   
   # add_favorite — Append the first installed candidate to the FAVORITES list.
   #   Args: $@ — candidate desktop ids. Returns: 0.
@@ -47,23 +48,35 @@ configure_favorites() {
   msg "Setting favorites on the taskbar"
   local FAVORITES=()
   add_favorite cursor.desktop
-  add_favorite com.obsproject.Studio.desktop
-  add_favorite discord.desktop discord_discord.desktop
-  add_favorite google-chrome.desktop com.google.Chrome.desktop
   add_favorite org.gnome.Nautilus.desktop
   add_favorite org.gnome.Settings.desktop gnome-control-center.desktop
-  add_favorite "$terminal_desktop" org.gnome.Console.desktop org.gnome.Terminal.desktop org.gnome.Ptyxis.desktop kitty.desktop
   add_favorite org.gnome.SystemMonitor.desktop
-  add_favorite com.github.wwmm.easyeffects.desktop
-  add_favorite albert.desktop
   add_favorite org.gnome.Notes.desktop org.gnome.TextEditor.desktop
-  add_favorite spotify.desktop spotify_spotify.desktop
   add_favorite update-manager.desktop
-  add_favorite gitkraken.desktop gitkraken_gitkraken.desktop
   add_favorite lm-studio.desktop
-  add_favorite org.remmina.Remmina.desktop remmina.desktop
-  add_favorite nvidia-settings.desktop
-  add_favorite virt-manager.desktop
+  if [ -n "$selected_program_favorites" ]; then
+    # The master program-installation menu owns which app packages should be
+    # pinned. Keep baseline desktop utilities above, then add the selected app
+    # .desktop ids without treating this as a full FAVORITES_APPS override.
+    local selected_entry
+    local -a _selected_program_favorites=()
+    IFS=', ' read -r -a _selected_program_favorites <<<"$selected_program_favorites"
+    for selected_entry in "${_selected_program_favorites[@]}"; do
+      [ -n "$selected_entry" ] && add_favorite "$selected_entry"
+    done
+  else
+    add_favorite com.obsproject.Studio.desktop
+    add_favorite discord.desktop discord_discord.desktop
+    add_favorite google-chrome.desktop com.google.Chrome.desktop
+    add_favorite "$terminal_desktop" org.gnome.Console.desktop org.gnome.Terminal.desktop org.gnome.Ptyxis.desktop kitty.desktop
+    add_favorite com.github.wwmm.easyeffects.desktop
+    add_favorite albert.desktop
+    add_favorite spotify.desktop spotify_spotify.desktop
+    add_favorite gitkraken.desktop gitkraken_gitkraken.desktop
+    add_favorite org.remmina.Remmina.desktop remmina.desktop
+    add_favorite nvidia-settings.desktop
+    add_favorite virt-manager.desktop
+  fi
   
   # Allow the user to fully customize the dock favorites. The default offered is
   # the installed-app list computed above (comma-joined); FAVORITES_APPS or an
