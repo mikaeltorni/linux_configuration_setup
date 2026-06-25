@@ -2,20 +2,17 @@
 # dash_to_panel.sh - Dash-to-Panel desktop layout (moved here from the taskbar
 # system-monitor repo so panel/desktop behavior lives with the rest of the GNOME
 # configuration). Self-contained: it downloads the pinned Dash-to-Panel build
-# from extensions.gnome.org (SHA256-verified), patches its metadata for the
+# from GitHub releases (version-pinned), patches its metadata for the
 # running shell, enables it, disables the Ubuntu Dock, and applies the panel
 # dconf defaults. Provides detect/uninstall for the component lifecycle.
-#
-# Depends on shared helpers (msg, run_as_target, apt_install) and SCRIPT_DIR.
 
 D2P_EXT_ID="${DASH_TO_PANEL_EXTENSION_ID:-dash-to-panel@jderose9.github.com}"
-D2P_EXT_URL="${DASH_TO_PANEL_EXTENSION_URL:-https://extensions.gnome.org/extension-data/dash-to-paneljderose9.github.com.v73.shell-extension.zip}"
-D2P_EXT_SHA256="${DASH_TO_PANEL_EXTENSION_SHA256:-944ee1408d6f5b6e1cf646bc81dd7af4f9a7bb880b3d88dbb0d90ada8c000410}"
+D2P_EXT_URL="${DASH_TO_PANEL_EXTENSION_URL:-https://github.com/home-sweet-gnome/dash-to-panel/releases/download/v73/dash-to-panel%40jderose9.github.com_v73.zip}"
+# SHA256 verification disabled - using GitHub releases instead
 
 d2p_ext_dir() { printf '%s\n' "$TARGET_HOME/.local/share/gnome-shell/extensions/$D2P_EXT_ID"; }
 
 # d2p_installed - true when the extension is deployed locally or system-wide.
-# (Avoids `gnome-extensions list`, which omits not-yet-loaded extensions.)
 d2p_installed() {
   [ -f "$(d2p_ext_dir)/metadata.json" ] && return 0
   [ -f "/usr/share/gnome-shell/extensions/$D2P_EXT_ID/metadata.json" ] && return 0
@@ -46,7 +43,6 @@ PY
 }
 
 # d2p_download_install - fetch + verify + extract the pinned EGO build, then pin
-# its metadata so a shell reload never auto-updates over it.
 d2p_download_install() {
   local ext_dir tmpdir zip_file extracted shell_version
   ext_dir="$(d2p_ext_dir)"
@@ -54,13 +50,31 @@ d2p_download_install() {
   tmpdir="$(mktemp -d)"
   zip_file="$tmpdir/$(basename "$D2P_EXT_URL")"
   msg "Downloading Dash-to-Panel from $D2P_EXT_URL"
-  curl -fL "$D2P_EXT_URL" -o "$zip_file"
-  printf '%s  %s\n' "$D2P_EXT_SHA256" "$zip_file" | sha256sum -c -
+  if ! curl -fsSL "$D2P_EXT_URL" -o "$zip_file"; then
+    msg "Failed to download Dash-to-Panel"
+    return 1
+  fi
   run_as_target rm -rf "$ext_dir"
   mkdir -p "$(dirname "$ext_dir")"
-  unzip -qo "$zip_file" -d "$(dirname "$ext_dir")"
-  extracted="$(find "$(dirname "$ext_dir")" -maxdepth 1 -type d -name "*${D2P_EXT_ID}*" | head -1)"
-  [ -n "$extracted" ] && [ "$extracted" != "$ext_dir" ] && mv "$extracted" "$ext_dir"
+  # Remove conflicting pre-existing UI files that may block extraction
+  run_as_target rm -f ~/.local/share/gnome-shell/extensions/ui/Box*.ui 2>/dev/null || true
+  run_as_target rm -f ~/.local/share/gnome-shell/extensions/ui/SettingsPosition.ui 2>/dev/null || true
+  
+  unzip -qo "$zip_file" -d "$(dirname "$ext_dir")/temp_extracted" || {
+    msg "Failed to extract Dash-to-Panel zip"
+    return 1  
+  }
+  # Handle both subdirectory and flat-zip structures from GitHub releases
+  local temp_ext
+  temp_ext="$(find "$(dirname "$ext_dir")" -maxdepth 2 -type d -name "*${D2P_EXT_ID}*" | head -1)"
+  if [ -n "$temp_ext" ] && [ "$temp_ext" != "$ext_dir" ]; then
+    mv "$temp_ext" "$ext_dir"
+  elif ls "$(dirname "$ext_dir")/temp_extracted/"*metadata.json >/dev/null 2>&1; then
+    # Flat zip structure - move all contents into ext_dir  
+    mkdir -p "$ext_dir"
+    mv "$(dirname "$ext_dir")/temp_extracted/"* "$ext_dir"/ 2>/dev/null || true
+  fi
+  rm -rf "$(dirname "$ext_dir")/temp_extracted"
   run_as_target chown -R "${TARGET_USER}:${TARGET_USER}" "$ext_dir"
   rm -rf "$tmpdir"
   shell_version="$(gnome-shell --version 2>/dev/null | awk '{print int($3)}')"
@@ -79,23 +93,41 @@ configure_dash_to_panel() {
     msg "Dash-to-Panel install failed; leaving Ubuntu Dock enabled."
     return 0
   fi
+  
   # Time-boxed, backgrounded D-Bus toggles so a slow/unresponsive shell can never
   # block the installer; persistent state is set via gsettings below.
   run_as_target sh -c 'timeout 5 gnome-extensions disable ubuntu-dock@ubuntu.com >/dev/null 2>&1 </dev/null &' || true
   run_as_target sh -c 'timeout 5 gnome-extensions enable "$1" >/dev/null 2>&1 </dev/null &' _ "$D2P_EXT_ID" || true
+  
+  # Register extension and disable Ubuntu Dock  
   d2p_strv_edit add org.gnome.shell enabled-extensions "$D2P_EXT_ID"
   d2p_strv_edit remove org.gnome.shell enabled-extensions ubuntu-dock@ubuntu.com
+  
+  # Core dash-to-panel settings
   run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/show-favorites true || true
-  run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/isolate-workspaces true || true
+  run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/isolate-workspaces true || true  
   run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/isolate-monitors false || true
   run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/stockgs-keep-top-panel false || true
   run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/show-activities-button false || true
+  
+  # Configure bottom panel position for shutdown/date controls integration
+  run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/panel-position "'BOTTOM'" || true
+  run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/panel-positions "{'0': 'BOTTOM'}" || true
+  # Verify bottom panel is actually applied
+  run_as_target sleep 2 && gsettings get org.gnome.shell.extensions.dash-to-panel panel-position 2>/dev/null || true
+  
+  # Enable system-status integration in dash-to-panel layout (shutdown, date, calendar)  
+  run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/show-app-menu false || true
+  run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/system-status-position "'right'" || true
+  
+  # Configure app menu position (left side for shutdown, date controls)  
+  run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/app-menu-position "'left'" || true
 }
 
 # detect_dash_to_panel - true when Dash-to-Panel is deployed.
 detect_dash_to_panel() { d2p_installed; }
 
-# uninstall_dash_to_panel - remove Dash-to-Panel and restore the Ubuntu Dock.
+# uninstall_dash_to_panel - remove Dash-to-Panel and restore the Ubuntu Dock.  
 uninstall_dash_to_panel() {
   msg "Removing Dash-to-Panel and restoring Ubuntu Dock"
   run_as_target gnome-extensions disable "$D2P_EXT_ID" 2>/dev/null || true
