@@ -288,6 +288,60 @@ assert_file_contains "$GSETTINGS_CALL_LOG" "color-scheme 'prefer-light'" "DESKTO
 DESKTOP_GTK_THEME="My-Theme" configure_dark_mode </dev/null
 assert_file_contains "$GSETTINGS_CALL_LOG" "gtk-theme 'My-Theme'" "DESKTOP_GTK_THEME overrides the GTK theme name"
 
+# Test Dash-to-Panel lifecycle detection requires the active bottom-panel setup
+echo ""
+echo "--- dash_to_panel lifecycle ---"
+
+source "$SCRIPT_DIR/lib/dash_to_panel.sh"
+mkdir -p "$TARGET_HOME/.local/share/gnome-shell/extensions/$D2P_EXT_ID"
+printf '{"uuid":"%s"}\n' "$D2P_EXT_ID" >"$TARGET_HOME/.local/share/gnome-shell/extensions/$D2P_EXT_ID/metadata.json"
+
+D2P_ENABLED_EXTENSIONS="['$D2P_EXT_ID']"
+D2P_DISABLED_EXTENSIONS="['ubuntu-dock@ubuntu.com']"
+D2P_DISABLE_USER_EXTENSIONS="false"
+run_as_target() {
+  if [ "$1" = "gsettings" ] && [ "$2" = "get" ]; then
+    case "$3 $4" in
+      "org.gnome.shell enabled-extensions") printf '%s\n' "$D2P_ENABLED_EXTENSIONS" ;;
+      "org.gnome.shell disabled-extensions") printf '%s\n' "$D2P_DISABLED_EXTENSIONS" ;;
+      "org.gnome.shell disable-user-extensions") printf '%s\n' "$D2P_DISABLE_USER_EXTENSIONS" ;;
+      *) return 1 ;;
+    esac
+    return 0
+  fi
+  "$@"
+}
+
+detect_dash_to_panel && pass "detect_dash_to_panel sees deployed and enabled Dash-to-Panel" \
+  || fail "detect_dash_to_panel sees deployed and enabled Dash-to-Panel"
+D2P_DISABLE_USER_EXTENSIONS="true"
+if detect_dash_to_panel; then
+  fail "detect_dash_to_panel rejects globally disabled user extensions"
+else
+  pass "detect_dash_to_panel rejects globally disabled user extensions"
+fi
+D2P_DISABLE_USER_EXTENSIONS="false"
+D2P_ENABLED_EXTENSIONS="['$D2P_EXT_ID', 'ubuntu-dock@ubuntu.com']"
+if detect_dash_to_panel; then
+  fail "detect_dash_to_panel rejects Ubuntu Dock still being enabled"
+else
+  pass "detect_dash_to_panel rejects Ubuntu Dock still being enabled"
+fi
+
+# configure_dash_to_panel must clear the global user-extension kill switch so the
+# bottom panel (and every other user extension) can load on the next login.
+D2P_CONFIGURE_LOG="$TARGET_HOME/d2p-configure.log"
+>"$D2P_CONFIGURE_LOG"
+run_as_target() {
+  if [ "$1" = "gsettings" ] && [ "$2" = "get" ]; then return 0; fi
+  printf '%s\n' "$*" >>"$D2P_CONFIGURE_LOG"
+}
+configure_dash_to_panel </dev/null
+unset -f run_as_target
+assert_file_contains "$D2P_CONFIGURE_LOG" \
+  "gsettings set org.gnome.shell disable-user-extensions false" \
+  "configure_dash_to_panel enables user extensions globally"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 

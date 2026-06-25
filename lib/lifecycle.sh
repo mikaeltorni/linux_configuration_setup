@@ -26,11 +26,11 @@ detect_mouse_accel()       { [ "$(cfg_get org.gnome.desktop.peripherals.mouse ac
 detect_favorites()         { local v; v="$(cfg_get org.gnome.shell favorite-apps)"; [ -n "$v" ] && [ "$v" != "@as []" ] && [ "$v" != "[]" ]; }
 detect_cursor_theme()      { local v; v="$(cfg_get org.gnome.desktop.interface cursor-theme)"; [ -n "$v" ] && [ "$v" != "'Adwaita'" ] && [ "$v" != "'Yaru'" ]; }
 detect_display_refresh()   { local v; v="$(cfg_get org.gnome.mutter experimental-features)"; [ -n "$v" ] && [ "$v" != "@as []" ] && [ "$v" != "[]" ]; }
-detect_gitkraken_autostart() { [ -f "$TARGET_HOME/.config/autostart/gitkraken-autostart.desktop" ]; }
+detect_gitkraken_autostart() { [ -f "$TARGET_HOME/.config/autostart/gitkraken.desktop" ]; }
 detect_autostart_apps()    { [ -f "$TARGET_HOME/.local/bin/autostart_apps.sh" ]; }
 detect_easyeffects_eq()    { ls "$TARGET_HOME"/.config/easyeffects/output/*.json >/dev/null 2>&1; }
 detect_app_rules()         { [ -d "$TARGET_HOME/.local/share/gnome-shell/extensions/app-rules@local" ]; }
-detect_uv_setup()          { [ -f "$TARGET_HOME/.config/autostart/uv-python.desktop" ]; }
+detect_uv_setup()          { [ -x "$TARGET_HOME/.local/bin/uv" ] && [ ! -e "$TARGET_HOME/.config/autostart/uv-python.desktop" ]; }
 detect_tmux_defaults()     { [ -f "$TARGET_HOME/.tmux.conf" ]; }
 
 # --- Uninstall ---------------------------------------------------------------
@@ -65,7 +65,7 @@ uninstall_mouse_accel() {
 uninstall_favorites()      { msg "Resetting dock favorites"; cfg_reset org.gnome.shell favorite-apps; }
 uninstall_cursor_theme()   { msg "Resetting cursor theme"; cfg_reset org.gnome.desktop.interface cursor-theme; }
 uninstall_display_refresh(){ msg "Resetting display experimental features"; cfg_reset org.gnome.mutter experimental-features; }
-uninstall_gitkraken_autostart() { msg "Removing GitKraken autostart"; run_as_target rm -f "$TARGET_HOME/.config/autostart/gitkraken-autostart.desktop"; }
+uninstall_gitkraken_autostart() { msg "Removing GitKraken autostart"; run_as_target rm -f "$TARGET_HOME/.config/autostart/gitkraken.desktop" "$TARGET_HOME/.config/autostart/gitkraken-autostart.desktop"; }
 uninstall_autostart_apps() { msg "Removing autostart apps helper"; run_as_target rm -f "$TARGET_HOME/.local/bin/autostart_apps.sh"; }
 uninstall_easyeffects_eq() { msg "Removing EasyEffects output presets"; run_as_target rm -f "$TARGET_HOME"/.config/easyeffects/output/*.json; }
 uninstall_app_rules() {
@@ -73,5 +73,5 @@ uninstall_app_rules() {
   run_as_target gnome-extensions disable app-rules@local 2>/dev/null || true
   run_as_target rm -rf "$TARGET_HOME/.local/share/gnome-shell/extensions/app-rules@local"
 }
-uninstall_uv_setup()       { msg "Removing UV autostart"; run_as_target rm -f "$TARGET_HOME/.config/autostart/uv-python.desktop"; }
+uninstall_uv_setup()       { msg "Removing UV GUI autostart marker"; run_as_target rm -f "$TARGET_HOME/.config/autostart/uv-python.desktop"; }
 uninstall_tmux_defaults()  { msg "Removing tmux defaults"; run_as_target rm -f "$TARGET_HOME/.tmux.conf"; }
