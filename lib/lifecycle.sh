@@ -4,9 +4,9 @@
 # detect_* report live desktop state for --detect; uninstall_* reverse a setting
 # to its GNOME default (gsettings reset) or remove the file/extension the
 # component installed. Components whose reversal is ambiguous or risky (the
-# passwordless keyring re-encryption, the shared kitty.conf, generated PWA
-# assets) deliberately ship no uninstall function here and fall back to the
-# runtime's receipt-clear; detection still works via their receipt.
+# passwordless keyring re-encryption and the shared kitty.conf) deliberately
+# ship no uninstall function here and fall back to the runtime's receipt-clear;
+# detection still works via their receipt.
 #
 # All gsettings reads/writes go through run_as_target so they act on the target
 # user's session whether the installer runs as that user or via sudo.

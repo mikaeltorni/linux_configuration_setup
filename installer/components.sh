@@ -39,8 +39,6 @@ ISC_COMPONENTS=(
   "kitty_defaults|Kitty terminal defaults|on|configure_kitty_defaults"
   "easyeffects_autostart|EasyEffects autostart|on|configure_easyeffects_autostart"
   "easyeffects_eq|EasyEffects output EQ preset (set EASYEFFECTS_EQ_FILE for a custom file)|on|configure_easyeffects_eq|detect_easyeffects_eq|uninstall_easyeffects_eq"
-  "pwa_icons|Chrome PWA icons and desktop entries|on|configure_pwa_icons"
-  "monkeytype_autostart|Monkeytype autostart|on|configure_monkeytype_autostart"
   "app_rules|App window rules extension|on|configure_app_rules_extension|detect_app_rules|uninstall_app_rules"
   "uv_setup|UV package manager setup|on|configure_uv_autostart|detect_uv_setup|uninstall_uv_setup"
   "tmux_defaults|Tmux defaults|on|configure_tmux_defaults|detect_tmux_defaults|uninstall_tmux_defaults"

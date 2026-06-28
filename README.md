@@ -31,10 +31,9 @@ This repository configures the GNOME desktop environment after base packages are
 - **GNOME favorites**: Installed-app dock list by default; set `FAVORITES_APPS=app1.desktop,app2.desktop` (or type a list) to fully customize the dock
 - **Terminal themes**: Dark background/light text for Console, Ptyxis, GNOME Terminal
 - **Display refresh**: Xorg xrandr max refresh rate or Wayland VRR
-- **Autostart applications**: Spotify, GitKraken, EasyEffects, Monkeytype PWA, and Kitty
-- **EasyEffects EQ preset**: Installs an output EQ preset into `~/.config/easyeffects/output/`. Defaults to the bundled `equalizer.apo`; set `EASYEFFECTS_EQ_FILE=/path/to/your.json` (or type a path at the interactive prompt) to install your own EQ file instead
-- **Chrome PWA icons**: Symlinks and desktop entries for installed Chrome progressive web apps, including Claude
-- **PWA workspace rules**: `app-rules@local` GNOME extension assigns windows to specific workspaces (e.g., Monkeytype → workspace 7, ChatGPT → workspace 0)
+- **Autostart applications**: Spotify, GitKraken, EasyEffects, and Kitty
+- **EasyEffects EQ preset**: Installs an output EQ preset into `~/.config/easyeffects/output/` and selects it as the last-used output preset so EasyEffects applies it automatically on launch. The bundled `equalizer.apo` (and any non-`.json` file) is converted to a native EasyEffects JSON preset, because EasyEffects only loads `.json` presets — a raw `.apo` dropped in that folder is ignored. A native `.json` file is installed verbatim. Set `EASYEFFECTS_EQ_FILE=/path/to/your.{apo,json}` (or type a path at the interactive prompt) to install your own EQ file instead
+- **App workspace rules**: `app-rules@local` GNOME extension assigns windows to specific workspaces (e.g., Monkeytype → workspace 7, ChatGPT → workspace 0). PWAs themselves are installed manually; once present, these rules match them by window class.
 - **UV package manager**: Install astral.sh/uv and disable GUI autostart
 
 ## Installation
@@ -68,7 +67,6 @@ All configuration steps are idempotent:
 - GSettings: uses `set_if_key_exists` pattern — no duplicate values
 - Autostart entries: checks for existing `.desktop` files before creating
 - EasyEffects preset: only copies if source exists, overwrites in place
-- PWA icons: repairs icon links for every available size and refreshes desktop entries with direct icon paths
 - Cursor theme: rebuilds the Purple Cross cursor at 48px for visibility, maps every discovered pointer/text/hover/drag/resize role back to it, updates both modern and legacy Xcursor default inheritance paths, and exposes the generated theme through `~/.icons/PurpleCrossDefault`
 
 The `passwordless_keyring` component keeps Secret Service enabled but removes
@@ -89,7 +87,6 @@ Run the shell and Python tests before changing installer behavior:
 ```bash
 bash tests/test_cursor_theme.sh
 bash tests/test_gnome_desktop.sh
-bash tests/test_pwa_icons.sh
 bash tests/test_shell_helpers.sh
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
@@ -104,10 +101,9 @@ linux_configuration_setup/
 │   ├── logging.sh          # Centralized logging with levels
 │   ├── gsettings_helpers.sh  # GSettings/dconf helper functions
 │   ├── system_config.sh      # RTC, clock, lock, dark mode, mouse accel
-│   ├── autostart.sh          # Autostart entries for apps (Spotify, GitKraken, EasyEffects, Monkeytype)
+│   ├── autostart.sh          # Autostart entries for apps (Spotify, GitKraken, EasyEffects)
 │   ├── cursor_theme.sh       # Purple Cross cursor build, aliases, and defaults
-│   ├── gnome_desktop.sh      # GNOME desktop config (favorites, terminal themes, display, extensions)
-│   └── pwa_icons.sh          # Chrome PWA desktop entries and icon links
+│   └── gnome_desktop.sh      # GNOME desktop config (favorites, terminal themes, display, extensions)
 ├── scripts/
 │   ├── logging_utils.py      # Centralized Python logging and call tracing
 │   ├── extract_cursor.py     # CUR-to-PNG cursor extraction helper
@@ -125,9 +121,9 @@ linux_configuration_setup/
 └── .gitignore
 ```
 
-## PWA Workspace Rules (app-rules@local)
+## App Workspace Rules (app-rules@local)
 
-The `app-rules@local` GNOME Shell extension assigns windows to specific workspaces or makes them sticky. It is deployed from `configs/gnome-extensions/app-rules@local/`.
+The `app-rules@local` GNOME Shell extension assigns windows to specific workspaces or makes them sticky. It is deployed from `configs/gnome-extensions/app-rules@local/`. PWAs referenced below are installed manually; the rules match them once their windows exist.
 
 Current rules:
 
@@ -159,7 +155,7 @@ This repo is run **after** `linux_installations_setup` has cloned it. It require
 - The installer writes `~/.local/share/icons/default/index.theme` and `~/.icons/default/index.theme`, then links `~/.icons/PurpleCrossDefault` to the generated theme so applications that read Xcursor defaults outside GNOME GSettings can load it.
 - GitKraken uses only `~/.config/autostart/gitkraken.desktop`; the installer removes the obsolete `gitkraken-autostart.desktop` alias to prevent duplicate launches.
 - Log out and back in before testing GNOME Shell extension code changes.
-- Monkeytype PWA autostarts on login and opens on workspace 7 via the `app-rules@local` extension. If it doesn't appear on workspace 7, verify the extension is enabled and check that `monkeytype.desktop` exists in `~/.local/share/applications/`.
+- PWAs (Monkeytype, ChatGPT, Claude, etc.) are installed manually from Chrome — this repo no longer creates their desktop entries, icons, or autostart files. Once you have installed a PWA, the `app-rules@local` extension assigns its window to the mapped workspace. If a PWA does not land on its workspace, verify the extension is enabled and that the PWA's window class matches a rule.
 
 ## License
 
@@ -201,8 +197,6 @@ or none, and **Enter** installs the selection. Components:
 | `kitty_defaults` | Kitty terminal defaults | on |
 | `easyeffects_autostart` | EasyEffects autostart | on |
 | `easyeffects_eq` | EasyEffects output EQ preset (override with `EASYEFFECTS_EQ_FILE`) | on |
-| `pwa_icons` | Chrome PWA icons and desktop entries | on |
-| `monkeytype_autostart` | Monkeytype autostart | on |
 | `app_rules` | App window rules extension | on |
 | `uv_setup` | UV package manager setup | on |
 | `tmux_defaults` | Tmux defaults | on |

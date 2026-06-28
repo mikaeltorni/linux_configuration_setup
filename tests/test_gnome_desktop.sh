@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test_gnome_desktop.sh — Tests for GNOME desktop and legacy PWA integration.
+# test_gnome_desktop.sh — Tests for GNOME desktop integration.
 
 set -euo pipefail
 
@@ -25,7 +25,6 @@ source "$SCRIPT_DIR/../linux_installation_scripts_functions/installer_helpers.sh
 source "$SCRIPT_DIR/lib/helpers.sh"
 source "$SCRIPT_DIR/lib/gsettings_helpers.sh"
 source "$SCRIPT_DIR/lib/gnome_desktop.sh"
-source "$SCRIPT_DIR/lib/pwa_icons.sh"
 DESKTOP_DIRS=("$TARGET_HOME/.local/share/applications")
 
 PASS=0
@@ -173,56 +172,6 @@ app_rules_dst="$TARGET_HOME/.local/share/gnome-shell/extensions/app-rules@local"
 assert_file_exists "$app_rules_dst" "Should create the app-rules extension directory"
 assert_file_mode "$app_rules_dst/metadata.json" "644" "Should install metadata.json with a stable file mode"
 assert_file_contains "$app_rules_dst/extension.js" "extension source" "Should copy extension.js into the destination"
-
-# Test configure_pwa_icons installs every icon size and a matching desktop entry
-echo ""
-echo "--- configure_pwa_icons ---"
-
-FAKE_BIN="$TARGET_HOME/fake-bin"
-mkdir -p "$FAKE_BIN"
-PATH="$FAKE_BIN:$PATH"
-
-claude_app_id="fmpnliohjhemenmnlpbfagaolkdacoja"
-claude_manifest_dir="$TARGET_HOME/.config/google-chrome/Default/Web Applications/Manifest Resources/$claude_app_id"
-mkdir -p "$claude_manifest_dir/Icons"
-printf '{"name":"Claude"}\n' >"$claude_manifest_dir/Manifest"
-printf 'claude-48\n' >"$claude_manifest_dir/Icons/48.png"
-printf 'claude-512\n' >"$claude_manifest_dir/Icons/512.png"
-
-FAKE_GTK_CACHE_LOG="$TARGET_HOME/gtk-update-icon-cache.log"
-cat >"$FAKE_BIN/gtk-update-icon-cache" <<EOF
-#!/usr/bin/env bash
-printf '%s\n' "\$*" >"$FAKE_GTK_CACHE_LOG"
-EOF
-chmod +x "$FAKE_BIN/gtk-update-icon-cache"
-
-configure_pwa_icons
-
-claude_icon_name="chrome-$claude_app_id-Default.png"
-assert_symlink_target \
-  "$TARGET_HOME/.local/share/icons/hicolor/48x48/apps/$claude_icon_name" \
-  "$claude_manifest_dir/Icons/48.png" \
-  "Should install the Claude 48px icon"
-assert_symlink_target \
-  "$TARGET_HOME/.local/share/icons/hicolor/512x512/apps/$claude_icon_name" \
-  "$claude_manifest_dir/Icons/512.png" \
-  "Should install the Claude 512px icon"
-claude_desktop="$TARGET_HOME/.local/share/applications/chrome-$claude_app_id-Default.desktop"
-assert_file_contains "$claude_desktop" "Name=Claude" "Should create the Claude desktop entry"
-assert_file_contains \
-  "$claude_desktop" \
-  "Icon=$claude_manifest_dir/Icons/512.png" \
-  "Should point the Claude desktop entry directly at its largest icon"
-assert_file_contains "$FAKE_GTK_CACHE_LOG" "$TARGET_HOME/.local/share/icons/hicolor" "Should refresh the icon cache"
-
-# Chrome can remove a cached manifest while retaining PWA icons and its entry.
-rm "$claude_manifest_dir/Manifest"
-printf 'Icon=stale\nName=Claude\n' >"$claude_desktop"
-configure_pwa_icons
-assert_file_contains \
-  "$claude_desktop" \
-  "Icon=$claude_manifest_dir/Icons/512.png" \
-  "Should recover a manifest-less Claude PWA from its existing desktop entry"
 
 # Test configure_favorites honors a user-supplied app list
 echo ""
