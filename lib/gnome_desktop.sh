@@ -70,7 +70,6 @@ configure_favorites() {
     add_favorite google-chrome.desktop com.google.Chrome.desktop
     add_favorite "$terminal_desktop" org.gnome.Console.desktop org.gnome.Terminal.desktop org.gnome.Ptyxis.desktop kitty.desktop
     add_favorite com.github.wwmm.easyeffects.desktop
-    add_favorite albert.desktop
     add_favorite spotify.desktop spotify_spotify.desktop
     add_favorite gitkraken.desktop gitkraken_gitkraken.desktop
     add_favorite org.remmina.Remmina.desktop remmina.desktop
