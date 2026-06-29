@@ -243,9 +243,11 @@ easyeffects_apo_to_json() {
 #        the pre-typed value — is the bundled preset; the user may type the path
 #        to their own EQ file instead.
 #     3. The bundled preset at CONFIG_DIR/equalizer.apo.
-#   The resolved file is copied into ~/.config/easyeffects/output/ preserving its
-#   basename. JSON presets are picked up directly by EasyEffects; APO files (the
-#   bundled default) can be imported from there via the equalizer's APO import.
+#   A native EasyEffects JSON preset (.json) is installed verbatim; any other file
+#   is treated as Equalizer APO text and converted to JSON, because EasyEffects
+#   only loads JSON presets from output/ (a raw .apo there is silently ignored).
+#   The preset is named after the source basename and selected as the last-used
+#   output preset so EasyEffects applies it automatically on the next launch.
 #   Args: none. Returns: 0 (skips cleanly when no EQ file is available).
 configure_easyeffects_eq() {
   msg "Installing EasyEffects output EQ preset"
@@ -273,8 +275,27 @@ configure_easyeffects_eq() {
 
   local dest_dir="$TARGET_HOME/.config/easyeffects/output"
   run_as_target install -d -m 0755 "$dest_dir"
-  local dest="$dest_dir/$(basename "$eq_src")"
-  run_as_target cp -f "$eq_src" "$dest"
+
+  # Drop stale .apo files from earlier installs that copied APO directly (ignored
+  # by EasyEffects) so the output directory holds only loadable JSON presets.
+  run_as_target sh -c 'rm -f "$1"/*.apo 2>/dev/null || true' _ "$dest_dir"
+
+  local preset_name dest
+  preset_name="$(basename "$eq_src")"; preset_name="${preset_name%.*}"
+  dest="$dest_dir/${preset_name}.json"
+
+  case "$eq_src" in
+    *.json)
+      run_as_target cp -f "$eq_src" "$dest"
+      ;;
+    *)
+      easyeffects_apo_to_json "$eq_src" | run_as_target tee "$dest" >/dev/null
+      ;;
+  esac
   run_as_target chmod 0644 "$dest"
   msg "  Installed EQ preset: $dest"
+
+  # Select the preset so EasyEffects applies it automatically when it starts.
+  user_gsettings_set_if_key_exists com.github.wwmm.easyeffects \
+    last-used-output-preset "'${preset_name}'"
 }
