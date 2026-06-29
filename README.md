@@ -53,6 +53,8 @@ sudo bash install.sh
 | `DESKTOP_ICON_THEME` | `Yaru` | Override the icon theme name (`dark_mode` component) |
 | `FAVORITES_APPS` | _(installed apps)_ | Comma/space-separated `.desktop` ids for the dock (`favorites` component); full manual override |
 | `SELECTED_FAVORITE_APPS` | _(unset)_ | Internal master-installer handoff: comma/space-separated program-menu favourites merged with baseline dock entries |
+| `SELECTED_STARTUP_APPS` | _(unset)_ | Internal master handoff: semicolon-separated selected launcher groups; pipe separates filename alternatives |
+| `MANAGED_STARTUP_APPS` | _(unset)_ | Internal master handoff: complete startup-capable launcher set used to validate and reconcile tracked entries |
 | `CURSOR_SOURCE_FILE` | bundled `purple_cross.cur` | Path to your own cursor image (`cursor_theme` component) |
 | `EASYEFFECTS_EQ_FILE` | bundled `equalizer.apo` | Path to your own EasyEffects EQ file (`easyeffects_eq` component) |
 
@@ -197,12 +199,14 @@ or none, and **Enter** installs the selection. Components:
 | `spotify_autostart` | Spotify autostart | on |
 | `gitkraken_autostart` | GitKraken autostart | on |
 | `autostart_apps` | General autostart applications | on |
+| `selected_app_autostart` | Master-selected app startup (`s` in app menu) | on |
 | `kitty_defaults` | Kitty terminal defaults | on |
 | `easyeffects_autostart` | EasyEffects autostart | on |
 | `easyeffects_eq` | EasyEffects output EQ preset (override with `EASYEFFECTS_EQ_FILE`) | on |
 | `app_rules` | App window rules extension | on |
 | `uv_setup` | UV package manager setup | on |
 | `tmux_defaults` | Tmux defaults | on |
+| `dash_to_panel` | Dash-to-Panel layout (replaces Ubuntu Dock) | on |
 
 ## Detect, reconfigure, and uninstall
 

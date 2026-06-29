@@ -7,6 +7,7 @@
 #   - configure_spotify_autostart(): Enable Spotify autostart.
 #   - configure_gitkraken_autostart(): Enable GitKraken autostart.
 #   - configure_autostart_apps(): Create the general autostart launcher + entry.
+#   - configure_selected_app_autostart(): Reconcile master-menu [s] selections.
 #   - configure_kitty_defaults(): Ensure Kitty config disables the close prompt.
 #   - configure_easyeffects_autostart(): Enable EasyEffects autostart + systemd service.
 #   - configure_easyeffects_eq(): Install an EasyEffects output EQ preset (user-supplied or bundled).
@@ -71,6 +72,10 @@ fi' || true
 # configure_spotify_autostart — Enable Spotify to start on login.
 #   Args: none. Returns: 0.
 configure_spotify_autostart() {
+  if [ -n "${MANAGED_STARTUP_APPS:-}" ]; then
+    log "info" "Spotify autostart delegated to selected_app_autostart"
+    return 0
+  fi
   msg "Enabling Spotify autostart"
 
   configure_autostart_entry \
@@ -83,6 +88,10 @@ configure_spotify_autostart() {
 # configure_gitkraken_autostart — Enable GitKraken to start on login.
 #   Args: none. Returns: 0.
 configure_gitkraken_autostart() {
+  if [ -n "${MANAGED_STARTUP_APPS:-}" ]; then
+    log "info" "GitKraken autostart delegated to selected_app_autostart"
+    return 0
+  fi
   msg "Enabling GitKraken autostart"
 
   # Older setup revisions used this alternate basename, causing GNOME to
@@ -125,6 +134,104 @@ EOF
     "/bin/bash -lc \"$TARGET_HOME/.local/bin/autostart_apps.sh\""
 }
 
+# configure_selected_app_autostart - Reconcile the desktop applications marked
+# with [s] in the master installer. SELECTED_STARTUP_APPS and
+# MANAGED_STARTUP_APPS contain semicolon-separated launcher groups; within each
+# group, pipe-separated desktop filenames are ordered alternatives.
+#
+# Only entries recorded in this feature's state file and legacy entries created
+# by this setup chain are removed. Unrelated user-managed autostart files remain
+# untouched. Missing desktop files are logged and skipped rather than replaced
+# with launchers whose Exec command cannot be derived safely.
+# Args: none. Returns 0 after reconciliation; filesystem errors propagate.
+configure_selected_app_autostart() {
+  local selected="${SELECTED_STARTUP_APPS:-}"
+  local managed="${MANAGED_STARTUP_APPS:-}"
+  local state_dir="$TARGET_HOME/.local/state/linux-configuration-setup"
+  local state_file="$state_dir/selected-app-autostart.list"
+  local pending_file="$state_file.pending"
+  local autostart_dir="$TARGET_HOME/.config/autostart"
+  local basename group candidate desktop_src known=0 managed_group
+  local -a groups=() candidates=() managed_groups=()
+
+  if [ -z "$managed" ]; then
+    log "info" "Selected app autostart skipped: no master startup metadata"
+    return 0
+  fi
+
+  msg "Configuring selected application startup"
+  log "info" "Reconciling master-selected application startup entries"
+  run_as_target install -d -m 0755 "$autostart_dir" "$state_dir"
+
+  if [ -f "$state_file" ]; then
+    while IFS= read -r basename; do
+      [[ "$basename" == *.desktop && "$basename" != */* ]] || continue
+      log "debug" "Removing previously managed startup entry: $basename"
+      run_as_target rm -f "$autostart_dir/$basename"
+    done <"$state_file"
+  fi
+
+  # These filenames were created by older setup-chain components before the
+  # unified [s] selector existed. Reconcile them once under the new authority.
+  run_as_target rm -f \
+    "$autostart_dir/spotify.desktop" \
+    "$autostart_dir/gitkraken.desktop" \
+    "$autostart_dir/gitkraken-autostart.desktop" \
+    "$autostart_dir/easyeffects.desktop" \
+    "$autostart_dir/albert.desktop"
+  # Older EasyEffects setup enabled a user service in addition to its desktop
+  # entry. Disable that duplicate login path; the selected desktop launcher is
+  # now the single source of startup behavior. Do not stop a running instance.
+  run_as_target systemctl --user disable easyeffects.service >/dev/null 2>&1 || true
+  run_as_target sh -c ': > "$1"' _ "$pending_file"
+
+  IFS=';' read -r -a groups <<<"$selected"
+  IFS=';' read -r -a managed_groups <<<"$managed"
+  for group in "${groups[@]}"; do
+    [ -n "$group" ] || continue
+    known=0
+    for managed_group in "${managed_groups[@]}"; do
+      if [ "$group" = "$managed_group" ]; then known=1; break; fi
+    done
+    if [ "$known" -ne 1 ]; then
+      log "warn" "Skipping startup launcher group absent from managed metadata: $group"
+      continue
+    fi
+
+    desktop_src=""
+    IFS='|' read -r -a candidates <<<"$group"
+    for candidate in "${candidates[@]}"; do
+      [[ "$candidate" == *.desktop && "$candidate" != */* ]] || continue
+      if desktop_src="$(find_desktop_file_path "$candidate")"; then
+        break
+      fi
+      desktop_src=""
+    done
+    if [ -z "$desktop_src" ]; then
+      log "warn" "No installed desktop file found for startup launcher group: $group"
+      continue
+    fi
+
+    basename="$(basename "$desktop_src")"
+    log "info" "Installing selected startup entry: $basename"
+    run_as_target cp "$desktop_src" "$autostart_dir/$basename"
+    run_as_target bash -c '
+file="$1"
+if grep -q "^X-GNOME-Autostart-enabled=" "$file"; then
+  sed -i "s/^X-GNOME-Autostart-enabled=.*/X-GNOME-Autostart-enabled=true/" "$file"
+elif grep -q "^\\[Desktop Entry\\]$" "$file"; then
+  sed -i "/^\\[Desktop Entry\\]$/a X-GNOME-Autostart-enabled=true" "$file"
+else
+  printf "X-GNOME-Autostart-enabled=true\\n" >>"$file"
+fi
+' _ "$autostart_dir/$basename"
+    printf '%s\n' "$basename" | run_as_target tee -a "$pending_file" >/dev/null
+  done
+
+  run_as_target mv "$pending_file" "$state_file"
+  log "info" "Selected application startup reconciliation complete"
+}
+
 # ── Kitty terminal defaults ──────────────────────────────────────────────────
 
 # configure_kitty_defaults — Ensure ~/.config/kitty/kitty.conf disables the
@@ -154,6 +261,10 @@ fi'
 # configure_easyeffects_autostart — Enable EasyEffects autostart + systemd service.
 #   Args: none. Returns: 0 (the systemd enable step is best-effort).
 configure_easyeffects_autostart() {
+  if [ -n "${MANAGED_STARTUP_APPS:-}" ]; then
+    log "info" "EasyEffects autostart delegated to selected_app_autostart"
+    return 0
+  fi
   msg "Ensuring EasyEffects autostarts"
 
   configure_autostart_entry \

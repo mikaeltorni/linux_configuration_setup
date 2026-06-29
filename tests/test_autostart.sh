@@ -25,12 +25,17 @@ source "$SCRIPT_DIR/../linux_installation_scripts_functions/installer_helpers.sh
 source "$SCRIPT_DIR/lib/helpers.sh"
 source "$SCRIPT_DIR/lib/gsettings_helpers.sh"
 source "$SCRIPT_DIR/lib/autostart.sh"
+source "$SCRIPT_DIR/lib/lifecycle.sh"
 
 run_as_target() {
   HOME="$TARGET_HOME" "$@"
 }
 
 msg() {
+  :
+}
+
+systemctl() {
   :
 }
 
@@ -77,6 +82,84 @@ if grep -q 'launch_if_exists gitkraken' "$TARGET_HOME/.local/bin/autostart_apps.
 fi
 
 printf 'PASS: GitKraken uses one canonical autostart entry\n'
+
+# ── configure_selected_app_autostart ─────────────────────────────────────────
+
+printf '[Desktop Entry]\nName=Alpha\nExec=alpha\n[Desktop Action New]\nName=New\n' \
+  >"$TARGET_HOME/.local/share/applications/alpha.desktop"
+printf '[Desktop Entry]\nName=Beta\nExec=beta\n' \
+  >"$TARGET_HOME/.local/share/applications/beta-alt.desktop"
+printf '[Desktop Entry]\nName=Gamma\nExec=gamma\n' \
+  >"$TARGET_HOME/.local/share/applications/gamma.desktop"
+printf '[Desktop Entry]\nName=Manual\nExec=manual\n' \
+  >"$TARGET_HOME/.config/autostart/manual.desktop"
+
+MANAGED_STARTUP_APPS='alpha.desktop;beta.desktop|beta-alt.desktop;gamma.desktop'
+SELECTED_STARTUP_APPS='alpha.desktop;beta.desktop|beta-alt.desktop'
+configure_selected_app_autostart
+
+assert_file_exists \
+  "$TARGET_HOME/.config/autostart/alpha.desktop" \
+  "selected Alpha launcher should autostart"
+enabled_line="$(grep -n '^X-GNOME-Autostart-enabled=true$' \
+  "$TARGET_HOME/.config/autostart/alpha.desktop" | cut -d: -f1)"
+action_line="$(grep -n '^\[Desktop Action New\]$' \
+  "$TARGET_HOME/.config/autostart/alpha.desktop" | cut -d: -f1)"
+if [ -z "$enabled_line" ] || [ "$enabled_line" -ge "$action_line" ]; then
+  printf 'FAIL: autostart flag should be in the main Desktop Entry section\n' >&2
+  exit 1
+fi
+assert_file_exists \
+  "$TARGET_HOME/.config/autostart/beta-alt.desktop" \
+  "the first installed Beta launcher candidate should autostart"
+assert_file_missing \
+  "$TARGET_HOME/.config/autostart/gamma.desktop" \
+  "unselected Gamma launcher should not autostart"
+detect_selected_app_autostart || {
+  printf 'FAIL: selected-app autostart state should be detected\n' >&2
+  exit 1
+}
+
+first_hash="$(sha256sum \
+  "$TARGET_HOME/.config/autostart/alpha.desktop" \
+  "$TARGET_HOME/.config/autostart/beta-alt.desktop" \
+  "$TARGET_HOME/.local/state/linux-configuration-setup/selected-app-autostart.list")"
+configure_selected_app_autostart
+second_hash="$(sha256sum \
+  "$TARGET_HOME/.config/autostart/alpha.desktop" \
+  "$TARGET_HOME/.config/autostart/beta-alt.desktop" \
+  "$TARGET_HOME/.local/state/linux-configuration-setup/selected-app-autostart.list")"
+if [ "$first_hash" != "$second_hash" ]; then
+  printf 'FAIL: repeated selected-app startup configuration should be idempotent\n' >&2
+  exit 1
+fi
+
+# Re-applying a different selection removes only entries previously owned by
+# this feature and preserves unrelated user autostart files.
+SELECTED_STARTUP_APPS='gamma.desktop'
+configure_selected_app_autostart
+assert_file_missing \
+  "$TARGET_HOME/.config/autostart/alpha.desktop" \
+  "deselected Alpha launcher should be removed"
+assert_file_missing \
+  "$TARGET_HOME/.config/autostart/beta-alt.desktop" \
+  "deselected Beta launcher should be removed"
+assert_file_exists \
+  "$TARGET_HOME/.config/autostart/gamma.desktop" \
+  "newly selected Gamma launcher should autostart"
+assert_file_exists \
+  "$TARGET_HOME/.config/autostart/manual.desktop" \
+  "unmanaged user autostart files should be preserved"
+
+uninstall_selected_app_autostart
+assert_file_missing \
+  "$TARGET_HOME/.config/autostart/gamma.desktop" \
+  "uninstall should remove the tracked selected launcher"
+assert_file_exists \
+  "$TARGET_HOME/.config/autostart/manual.desktop" \
+  "uninstall should preserve unmanaged user autostart files"
+
+printf 'PASS: selected app autostart reconciles tracked desktop entries\n'
 
 # ── configure_kitty_defaults ─────────────────────────────────────────────────
 

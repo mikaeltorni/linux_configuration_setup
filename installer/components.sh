@@ -36,6 +36,7 @@ ISC_COMPONENTS=(
   "spotify_autostart|Spotify autostart|on|configure_spotify_autostart"
   "gitkraken_autostart|GitKraken autostart|on|configure_gitkraken_autostart|detect_gitkraken_autostart|uninstall_gitkraken_autostart"
   "autostart_apps|General autostart applications|on|configure_autostart_apps|detect_autostart_apps|uninstall_autostart_apps"
+  "selected_app_autostart|Master-selected app startup ([s] in app menu)|on|configure_selected_app_autostart|detect_selected_app_autostart|uninstall_selected_app_autostart"
   "kitty_defaults|Kitty terminal defaults|on|configure_kitty_defaults"
   "easyeffects_autostart|EasyEffects autostart|on|configure_easyeffects_autostart"
   "easyeffects_eq|EasyEffects output EQ preset (set EASYEFFECTS_EQ_FILE for a custom file)|on|configure_easyeffects_eq|detect_easyeffects_eq|uninstall_easyeffects_eq"

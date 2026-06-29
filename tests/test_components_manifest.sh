@@ -57,7 +57,7 @@ echo "--- every component is well-formed and maps to a defined function ---"
 declare -A seen_ids=()
 manifest_ids=()
 for entry in "${ISC_COMPONENTS[@]}"; do
-  IFS='|' read -r id label default func <<<"$entry"
+  IFS='|' read -r id label default func _detect _uninstall _section <<<"$entry"
   manifest_ids+=("$id")
 
   [ -n "$id" ] && pass "id present in '$entry'" || fail "id present in '$entry'"
