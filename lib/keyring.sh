@@ -82,14 +82,15 @@ configure_passwordless_keyring() {
   fi
   _install_keyring_activation || return
 
+  if ! python_bin="$(find_python_with_module gi)" ||
+     ! run_as_target "$python_bin" -c 'import gi; gi.require_version("Secret", "1")'; then
+    log "error" "Python Secret Service bindings are unavailable"
+    return 1
+  fi
+
   if run_as_target test -f "$marker" &&
      run_as_target test -f "$keyring_dir/login.keyring" &&
      [[ "$(run_as_target bash -c 'cat "$1" 2>/dev/null' bash "$keyring_dir/default")" == "login" ]]; then
-    if ! python_bin="$(find_python_with_module gi)" ||
-       ! run_as_target "$python_bin" -c 'import gi; gi.require_version("Secret", "1")'; then
-      log "error" "Python Secret Service bindings are unavailable"
-      return 1
-    fi
     if run_as_target "$python_bin" "$helper" check >/dev/null 2>&1; then
       msg "Prompt-free login keyring is already configured"
       return 0
@@ -115,20 +116,37 @@ configure_passwordless_keyring() {
       return 1
     fi
   done
-  if [ -z "${python_bin:-}" ] &&
-     { ! python_bin="$(find_python_with_module gi)" ||
-       ! run_as_target "$python_bin" -c 'import gi; gi.require_version("Secret", "1")'; }; then
-    log "error" "Python Secret Service bindings are unavailable"
-    return 1
-  fi
   log "debug" "configure_passwordless_keyring: using $python_bin for Secret Service migration"
 
   migration_dir="$(run_as_target mktemp -d "$RUNTIME_DIR/keyring-migration.XXXXXX")" || return
   snapshot="$migration_dir/items.json"
   staging_home="$migration_dir/staging-home"
 
-  if ! run_as_target "$python_bin" "$helper" export "$snapshot"; then
-    log "error" "Keyring migration requires all collections to be unlocked once"
+  if run_as_target "$python_bin" "$helper" check >/dev/null 2>&1; then
+    # Preserve an already-unlocked encrypted collection before testing whether
+    # the existing Login keyring also accepts the empty automatic-login password.
+    if ! run_as_target "$python_bin" "$helper" export "$snapshot"; then
+      log "error" "Could not snapshot the unlocked Login keyring"
+      run_as_target rm -rf "$migration_dir"
+      return 1
+    fi
+  fi
+
+  msg "Applying the prompt-free keyring unlock path"
+  if ! run_as_target systemctl --user restart gnome-keyring-daemon.service; then
+    log "error" "Could not restart GNOME Keyring with the prompt-free unlock override"
+    run_as_target rm -rf "$migration_dir"
+    return 1
+  fi
+  if run_as_target "$python_bin" "$helper" check >/dev/null 2>&1; then
+    run_as_target install -D -m 0600 /dev/null "$marker"
+    run_as_target rm -rf "$migration_dir"
+    msg "Prompt-free login keyring is already configured"
+    return 0
+  fi
+
+  if ! run_as_target test -f "$snapshot"; then
+    log "error" "Login keyring is password-protected; unlock it once and rerun the passwordless_keyring component"
     run_as_target rm -rf "$migration_dir"
     return 1
   fi

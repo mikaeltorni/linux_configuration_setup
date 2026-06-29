@@ -23,25 +23,16 @@ LOGGER = get_logger("keyring-snapshot", "python-helpers.log")
 def load_service() -> Secret.Service:
     """Return Secret Service with every available collection unlocked and loaded.
 
-    A freshly provisioned automatic-login keyring is created with an empty
-    password but can still report locked in a non-graphical (boot/SSH) context,
-    which previously aborted the migration on a clean install. Attempt to unlock
-    locked collections once first: this succeeds for the empty-password keyring
-    automatic login uses and for any collection the running daemon can unlock.
-    A collection that stays locked needs a password we cannot supply unattended,
-    so we still refuse rather than risk discarding its secrets.
+    This helper never requests an interactive unlock. The installer first
+    restarts the daemon with an empty password on stdin, which silently unlocks
+    automatic-login keyrings. A genuinely password-protected collection must be
+    unlocked by the user before the migration is run again so its items are not
+    discarded.
     """
     service = Secret.Service.get_sync(Secret.ServiceFlags.LOAD_COLLECTIONS, None)
-    locked = [c for c in service.get_collections() if c.get_locked()]
-    if locked:
-        labels = ", ".join(repr(c.get_label()) for c in locked)
-        LOGGER.info("Attempting to unlock locked keyring collection(s): %s", labels)
-        try:
-            service.unlock_sync(locked, None)
-        except GLib.Error as error:
-            LOGGER.warning("Could not unlock keyring collection(s): %s", error)
     for collection in service.get_collections():
         if collection.get_locked():
+            LOGGER.warning("Keyring collection %r is locked", collection.get_label())
             raise RuntimeError(
                 f"Keyring collection {collection.get_label()!r} is locked; "
                 "unlock it once before running the migration"

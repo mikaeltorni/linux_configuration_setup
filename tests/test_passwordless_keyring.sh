@@ -25,6 +25,7 @@ rg -q 'source "\$script_dir/logging.sh"' "$ACTIVATOR"
 rg -q 'dbus-run-session' "$ROOT_DIR/lib/keyring.sh"
 rg -q 'find_python_with_module gi' "$ROOT_DIR/lib/keyring.sh"
 rg -q '"\$python_bin" "\$helper" export' "$ROOT_DIR/lib/keyring.sh"
+rg -q 'systemctl --user restart gnome-keyring-daemon.service' "$ROOT_DIR/lib/keyring.sh"
 rg -q 'passwordless-keyring-pending' "$ROOT_DIR/lib/keyring.sh"
 rg -q 'gnome-keyring-daemon.service.d/passwordless-login-unlock.conf' "$ROOT_DIR/lib/keyring.sh"
 rg -q 'Before=gnome-keyring-daemon.socket gnome-keyring-daemon.service' "$UNIT"
@@ -33,6 +34,10 @@ rg -q '^ExecStart=$' "$UNLOCK_DROPIN"
 rg -q 'gnome-keyring-daemon --foreground --unlock --components=pkcs11,secrets --control-directory=%t/keyring' "$UNLOCK_DROPIN"
 rg -q '^StandardInput=data$' "$UNLOCK_DROPIN"
 rg -q '^StandardInputData=Cg==$' "$UNLOCK_DROPIN"
+if rg -q 'unlock_sync' "$HELPER"; then
+  echo "keyring helper must not open an interactive unlock prompt" >&2
+  exit 1
+fi
 if rg -q 'systemctl --user stop|kill|pkill|killall' "$ROOT_DIR/lib/keyring.sh"; then
   echo "keyring migration must not terminate the live desktop daemon" >&2
   exit 1

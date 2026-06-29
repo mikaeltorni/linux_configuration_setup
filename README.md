@@ -72,11 +72,14 @@ All configuration steps are idempotent:
 The `passwordless_keyring` component keeps Secret Service enabled but removes
 its at-rest password. This prevents unlock dialogs during automatic login and
 when applications access stored credentials. Existing items are migrated into
-a verified replacement without touching the running keyring daemon. A one-shot
-user service activates it before GNOME Keyring starts on the next reboot, and
-the GNOME Keyring user service is started with the empty-password unlock path
-so the replacement stays prompt-free across later daemon starts. The migration
-retains the prior encrypted files under
+a verified replacement. Fresh automatic-login keyrings are first unlocked
+silently through the empty-password service override; the migration helper
+never opens a graphical authentication dialog. A genuinely password-protected
+keyring must be unlocked once before rerunning the component so its credentials
+can be preserved. A one-shot user service activates a migrated replacement
+before GNOME Keyring starts on the next reboot, and the GNOME Keyring user
+service keeps using the empty-password unlock path across later daemon starts.
+The migration retains the prior encrypted files under
 `~/.local/state/linux-configuration-setup/keyring-backups/` for rollback. The
 passwordless keyring is not protected by an at-rest password.
 
