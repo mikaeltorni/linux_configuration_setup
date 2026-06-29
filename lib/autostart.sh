@@ -167,6 +167,75 @@ configure_easyeffects_autostart() {
   run_as_target systemctl --user enable --now easyeffects.service >/dev/null 2>&1 || true
 }
 
+# easyeffects_apo_to_json — Convert an Equalizer APO config into an EasyEffects
+#   output preset (JSON) on stdout. EasyEffects 7.x only loads JSON presets from
+#   its output/ directory; a raw .apo file dropped there is ignored, so the APO
+#   bands must be translated into the native preset structure
+#   (verified against EasyEffects 7.1.6: the resulting preset is listed by
+#   `easyeffects -p`, loads via `easyeffects -l`, and populates all bands).
+#   Each "Filter N: ON PK Fc <f> Hz Gain <g> dB Q <q>" line becomes a Bell band;
+#   "Preamp: <x> dB" becomes the equalizer input-gain. The same bands are written
+#   to both channels (split-channels=false). Args: $1 = path to the .apo file.
+easyeffects_apo_to_json() {
+  awk '
+    BEGIN { preamp = 0; n = 0 }
+    /^[[:space:]]*Preamp:/ {
+      for (i = 1; i <= NF; i++) if ($i ~ /^-?[0-9.]+$/) { preamp = $i; break }
+      next
+    }
+    /Filter[[:space:]]+[0-9]+:[[:space:]]+ON[[:space:]]+PK/ {
+      freq = q = ""; gain = 0
+      for (i = 1; i <= NF; i++) {
+        if ($i == "Fc")   freq = $(i+1)
+        if ($i == "Gain") gain = $(i+1)
+        if ($i == "Q")    q    = $(i+1)
+      }
+      bandfreq[n] = freq; bandgain[n] = gain; bandq[n] = q; n++
+      next
+    }
+    function emit_channel(    j) {
+      for (j = 0; j < n; j++) {
+        printf "        \"band%d\": {\n", j
+        printf "          \"frequency\": %s,\n", bandfreq[j]+0
+        printf "          \"gain\": %s,\n", bandgain[j]+0
+        printf "          \"mode\": \"RLC (BT)\",\n"
+        printf "          \"mute\": false,\n"
+        printf "          \"q\": %s,\n", bandq[j]+0
+        printf "          \"slope\": \"x1\",\n"
+        printf "          \"solo\": false,\n"
+        printf "          \"type\": \"Bell\",\n"
+        printf "          \"width\": 4.0\n"
+        printf "        }%s\n", (j < n-1 ? "," : "")
+      }
+    }
+    END {
+      print  "{"
+      print  "  \"output\": {"
+      print  "    \"blocklist\": [],"
+      print  "    \"plugins_order\": [\"equalizer#0\"],"
+      print  "    \"equalizer#0\": {"
+      print  "      \"balance\": 0.0,"
+      print  "      \"bypass\": false,"
+      printf "      \"input-gain\": %s,\n", preamp+0
+      print  "      \"mode\": \"IIR\","
+      printf "      \"num-bands\": %d,\n", n
+      print  "      \"output-gain\": 0.0,"
+      print  "      \"pitch-left\": 0.0,"
+      print  "      \"pitch-right\": 0.0,"
+      print  "      \"split-channels\": false,"
+      print  "      \"left\": {"
+      emit_channel()
+      print  "      },"
+      print  "      \"right\": {"
+      emit_channel()
+      print  "      }"
+      print  "    }"
+      print  "  }"
+      print  "}"
+    }
+  ' "$1"
+}
+
 # configure_easyeffects_eq — Install an EasyEffects output EQ preset.
 #   The preset source is resolved with full user customization in mind:
 #     1. EASYEFFECTS_EQ_FILE env var (used by non-interactive/master-installer runs).
