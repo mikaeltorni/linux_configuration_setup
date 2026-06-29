@@ -28,7 +28,7 @@ detect_cursor_theme()      { local v; v="$(cfg_get org.gnome.desktop.interface c
 detect_display_refresh()   { local v; v="$(cfg_get org.gnome.mutter experimental-features)"; [ -n "$v" ] && [ "$v" != "@as []" ] && [ "$v" != "[]" ]; }
 detect_gitkraken_autostart() { [ -f "$TARGET_HOME/.config/autostart/gitkraken.desktop" ]; }
 detect_autostart_apps()    { [ -f "$TARGET_HOME/.local/bin/autostart_apps.sh" ]; }
-detect_easyeffects_eq()    { ls "$TARGET_HOME"/.config/easyeffects/output/* >/dev/null 2>&1; }
+detect_easyeffects_eq()    { ls "$TARGET_HOME"/.config/easyeffects/output/*.json >/dev/null 2>&1; }
 detect_app_rules()         { [ -d "$TARGET_HOME/.local/share/gnome-shell/extensions/app-rules@local" ]; }
 detect_uv_setup()          { [ -x "$TARGET_HOME/.local/bin/uv" ] && [ ! -e "$TARGET_HOME/.config/autostart/uv-python.desktop" ]; }
 detect_tmux_defaults()     { [ -f "$TARGET_HOME/.tmux.conf" ]; }
@@ -67,7 +67,12 @@ uninstall_cursor_theme()   { msg "Resetting cursor theme"; cfg_reset org.gnome.d
 uninstall_display_refresh(){ msg "Resetting display experimental features"; cfg_reset org.gnome.mutter experimental-features; }
 uninstall_gitkraken_autostart() { msg "Removing GitKraken autostart"; run_as_target rm -f "$TARGET_HOME/.config/autostart/gitkraken.desktop" "$TARGET_HOME/.config/autostart/gitkraken-autostart.desktop"; }
 uninstall_autostart_apps() { msg "Removing autostart apps helper"; run_as_target rm -f "$TARGET_HOME/.local/bin/autostart_apps.sh"; }
-uninstall_easyeffects_eq() { msg "Removing EasyEffects output presets"; run_as_target rm -f "$TARGET_HOME"/.config/easyeffects/output/*.json; }
+uninstall_easyeffects_eq() {
+  msg "Removing EasyEffects output presets"
+  run_as_target sh -c 'rm -f "$1"/*.json "$1"/*.apo 2>/dev/null || true' _ \
+    "$TARGET_HOME/.config/easyeffects/output"
+  user_gsettings_set_if_key_exists com.github.wwmm.easyeffects last-used-output-preset "''"
+}
 uninstall_app_rules() {
   msg "Removing app-rules GNOME extension"
   run_as_target gnome-extensions disable app-rules@local 2>/dev/null || true
