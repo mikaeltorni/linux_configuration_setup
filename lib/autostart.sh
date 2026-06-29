@@ -6,7 +6,7 @@
 #     Create or copy a .desktop file into ~/.config/autostart/.
 #   - configure_spotify_autostart(): Enable Spotify autostart.
 #   - configure_gitkraken_autostart(): Enable GitKraken autostart.
-#   - configure_autostart_apps(): Create the Kitty launcher + autostart entry.
+#   - configure_autostart_apps(): Create the general autostart launcher + entry.
 #   - configure_kitty_defaults(): Ensure Kitty config disables the close prompt.
 #   - configure_easyeffects_autostart(): Enable EasyEffects autostart + systemd service.
 #   - configure_easyeffects_eq(): Install an EasyEffects output EQ preset (user-supplied or bundled).
@@ -96,11 +96,12 @@ configure_gitkraken_autostart() {
     gitkraken.desktop gitkraken_gitkraken.desktop
 }
 
-# configure_autostart_apps — Create the Kitty launcher script and its autostart
-#   entry so Kitty opens on login.
+# configure_autostart_apps — Create the general autostart launcher script and
+#   its autostart entry. The launcher currently starts no applications; add
+#   `launch_if_exists <cmd>` lines below to autostart programs on login.
 #   Args: none. Returns: 0.
 configure_autostart_apps() {
-  msg "Autostarting Kitty"
+  msg "Configuring general autostart launcher"
   run_as_target install -d -m 0755 "$TARGET_HOME/.local/bin"
   run_as_target tee "$TARGET_HOME/.local/bin/autostart_apps.sh" >/dev/null << 'EOF'
 #!/usr/bin/env bash
@@ -113,8 +114,6 @@ launch_if_exists() {
     "$cmd" "$@" &
   fi
 }
-
-launch_if_exists kitty
 
 exit 0
 EOF
