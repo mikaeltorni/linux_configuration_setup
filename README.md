@@ -55,6 +55,7 @@ sudo bash install.sh
 | `SELECTED_FAVORITE_APPS` | _(unset)_ | Internal master-installer handoff: comma/space-separated program-menu favourites merged with baseline dock entries |
 | `SELECTED_STARTUP_APPS` | _(unset)_ | Internal master handoff: semicolon-separated selected launcher groups; pipe separates filename alternatives |
 | `MANAGED_STARTUP_APPS` | _(unset)_ | Internal master handoff: complete startup-capable launcher set used to validate and reconcile tracked entries |
+| `TARGET_HOME_OVERRIDE` | Target user's passwd home | Override the target home for isolated installer tests/automation |
 | `CURSOR_SOURCE_FILE` | bundled `purple_cross.cur` | Path to your own cursor image (`cursor_theme` component) |
 | `EASYEFFECTS_EQ_FILE` | bundled `equalizer.apo` | Path to your own EasyEffects EQ file (`easyeffects_eq` component) |
 
@@ -106,7 +107,7 @@ linux_configuration_setup/
 │   ├── logging.sh          # Centralized logging with levels
 │   ├── gsettings_helpers.sh  # GSettings/dconf helper functions
 │   ├── system_config.sh      # RTC, clock, lock, dark mode, mouse accel
-│   ├── autostart.sh          # Autostart entries for apps (Spotify, GitKraken, EasyEffects)
+│   ├── autostart.sh          # Unified master-selected application startup
 │   ├── cursor_theme.sh       # Purple Cross cursor build, aliases, and defaults
 │   └── gnome_desktop.sh      # GNOME desktop config (favorites, terminal themes, display, extensions)
 ├── scripts/
@@ -158,7 +159,10 @@ This repo is run **after** `linux_installations_setup` has cloned it. It require
 
 - If the Purple Cross cursor does not appear immediately everywhere, restart affected applications. Some Wayland and XWayland clients cache cursor themes after startup.
 - The installer writes `~/.local/share/icons/default/index.theme` and `~/.icons/default/index.theme`, then links `~/.icons/PurpleCrossDefault` to the generated theme so applications that read Xcursor defaults outside GNOME GSettings can load it.
-- GitKraken uses only `~/.config/autostart/gitkraken.desktop`; the installer removes the obsolete `gitkraken-autostart.desktop` alias to prevent duplicate launches.
+- GitKraken, Spotify, EasyEffects, Albert, Cursor, and the other application
+  launchers use the master menu's `[S]` selection as their single startup
+  authority. The reconciler removes obsolete legacy aliases to prevent duplicate
+  launches.
 - Log out and back in before testing GNOME Shell extension code changes.
 - PWAs (Monkeytype, ChatGPT, Claude, etc.) are installed manually from Chrome — this repo no longer creates their desktop entries, icons, or autostart files. Once you have installed a PWA, the `app-rules@local` extension assigns its window to the mapped workspace. If a PWA does not land on its workspace, verify the extension is enabled and that the PWA's window class matches a rule.
 
@@ -179,7 +183,15 @@ bash install.sh --default       # install all default-on components, no prompts
 bash install.sh --all           # install every component, no prompts
 bash install.sh --select a,b    # install exactly these component ids
 bash install.sh --list-components  # print: id<TAB>label<TAB>default
+bash install.sh --list-selected-startup-apps
+                                # read persisted master-managed startup choices
 ```
+
+`--list-selected-startup-apps` is a read-only internal contract used by the
+master installer to restore `[S]` menu markers. It emits persisted selections
+and enabled live autostart basenames; the master matches those against declared
+application metadata. This adopts launchers from older installers without
+claiming unrelated user entries.
 
 In the interactive menu, **space** toggles a component, `a`/`n` select all
 or none, and **Enter** installs the selection. Components:
@@ -196,12 +208,9 @@ or none, and **Enter** installs the selection. Components:
 | `cursor_theme` | Purple cross cursor theme (override with `CURSOR_SOURCE_FILE`) | on |
 | `terminal_theme` | Terminal dark theme | on |
 | `display_refresh` | Display refresh rate / VRR | on |
-| `spotify_autostart` | Spotify autostart | on |
-| `gitkraken_autostart` | GitKraken autostart | on |
 | `autostart_apps` | General autostart applications | on |
 | `selected_app_autostart` | Master-selected app startup (`s` in app menu) | on |
 | `kitty_defaults` | Kitty terminal defaults | on |
-| `easyeffects_autostart` | EasyEffects autostart | on |
 | `easyeffects_eq` | EasyEffects output EQ preset (override with `EASYEFFECTS_EQ_FILE`) | on |
 | `app_rules` | App window rules extension | on |
 | `uv_setup` | UV package manager setup | on |

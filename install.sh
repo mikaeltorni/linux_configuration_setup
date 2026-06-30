@@ -4,7 +4,7 @@ set -euo pipefail
 
 TARGET_USER="${SUDO_USER:-$USER}"
 TARGET_UID="$(id -u "$TARGET_USER")"
-TARGET_HOME="$(getent passwd "$TARGET_USER" | cut -d: -f6)"
+TARGET_HOME="${TARGET_HOME_OVERRIDE:-$(getent passwd "$TARGET_USER" | cut -d: -f6)}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIR="$SCRIPT_DIR/configs"
 RUNTIME_DIR="/run/user/${TARGET_UID}"
@@ -110,6 +110,7 @@ run_and_log_with_reboot() {
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   case "${1:-}" in
+    --list-selected-startup-apps) list_selected_app_autostart; exit $? ;;
     --list-components|--detect|--help|-h|--uninstall|--uninstall=*) component_main "$@"; exit $? ;;
   esac
   run_and_log_with_reboot "$@"

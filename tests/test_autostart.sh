@@ -59,20 +59,18 @@ assert_file_missing() {
   fi
 }
 
-printf '[Desktop Entry]\nName=GitKraken\nExec=gitkraken\n' \
-  >"$TARGET_HOME/.local/share/applications/gitkraken.desktop"
+assert_grep() {
+  local pattern="$1" file="$2" description="$3"
+  if ! grep -q "$pattern" "$file"; then
+    printf 'FAIL: %s (no match for %s in %s)\n' "$description" "$pattern" "$file" >&2
+    exit 1
+  fi
+}
+
 printf '[Desktop Entry]\nName=GitKraken legacy\nExec=gitkraken\n' \
   >"$TARGET_HOME/.config/autostart/gitkraken-autostart.desktop"
 
 DESKTOP_DIRS=("$TARGET_HOME/.local/share/applications")
-configure_gitkraken_autostart
-
-assert_file_exists \
-  "$TARGET_HOME/.config/autostart/gitkraken.desktop" \
-  "GitKraken canonical autostart entry should exist"
-assert_file_missing \
-  "$TARGET_HOME/.config/autostart/gitkraken-autostart.desktop" \
-  "GitKraken legacy autostart entry should be removed"
 
 configure_autostart_apps
 
@@ -81,9 +79,51 @@ if grep -q 'launch_if_exists gitkraken' "$TARGET_HOME/.local/bin/autostart_apps.
   exit 1
 fi
 
-printf 'PASS: GitKraken uses one canonical autostart entry\n'
-
 # ── configure_selected_app_autostart ─────────────────────────────────────────
+
+# GitKraken's [S] selection must resolve the snap desktop candidate, install one
+# canonical entry, persist it for the next menu run, and remove it when [S] is
+# cleared.
+printf '[Desktop Entry]\nName=GitKraken Snap\nExec=/snap/bin/gitkraken --no-sandbox %%U\n' \
+  >"$TARGET_HOME/.local/share/applications/gitkraken_gitkraken.desktop"
+MANAGED_STARTUP_APPS='gitkraken.desktop|gitkraken_gitkraken.desktop'
+SELECTED_STARTUP_APPS='gitkraken.desktop|gitkraken_gitkraken.desktop'
+configure_selected_app_autostart
+assert_file_missing \
+  "$TARGET_HOME/.config/autostart/gitkraken-autostart.desktop" \
+  "GitKraken [S] should remove the obsolete legacy launcher"
+assert_file_exists \
+  "$TARGET_HOME/.config/autostart/gitkraken_gitkraken.desktop" \
+  "GitKraken [S] should install the snap desktop launcher"
+assert_grep '^X-GNOME-Autostart-enabled=true$' \
+  "$TARGET_HOME/.config/autostart/gitkraken_gitkraken.desktop" \
+  "GitKraken [S] should enable GNOME autostart"
+selected_list="$(list_selected_app_autostart)"
+if ! grep -qx 'gitkraken_gitkraken.desktop' <<<"$selected_list"; then
+  printf 'FAIL: GitKraken [S] should persist its resolved desktop basename\n' >&2
+  exit 1
+fi
+SELECTED_STARTUP_APPS=''
+configure_selected_app_autostart
+assert_file_missing \
+  "$TARGET_HOME/.config/autostart/gitkraken_gitkraken.desktop" \
+  "clearing GitKraken [S] should remove its managed launcher"
+
+# A launcher created before it became [S]-managed must be detected as enabled
+# and removed when the user clears [S].
+printf '[Desktop Entry]\nName=Cursor\nExec=cursor\nX-GNOME-Autostart-enabled=true\n' \
+  >"$TARGET_HOME/.config/autostart/cursor.desktop"
+selected_list="$(list_selected_app_autostart)"
+grep -qx cursor.desktop <<<"$selected_list" || {
+  printf 'FAIL: live legacy Cursor launcher should restore its [S] marker\n' >&2
+  exit 1
+}
+MANAGED_STARTUP_APPS='cursor.desktop'
+SELECTED_STARTUP_APPS=''
+configure_selected_app_autostart
+assert_file_missing \
+  "$TARGET_HOME/.config/autostart/cursor.desktop" \
+  "clearing Cursor [S] should remove a pre-migration launcher"
 
 printf '[Desktop Entry]\nName=Alpha\nExec=alpha\n[Desktop Action New]\nName=New\n' \
   >"$TARGET_HOME/.local/share/applications/alpha.desktop"
@@ -119,6 +159,13 @@ detect_selected_app_autostart || {
   printf 'FAIL: selected-app autostart state should be detected\n' >&2
   exit 1
 }
+
+selected_list="$(list_selected_app_autostart)"
+if ! grep -qx alpha.desktop <<<"$selected_list" || \
+   ! grep -qx beta-alt.desktop <<<"$selected_list"; then
+  printf 'FAIL: selected startup listing should expose persisted launcher basenames\n' >&2
+  exit 1
+fi
 
 first_hash="$(sha256sum \
   "$TARGET_HOME/.config/autostart/alpha.desktop" \
@@ -159,19 +206,17 @@ assert_file_exists \
   "$TARGET_HOME/.config/autostart/manual.desktop" \
   "uninstall should preserve unmanaged user autostart files"
 
+selected_list="$(list_selected_app_autostart || true)"
+if grep -qx gamma.desktop <<<"$selected_list"; then
+  printf 'FAIL: selected startup listing should omit an uninstalled managed launcher\n' >&2
+  exit 1
+fi
+
 printf 'PASS: selected app autostart reconciles tracked desktop entries\n'
 
 # ── configure_kitty_defaults ─────────────────────────────────────────────────
 
 KITTY_CONF="$TARGET_HOME/.config/kitty/kitty.conf"
-
-assert_grep() {
-  local pattern="$1" file="$2" description="$3"
-  if ! grep -q "$pattern" "$file"; then
-    printf 'FAIL: %s (no match for %s in %s)\n' "$description" "$pattern" "$file" >&2
-    exit 1
-  fi
-}
 
 # Case 1: file absent → created with the setting.
 rm -f "$KITTY_CONF"

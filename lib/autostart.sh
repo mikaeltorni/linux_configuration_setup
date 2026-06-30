@@ -4,12 +4,9 @@
 # Components:
 #   - configure_autostart_entry(dest_basename, entry_name, exec_cmd, candidates...):
 #     Create or copy a .desktop file into ~/.config/autostart/.
-#   - configure_spotify_autostart(): Enable Spotify autostart.
-#   - configure_gitkraken_autostart(): Enable GitKraken autostart.
 #   - configure_autostart_apps(): Create the general autostart launcher + entry.
 #   - configure_selected_app_autostart(): Reconcile master-menu [s] selections.
 #   - configure_kitty_defaults(): Ensure Kitty config disables the close prompt.
-#   - configure_easyeffects_autostart(): Enable EasyEffects autostart + systemd service.
 #   - configure_easyeffects_eq(): Install an EasyEffects output EQ preset (user-supplied or bundled).
 #
 # Sourced after lib/helpers.sh, lib/gsettings_helpers.sh, lib/gnome_desktop.sh.
@@ -69,40 +66,39 @@ fi' || true
 
 # ── Application-specific autostart ───────────────────────────────────────────
 
-# configure_spotify_autostart — Enable Spotify to start on login.
-#   Args: none. Returns: 0.
-configure_spotify_autostart() {
-  if [ -n "${MANAGED_STARTUP_APPS:-}" ]; then
-    log "info" "Spotify autostart delegated to selected_app_autostart"
-    return 0
+# list_selected_app_autostart - Print the persisted basename of each launcher
+# selected through the master menu, plus enabled live autostart basenames. The
+# live rows let newly migrated application metadata (for example Cursor) adopt
+# an existing launcher so the first [S] state is truthful. The master filters
+# this output against declared candidates. It returns 1 only when neither
+# managed state nor enabled live launchers exist.
+# Args: none. Output: unique validated .desktop basenames, one per line.
+list_selected_app_autostart() {
+  local state_file="$TARGET_HOME/.local/state/linux-configuration-setup/selected-app-autostart.list"
+  local autostart_dir="$TARGET_HOME/.config/autostart"
+  local basename path managed=0 found=0
+  local -A emitted=()
+  if [ -f "$state_file" ]; then
+    managed=1
+    while IFS= read -r basename; do
+      [[ "$basename" == *.desktop && "$basename" != */* ]] || continue
+      [[ -n "${emitted[$basename]:-}" ]] && continue
+      emitted[$basename]=1
+      found=1
+      printf '%s\n' "$basename"
+    done <"$state_file"
   fi
-  msg "Enabling Spotify autostart"
-
-  configure_autostart_entry \
-    "spotify" \
-    "Spotify" \
-    "spotify" \
-    spotify.desktop spotify_spotify.desktop
-}
-
-# configure_gitkraken_autostart — Enable GitKraken to start on login.
-#   Args: none. Returns: 0.
-configure_gitkraken_autostart() {
-  if [ -n "${MANAGED_STARTUP_APPS:-}" ]; then
-    log "info" "GitKraken autostart delegated to selected_app_autostart"
-    return 0
-  fi
-  msg "Enabling GitKraken autostart"
-
-  # Older setup revisions used this alternate basename, causing GNOME to
-  # launch GitKraken twice when the canonical entry was later added.
-  run_as_target rm -f "$TARGET_HOME/.config/autostart/gitkraken-autostart.desktop"
-
-  configure_autostart_entry \
-    "gitkraken" \
-    "GitKraken" \
-    "gitkraken --no-sandbox" \
-    gitkraken.desktop gitkraken_gitkraken.desktop
+  for path in "$autostart_dir"/*.desktop; do
+    [ -f "$path" ] || continue
+    grep -qi '^Hidden=true$' "$path" && continue
+    grep -qi '^X-GNOME-Autostart-enabled=false$' "$path" && continue
+    basename="$(basename "$path")"
+    [[ -n "${emitted[$basename]:-}" ]] && continue
+    emitted[$basename]=1
+    found=1
+    printf '%s\n' "$basename"
+  done
+  [ "$managed" -eq 1 ] || [ "$found" -eq 1 ]
 }
 
 # configure_autostart_apps — Create the general autostart launcher script and
@@ -171,8 +167,21 @@ configure_selected_app_autostart() {
     done <"$state_file"
   fi
 
-  # These filenames were created by older setup-chain components before the
-  # unified [s] selector existed. Reconcile them once under the new authority.
+  IFS=';' read -r -a managed_groups <<<"$managed"
+  # Remove every recognized candidate first. This adopts launchers written by
+  # older per-app installers and guarantees clearing [S] removes the app even
+  # when it predates the managed state file.
+  for managed_group in "${managed_groups[@]}"; do
+    IFS='|' read -r -a candidates <<<"$managed_group"
+    for candidate in "${candidates[@]}"; do
+      [[ "$candidate" == *.desktop && "$candidate" != */* ]] || continue
+      log "debug" "Removing managed startup candidate before reconciliation: $candidate"
+      run_as_target rm -f "$autostart_dir/$candidate"
+    done
+  done
+
+  # These extra filenames were created by older setup-chain components before
+  # the unified [s] selector existed but are not all current metadata candidates.
   run_as_target rm -f \
     "$autostart_dir/spotify.desktop" \
     "$autostart_dir/gitkraken.desktop" \
@@ -186,7 +195,6 @@ configure_selected_app_autostart() {
   run_as_target sh -c ': > "$1"' _ "$pending_file"
 
   IFS=';' read -r -a groups <<<"$selected"
-  IFS=';' read -r -a managed_groups <<<"$managed"
   for group in "${groups[@]}"; do
     [ -n "$group" ] || continue
     known=0
@@ -254,27 +262,6 @@ elif grep -q "^confirm_os_window_close" "$conf"; then
 else
   printf "\n# Do not prompt when closing an OS window that has running programs.\nconfirm_os_window_close 0\n" >> "$conf"
 fi'
-}
-
-# ── EasyEffects autostart ────────────────────────────────────────────────────
-
-# configure_easyeffects_autostart — Enable EasyEffects autostart + systemd service.
-#   Args: none. Returns: 0 (the systemd enable step is best-effort).
-configure_easyeffects_autostart() {
-  if [ -n "${MANAGED_STARTUP_APPS:-}" ]; then
-    log "info" "EasyEffects autostart delegated to selected_app_autostart"
-    return 0
-  fi
-  msg "Ensuring EasyEffects autostarts"
-
-  configure_autostart_entry \
-    "easyeffects" \
-    "EasyEffects" \
-    "easyeffects --gapplication-service" \
-    com.github.wwmm.easyeffects.desktop org.gnome.EasyEffects.desktop
-
-  # Best-effort systemd user service if present
-  run_as_target systemctl --user enable --now easyeffects.service >/dev/null 2>&1 || true
 }
 
 # easyeffects_apo_to_json — Convert an Equalizer APO config into an EasyEffects

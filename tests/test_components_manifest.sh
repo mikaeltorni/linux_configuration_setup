@@ -84,6 +84,21 @@ for entry in "${ISC_COMPONENTS[@]}"; do
 done
 
 echo ""
+echo "--- master-selected startup is the only app-startup component ---"
+for legacy_id in spotify_autostart gitkraken_autostart easyeffects_autostart; do
+  if [[ -n "${seen_ids[$legacy_id]:-}" ]]; then
+    fail "legacy component '$legacy_id' is absent"
+  else
+    pass "legacy component '$legacy_id' is absent"
+  fi
+done
+if [[ -n "${seen_ids[selected_app_autostart]:-}" ]]; then
+  pass "selected_app_autostart is the startup authority"
+else
+  fail "selected_app_autostart is the startup authority"
+fi
+
+echo ""
 echo "--- the preflight hook maps to a defined function ---"
 if [ -n "${ISC_PREFLIGHT:-}" ]; then
   if printf '%s\n' "$lib_functions" | grep -qx "$ISC_PREFLIGHT"; then
@@ -118,6 +133,15 @@ if [ -z "$(ls -A "$tmp_home" 2>/dev/null)" ]; then
 else
   fail "--list-components leaves HOME untouched (created: $(ls -A "$tmp_home"))"
 fi
+rm -rf "$tmp_home"
+
+echo ""
+echo "--- selected startup listing is a side-effect-free CLI query ---"
+tmp_home="$(mktemp -d)"
+mkdir -p "$tmp_home/.local/state/linux-configuration-setup"
+printf 'kitty.desktop\n' >"$tmp_home/.local/state/linux-configuration-setup/selected-app-autostart.list"
+selected_out="$(TARGET_HOME_OVERRIDE="$tmp_home" bash "$SCRIPT_DIR/install.sh" --list-selected-startup-apps 2>/dev/null)"
+assert_eq "kitty.desktop" "$selected_out" "--list-selected-startup-apps reports persisted selection"
 rm -rf "$tmp_home"
 
 echo ""
