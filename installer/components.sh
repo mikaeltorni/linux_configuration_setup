@@ -37,7 +37,7 @@ ISC_COMPONENTS=(
   "selected_app_autostart|Master-selected app startup ([s] in app menu)|on|configure_selected_app_autostart|detect_selected_app_autostart|uninstall_selected_app_autostart"
   "kitty_defaults|Kitty terminal defaults|on|configure_kitty_defaults"
   "app_rules|App window rules extension|on|configure_app_rules_extension|detect_app_rules|uninstall_app_rules"
-  "uv_setup|UV package manager setup|on|configure_uv_autostart|detect_uv_setup|uninstall_uv_setup"
+  "uv_setup|UV package manager and supply-chain protection|on|configure_uv_autostart|detect_uv_setup|uninstall_uv_setup"
   "tmux_defaults|Tmux defaults|on|configure_tmux_defaults|detect_tmux_defaults|uninstall_tmux_defaults"
   "dash_to_panel|Dash-to-Panel layout (replaces Ubuntu Dock)|on|configure_dash_to_panel|detect_dash_to_panel|uninstall_dash_to_panel"
 )

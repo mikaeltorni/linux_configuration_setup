@@ -202,6 +202,10 @@ configure_uv_autostart() {
   msg "Ensuring UV is installed and not autostarting as a GUI app"
   run_as_target bash -lc 'curl -LsSf https://astral.sh/uv/install.sh | sh' || true
   run_as_target rm -f "$TARGET_HOME/.config/autostart/uv-python.desktop" || true
+  log "info" "Deploying UV supply-chain config from $CONFIG_DIR/uv/uv.toml"
+  run_as_target install -D -m 0644 \
+    "$CONFIG_DIR/uv/uv.toml" \
+    "$TARGET_HOME/.config/uv/uv.toml"
 }
 
 # ── GNOME Shell extensions ───────────────────────────────────────────────────

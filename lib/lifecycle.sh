@@ -29,7 +29,7 @@ detect_display_refresh()   { local v; v="$(cfg_get org.gnome.mutter experimental
 detect_autostart_apps()    { [ -f "$TARGET_HOME/.local/bin/autostart_apps.sh" ]; }
 detect_selected_app_autostart() { [ -f "$TARGET_HOME/.local/state/linux-configuration-setup/selected-app-autostart.list" ]; }
 detect_app_rules()         { [ -d "$TARGET_HOME/.local/share/gnome-shell/extensions/app-rules@local" ]; }
-detect_uv_setup()          { [ -x "$TARGET_HOME/.local/bin/uv" ] && [ ! -e "$TARGET_HOME/.config/autostart/uv-python.desktop" ]; }
+detect_uv_setup()          { [ -x "$TARGET_HOME/.local/bin/uv" ] && [ -f "$TARGET_HOME/.config/uv/uv.toml" ] && [ ! -e "$TARGET_HOME/.config/autostart/uv-python.desktop" ]; }
 detect_tmux_defaults()     { [ -f "$TARGET_HOME/.tmux.conf" ]; }
 
 # --- Uninstall ---------------------------------------------------------------
@@ -83,5 +83,5 @@ uninstall_app_rules() {
   run_as_target gnome-extensions disable app-rules@local 2>/dev/null || true
   run_as_target rm -rf "$TARGET_HOME/.local/share/gnome-shell/extensions/app-rules@local"
 }
-uninstall_uv_setup()       { msg "Removing UV GUI autostart marker"; run_as_target rm -f "$TARGET_HOME/.config/autostart/uv-python.desktop"; }
+uninstall_uv_setup()       { msg "Removing UV configuration"; run_as_target rm -f "$TARGET_HOME/.config/autostart/uv-python.desktop" "$TARGET_HOME/.config/uv/uv.toml"; }
 uninstall_tmux_defaults()  { msg "Removing tmux defaults"; run_as_target rm -f "$TARGET_HOME/.tmux.conf"; }
