@@ -28,12 +28,13 @@ This repository configures the GNOME desktop environment after base packages are
 - **Prompt-free credentials**: passwordless GNOME Login keyring for automatic-login sessions
 - **Color scheme**: Dark by default; set `DESKTOP_COLOR_SCHEME=light` (or type `light` at the prompt) for light mode. `DESKTOP_GTK_THEME` / `DESKTOP_ICON_THEME` override the GTK/icon theme names
 - **Cursor theme**: Bundled Purple Cross by default; set `CURSOR_SOURCE_FILE=/path/to/your.cur` (or type a path) to build the theme from your own cursor image
-- **GNOME favorites**: Baseline desktop utilities plus the app dock list published by `linux_installations_setup` (`--list-favorite-components`) by default — the same set the master installer forwards as `SELECTED_FAVORITE_APPS`; set `FAVORITES_APPS=app1.desktop,app2.desktop` (or type a list) to fully customize the dock
+- **GNOME favorites**: Baseline desktop utilities plus favorite metadata published by application-owning repositories; the master installer forwards the selected rows as `SELECTED_FAVORITE_APPS`
 - **Terminal themes**: Dark background/light text for Console, Ptyxis, GNOME Terminal
 - **Display refresh**: Xorg xrandr max refresh rate or Wayland VRR
 - **Autostart applications**: Spotify, GitKraken, EasyEffects, and Kitty
 - **App workspace rules**: `app-rules@local` GNOME extension assigns windows to specific workspaces (e.g., Monkeytype → workspace 7, ChatGPT → workspace 0). PWAs themselves are installed manually; once present, these rules match them by window class.
-- **UV package manager**: Install astral.sh/uv and disable GUI autostart
+- **UV package manager**: Install astral.sh/uv, deploy the global rolling 24-hour supply-chain cutoff, and disable GUI autostart
+- **tmux defaults**: Deploy `configs/tmux/.tmux.conf` to the target user's home
 
 ## Installation
 
@@ -113,6 +114,8 @@ linux_configuration_setup/
 │   ├── keyring_snapshot.py   # Secret Service export/import helper
 │   └── activate_passwordless_keyring.sh  # Next-boot keyring activator
 ├── configs/
+│   ├── tmux/.tmux.conf            # tmux user defaults
+│   ├── uv/uv.toml                 # global rolling publication cutoff
 │   ├── cursors/
 │   │   └── purple_cross.cur    # Purple Cross cursor theme asset
 │   └── gnome-extensions/
