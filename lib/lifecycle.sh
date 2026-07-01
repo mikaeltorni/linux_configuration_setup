@@ -28,7 +28,6 @@ detect_cursor_theme()      { local v; v="$(cfg_get org.gnome.desktop.interface c
 detect_display_refresh()   { local v; v="$(cfg_get org.gnome.mutter experimental-features)"; [ -n "$v" ] && [ "$v" != "@as []" ] && [ "$v" != "[]" ]; }
 detect_autostart_apps()    { [ -f "$TARGET_HOME/.local/bin/autostart_apps.sh" ]; }
 detect_selected_app_autostart() { [ -f "$TARGET_HOME/.local/state/linux-configuration-setup/selected-app-autostart.list" ]; }
-detect_easyeffects_eq()    { ls "$TARGET_HOME"/.config/easyeffects/output/*.json >/dev/null 2>&1; }
 detect_app_rules()         { [ -d "$TARGET_HOME/.local/share/gnome-shell/extensions/app-rules@local" ]; }
 detect_uv_setup()          { [ -x "$TARGET_HOME/.local/bin/uv" ] && [ ! -e "$TARGET_HOME/.config/autostart/uv-python.desktop" ]; }
 detect_tmux_defaults()     { [ -f "$TARGET_HOME/.tmux.conf" ]; }
@@ -78,12 +77,6 @@ uninstall_selected_app_autostart() {
   fi
   run_as_target rm -f "$state_file" "$state_file.pending"
   log "info" "Removed tracked selected application startup entries"
-}
-uninstall_easyeffects_eq() {
-  msg "Removing EasyEffects output presets"
-  run_as_target sh -c 'rm -f "$1"/*.json "$1"/*.apo 2>/dev/null || true' _ \
-    "$TARGET_HOME/.config/easyeffects/output"
-  user_gsettings_set_if_key_exists com.github.wwmm.easyeffects last-used-output-preset "''"
 }
 uninstall_app_rules() {
   msg "Removing app-rules GNOME extension"

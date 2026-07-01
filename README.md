@@ -32,7 +32,6 @@ This repository configures the GNOME desktop environment after base packages are
 - **Terminal themes**: Dark background/light text for Console, Ptyxis, GNOME Terminal
 - **Display refresh**: Xorg xrandr max refresh rate or Wayland VRR
 - **Autostart applications**: Spotify, GitKraken, EasyEffects, and Kitty
-- **EasyEffects EQ preset**: Installs an output EQ preset into `~/.config/easyeffects/output/` and selects it as the last-used output preset so EasyEffects applies it automatically on launch. The bundled `equalizer.apo` (and any non-`.json` file) is converted to a native EasyEffects JSON preset, because EasyEffects only loads `.json` presets — a raw `.apo` dropped in that folder is ignored. A native `.json` file is installed verbatim. Set `EASYEFFECTS_EQ_FILE=/path/to/your.{apo,json}` (or type a path at the interactive prompt) to install your own EQ file instead
 - **App workspace rules**: `app-rules@local` GNOME extension assigns windows to specific workspaces (e.g., Monkeytype → workspace 7, ChatGPT → workspace 0). PWAs themselves are installed manually; once present, these rules match them by window class.
 - **UV package manager**: Install astral.sh/uv and disable GUI autostart
 
@@ -57,7 +56,6 @@ sudo bash install.sh
 | `MANAGED_STARTUP_APPS` | _(unset)_ | Internal master handoff: complete startup-capable launcher set used to validate and reconcile tracked entries |
 | `TARGET_HOME_OVERRIDE` | Target user's passwd home | Override the target home for isolated installer tests/automation |
 | `CURSOR_SOURCE_FILE` | bundled `purple_cross.cur` | Path to your own cursor image (`cursor_theme` component) |
-| `EASYEFFECTS_EQ_FILE` | bundled `equalizer.apo` | Path to your own EasyEffects EQ file (`easyeffects_eq` component) |
 
 These overrides are read from the environment on non-interactive runs (including
 the master installer); on an interactive terminal each prompts with its default
@@ -69,7 +67,6 @@ All configuration steps are idempotent:
 
 - GSettings: uses `set_if_key_exists` pattern — no duplicate values
 - Autostart entries: checks for existing `.desktop` files before creating
-- EasyEffects preset: only copies if source exists, overwrites in place
 - Cursor theme: rebuilds the Purple Cross cursor at 48px for visibility, maps every discovered pointer/text/hover/drag/resize role back to it, updates both modern and legacy Xcursor default inheritance paths, and exposes the generated theme through `~/.icons/PurpleCrossDefault`
 
 The `passwordless_keyring` component keeps Secret Service enabled but removes
@@ -118,10 +115,6 @@ linux_configuration_setup/
 ├── configs/
 │   ├── cursors/
 │   │   └── purple_cross.cur    # Purple Cross cursor theme asset
-│   ├── equalizer.apo           # APO equalizer config (reference)
-│   ├── easyeffects/
-│   │   └── output/
-│   │       └── scout-eq.json   # EasyEffects output EQ preset
 │   └── gnome-extensions/
 │       ├── app-rules@local/    # GNOME Shell extension: per-app workspace/sticky rules
 └── .gitignore
@@ -211,7 +204,6 @@ or none, and **Enter** installs the selection. Components:
 | `autostart_apps` | General autostart applications | on |
 | `selected_app_autostart` | Master-selected app startup (`s` in app menu) | on |
 | `kitty_defaults` | Kitty terminal defaults | on |
-| `easyeffects_eq` | EasyEffects output EQ preset (override with `EASYEFFECTS_EQ_FILE`) | on |
 | `app_rules` | App window rules extension | on |
 | `uv_setup` | UV package manager setup | on |
 | `tmux_defaults` | Tmux defaults | on |

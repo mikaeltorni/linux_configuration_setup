@@ -36,7 +36,6 @@ ISC_COMPONENTS=(
   "autostart_apps|General autostart applications|on|configure_autostart_apps|detect_autostart_apps|uninstall_autostart_apps"
   "selected_app_autostart|Master-selected app startup ([s] in app menu)|on|configure_selected_app_autostart|detect_selected_app_autostart|uninstall_selected_app_autostart"
   "kitty_defaults|Kitty terminal defaults|on|configure_kitty_defaults"
-  "easyeffects_eq|EasyEffects output EQ preset (set EASYEFFECTS_EQ_FILE for a custom file)|on|configure_easyeffects_eq|detect_easyeffects_eq|uninstall_easyeffects_eq"
   "app_rules|App window rules extension|on|configure_app_rules_extension|detect_app_rules|uninstall_app_rules"
   "uv_setup|UV package manager setup|on|configure_uv_autostart|detect_uv_setup|uninstall_uv_setup"
   "tmux_defaults|Tmux defaults|on|configure_tmux_defaults|detect_tmux_defaults|uninstall_tmux_defaults"
