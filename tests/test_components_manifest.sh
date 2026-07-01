@@ -39,6 +39,20 @@ echo "--- manifest is sourceable without side effects ---"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/installer/components.sh"
 assert_eq "linux_configuration_setup" "${ISC_REPO_NAME:-}" "ISC_REPO_NAME is set"
+
+uv_row="$(printf '%s\n' "${ISC_COMPONENTS[@]}" | grep '^uv_setup|')"
+[[ "$uv_row" == *"UV package manager and supply-chain protection"* ]] || {
+  printf 'FAIL: uv_setup should own supply-chain protection\n' >&2
+  exit 1
+}
+[ -f "$SCRIPT_DIR/configs/uv/uv.toml" ] || {
+  printf 'FAIL: UV global config is missing from configuration assets\n' >&2
+  exit 1
+}
+[ -f "$SCRIPT_DIR/configs/tmux/.tmux.conf" ] || {
+  printf 'FAIL: tmux config is missing from configurations folder\n' >&2
+  exit 1
+}
 [ "${#ISC_COMPONENTS[@]}" -gt 0 ] && pass "ISC_COMPONENTS is non-empty" \
   || fail "ISC_COMPONENTS is non-empty"
 

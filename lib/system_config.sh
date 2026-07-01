@@ -139,7 +139,7 @@ EOF
 configure_tmux_defaults() {
   msg "Configuring tmux defaults for $TARGET_USER"
 
-  local tmux_conf_src="$CONFIG_DIR/.tmux.conf"
+  local tmux_conf_src="$CONFIG_DIR/tmux/.tmux.conf"
   if [ -f "$tmux_conf_src" ]; then
     run_as_target cp -f "$tmux_conf_src" "$TARGET_HOME/.tmux.conf"
     msg "Tmux config installed from $tmux_conf_src"
