@@ -289,6 +289,13 @@ if detect_dash_to_panel; then
 else
   pass "detect_dash_to_panel rejects Ubuntu Dock still being enabled"
 fi
+D2P_ENABLED_EXTENSIONS="[]"
+if detect_dash_to_panel; then
+  fail "detect_dash_to_panel requires Dash-to-Panel to be enabled"
+else
+  pass "detect_dash_to_panel requires Dash-to-Panel to be enabled"
+fi
+D2P_ENABLED_EXTENSIONS="['$D2P_EXT_ID']"
 
 # configure_dash_to_panel must clear the global user-extension kill switch so the
 # bottom panel (and every other user extension) can load on the next login.
@@ -303,6 +310,9 @@ unset -f run_as_target
 assert_file_contains "$D2P_CONFIGURE_LOG" \
   "gsettings set org.gnome.shell disable-user-extensions false" \
   "configure_dash_to_panel enables user extensions globally"
+assert_file_contains "$D2P_CONFIGURE_LOG" \
+  "gsettings set org.gnome.shell disabled-extensions ['ubuntu-dock@ubuntu.com']" \
+  "configure_dash_to_panel persists the disabled-extension list"
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

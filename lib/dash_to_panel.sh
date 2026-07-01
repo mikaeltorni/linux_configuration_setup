@@ -42,6 +42,25 @@ PY
   run_as_target gsettings set "$schema" "$key" "$new" 2>/dev/null || true
 }
 
+# d2p_strv_contains SCHEMA KEY VALUE - return success when VALUE is an exact
+# member of a gsettings string-array. Malformed or unavailable settings are
+# treated as absent so lifecycle detection never reports a false positive.
+d2p_strv_contains() {
+  local schema="$1" key="$2" value="$3" current
+  current="$(run_as_target gsettings get "$schema" "$key" 2>/dev/null)" || return 1
+  VAL="$value" python3 - "$current" <<'PY'
+import ast
+import os
+import sys
+
+try:
+    values = ast.literal_eval(sys.argv[1])
+except (SyntaxError, ValueError):
+    raise SystemExit(1)
+raise SystemExit(0 if isinstance(values, list) and os.environ["VAL"] in values else 1)
+PY
+}
+
 # d2p_download_install - fetch + verify + extract the pinned EGO build, then pin
 d2p_download_install() {
   local ext_dir tmpdir zip_file extracted shell_version
@@ -99,9 +118,14 @@ configure_dash_to_panel() {
   run_as_target sh -c 'timeout 5 gnome-extensions disable ubuntu-dock@ubuntu.com >/dev/null 2>&1 </dev/null &' || true
   run_as_target sh -c 'timeout 5 gnome-extensions enable "$1" >/dev/null 2>&1 </dev/null &' _ "$D2P_EXT_ID" || true
   
-  # Register extension and disable Ubuntu Dock  
+  # Clear GNOME's global user-extension kill switch, then persist the exact
+  # enabled/disabled state so detection reflects the active panel layout.
+  log "info" "Enabling GNOME user extensions for Dash-to-Panel"
+  run_as_target gsettings set org.gnome.shell disable-user-extensions false 2>/dev/null || true
   d2p_strv_edit add org.gnome.shell enabled-extensions "$D2P_EXT_ID"
   d2p_strv_edit remove org.gnome.shell enabled-extensions ubuntu-dock@ubuntu.com
+  d2p_strv_edit remove org.gnome.shell disabled-extensions "$D2P_EXT_ID"
+  d2p_strv_edit add org.gnome.shell disabled-extensions ubuntu-dock@ubuntu.com
   
   # Core dash-to-panel settings
   run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/show-favorites true || true
@@ -124,8 +148,15 @@ configure_dash_to_panel() {
   run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/app-menu-position "'left'" || true
 }
 
-# detect_dash_to_panel - true when Dash-to-Panel is deployed.
-detect_dash_to_panel() { d2p_installed; }
+# detect_dash_to_panel - true when Dash-to-Panel is deployed and is the active
+# dock implementation. A globally disabled extension set or an enabled Ubuntu
+# Dock means the requested desktop state is not installed.
+detect_dash_to_panel() {
+  d2p_installed || return 1
+  [ "$(run_as_target gsettings get org.gnome.shell disable-user-extensions 2>/dev/null)" = "false" ] || return 1
+  d2p_strv_contains org.gnome.shell enabled-extensions "$D2P_EXT_ID" || return 1
+  ! d2p_strv_contains org.gnome.shell enabled-extensions ubuntu-dock@ubuntu.com
+}
 
 # uninstall_dash_to_panel - remove Dash-to-Panel and restore the Ubuntu Dock.  
 uninstall_dash_to_panel() {
@@ -133,6 +164,8 @@ uninstall_dash_to_panel() {
   run_as_target gnome-extensions disable "$D2P_EXT_ID" 2>/dev/null || true
   run_as_target rm -rf "$(d2p_ext_dir)"
   d2p_strv_edit remove org.gnome.shell enabled-extensions "$D2P_EXT_ID"
+  d2p_strv_edit add org.gnome.shell disabled-extensions "$D2P_EXT_ID"
   run_as_target gnome-extensions enable ubuntu-dock@ubuntu.com 2>/dev/null || true
   d2p_strv_edit add org.gnome.shell enabled-extensions ubuntu-dock@ubuntu.com
+  d2p_strv_edit remove org.gnome.shell disabled-extensions ubuntu-dock@ubuntu.com
 }
