@@ -28,12 +28,36 @@ detect_terminal_desktop() {
 #   Args: $@ — candidate desktop ids. Returns: 0.
 first_existing_desktop() { log "debug" "first_existing_desktop: $*"; find_desktop_entry "$@" || true; }
 
+# favorite_app_candidate_groups — Emit the default dock favourite candidate
+#   groups owned by linux_installations_setup. Each printed line is one app's
+#   comma-separated .desktop id alternatives, in installations_setup's declared
+#   order. linux_installations_setup is the single source of truth for which
+#   installed apps become dock favourites; this reuses its
+#   `--list-favorite-components` contract so a standalone configuration run
+#   reproduces the exact list the master installer forwards as
+#   SELECTED_FAVORITE_APPS — no duplicated app list is maintained here.
+#   Args: none. Output: newline-separated candidate groups (empty when the
+#   installations_setup checkout cannot be located).
+favorite_app_candidate_groups() {
+  local lib_dir install_sh
+  lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  for install_sh in "${LIS_INSTALL_SH:-}" \
+                    "$lib_dir/../../linux_installations_setup/install.sh" \
+                    "$HOME/projects/linux_installations_setup/install.sh"; do
+    [ -n "$install_sh" ] && [ -f "$install_sh" ] || continue
+    log "debug" "favorite_app_candidate_groups: sourcing $install_sh --list-favorite-components"
+    bash "$install_sh" --list-favorite-components 2>/dev/null \
+      | awk -F'\t' 'NF>=2 && $2!=""{print $2}'
+    return 0
+  done
+  log "debug" "favorite_app_candidate_groups: no linux_installations_setup checkout found"
+  return 0
+}
+
 # configure_favorites — Build the GNOME dash favorite-apps list from the apps
 #   that are actually installed and apply it.
 #   Args: none. Returns: 0.
 configure_favorites() {
-  local terminal_desktop
-  terminal_desktop="$(detect_terminal_desktop)"
   local selected_program_favorites="${SELECTED_FAVORITE_APPS:-}"
   
   # add_favorite — Append the first installed candidate to the FAVORITES list.
@@ -65,16 +89,19 @@ configure_favorites() {
       [ -n "$selected_entry" ] && add_favorite "$selected_entry"
     done
   else
-    add_favorite com.obsproject.Studio.desktop
-    add_favorite discord.desktop discord_discord.desktop
-    add_favorite google-chrome.desktop com.google.Chrome.desktop
-    add_favorite "$terminal_desktop" org.gnome.Console.desktop org.gnome.Terminal.desktop org.gnome.Ptyxis.desktop kitty.desktop
-    add_favorite com.github.wwmm.easyeffects.desktop
-    add_favorite spotify.desktop spotify_spotify.desktop
-    add_favorite gitkraken.desktop gitkraken_gitkraken.desktop
-    add_favorite org.remmina.Remmina.desktop remmina.desktop
-    add_favorite nvidia-settings.desktop
-    add_favorite virt-manager.desktop
+    # No master handoff (standalone run): rebuild the same default app dock the
+    # master installer would forward by consuming linux_installations_setup's
+    # favourite-component contract, keeping that repo the single source of truth.
+    # Each candidate group lists .desktop alternatives; add_favorite pins the
+    # first installed one.
+    local candidate_group
+    local -a _candidates
+    while IFS= read -r candidate_group; do
+      [ -n "$candidate_group" ] || continue
+      _candidates=()
+      IFS=', ' read -r -a _candidates <<<"$candidate_group"
+      [ "${#_candidates[@]}" -gt 0 ] && add_favorite "${_candidates[@]}"
+    done < <(favorite_app_candidate_groups)
   fi
   
   # Allow the user to fully customize the dock favorites. The default offered is

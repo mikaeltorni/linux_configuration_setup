@@ -28,7 +28,7 @@ This repository configures the GNOME desktop environment after base packages are
 - **Prompt-free credentials**: passwordless GNOME Login keyring for automatic-login sessions
 - **Color scheme**: Dark by default; set `DESKTOP_COLOR_SCHEME=light` (or type `light` at the prompt) for light mode. `DESKTOP_GTK_THEME` / `DESKTOP_ICON_THEME` override the GTK/icon theme names
 - **Cursor theme**: Bundled Purple Cross by default; set `CURSOR_SOURCE_FILE=/path/to/your.cur` (or type a path) to build the theme from your own cursor image
-- **GNOME favorites**: Installed-app dock list by default; set `FAVORITES_APPS=app1.desktop,app2.desktop` (or type a list) to fully customize the dock
+- **GNOME favorites**: Baseline desktop utilities plus the app dock list published by `linux_installations_setup` (`--list-favorite-components`) by default — the same set the master installer forwards as `SELECTED_FAVORITE_APPS`; set `FAVORITES_APPS=app1.desktop,app2.desktop` (or type a list) to fully customize the dock
 - **Terminal themes**: Dark background/light text for Console, Ptyxis, GNOME Terminal
 - **Display refresh**: Xorg xrandr max refresh rate or Wayland VRR
 - **Autostart applications**: Spotify, GitKraken, EasyEffects, and Kitty

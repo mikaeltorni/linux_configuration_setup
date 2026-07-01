@@ -200,12 +200,25 @@ fi
 
 >"$GSETTINGS_CALL_LOG"
 unset FAVORITES_APPS
+# The standalone (no SELECTED_FAVORITE_APPS) default dock is sourced from
+# linux_installations_setup's --list-favorite-components contract. Stub that
+# listing via LIS_INSTALL_SH so the test is hermetic and asserts the wiring.
+LIS_STUB="$TARGET_HOME/lis-install-stub.sh"
+cat >"$LIS_STUB" <<'STUB'
+#!/usr/bin/env bash
+[ "${1:-}" = "--list-favorite-components" ] || exit 0
+printf 'obs\tcom.obsproject.Studio.desktop\n'
+printf 'remote_desktop\torg.remmina.Remmina.desktop,remmina.desktop\n'
+STUB
+chmod +x "$LIS_STUB"
 touch "$TARGET_HOME/.local/share/applications/org.remmina.Remmina.desktop"
-configure_favorites </dev/null
-if grep -q "org.remmina.Remmina.desktop" "$GSETTINGS_CALL_LOG"; then
-  pass "configure_favorites includes Remmina when installed"
+touch "$TARGET_HOME/.local/share/applications/com.obsproject.Studio.desktop"
+LIS_INSTALL_SH="$LIS_STUB" configure_favorites </dev/null
+if grep -q "org.remmina.Remmina.desktop" "$GSETTINGS_CALL_LOG" && \
+   grep -q "com.obsproject.Studio.desktop" "$GSETTINGS_CALL_LOG"; then
+  pass "configure_favorites builds the default dock from installations_setup's favourite list"
 else
-  fail "configure_favorites includes Remmina when installed"
+  fail "configure_favorites builds the default dock from installations_setup's favourite list"
 fi
 
 >"$GSETTINGS_CALL_LOG"
