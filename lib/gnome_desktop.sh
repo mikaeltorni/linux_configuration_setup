@@ -54,12 +54,44 @@ favorite_app_candidate_groups() {
   return 0
 }
 
+# favorite_app_managed_desktop_ids — Emit every installer-managed favourite
+#   .desktop id published by linux_installations_setup, including alternative
+#   filenames within each candidate group. Used to reconcile dock entries on
+#   standalone and config_active runs when the master installer did not export
+#   MANAGED_FAVORITE_APPS.
+#   Args: none. Output: comma-separated .desktop ids (empty when unavailable).
+favorite_app_managed_desktop_ids() {
+  local group entry out=""
+  local -a candidates=()
+  while IFS= read -r group; do
+    [ -n "$group" ] || continue
+    candidates=()
+    IFS=', ' read -r -a candidates <<<"$group"
+    for entry in "${candidates[@]}"; do
+      [[ -n "$entry" ]] || continue
+      out="${out:+$out,}$entry"
+    done
+  done < <(favorite_app_candidate_groups)
+  printf '%s' "$out"
+}
+
 # configure_favorites — Build the GNOME dash favorite-apps list from the apps
-#   that are actually installed and apply it.
+#   that are actually installed and apply it. When MANAGED_FAVORITE_APPS is set
+#   (master handoff), only installer-managed .desktop ids are reconciled; other
+#   dock favourites such as user-pinned PWAs are preserved.
 #   Args: none. Returns: 0.
 configure_favorites() {
   local selected_program_favorites="${SELECTED_FAVORITE_APPS:-}"
-  
+  local managed_program_favorites="${MANAGED_FAVORITE_APPS:-}"
+  local managed_reconcile_ids="$managed_program_favorites"
+  local favorites_manual_override=0
+  [[ -n "${FAVORITES_APPS:-}" ]] && favorites_manual_override=1
+  if [ -z "$managed_reconcile_ids" ]; then
+    managed_reconcile_ids="$(favorite_app_managed_desktop_ids)"
+    [ -n "$managed_reconcile_ids" ] && \
+      log "info" "Derived managed dock favourites from installations_setup metadata"
+  fi
+
   # add_favorite — Append the first installed candidate to the FAVORITES list.
   #   Args: $@ — candidate desktop ids. Returns: 0.
   add_favorite() {
@@ -68,7 +100,7 @@ configure_favorites() {
     [ -n "${entry:-}" ] && FAVORITES+=("$entry")
     return 0  # never fail the caller under set -e when an app is absent
   }
-  
+
   msg "Setting favorites on the taskbar"
   local FAVORITES=()
   add_favorite cursor.desktop
@@ -78,10 +110,20 @@ configure_favorites() {
   add_favorite org.gnome.Notes.desktop org.gnome.TextEditor.desktop
   add_favorite update-manager.desktop
   add_favorite lm-studio.desktop
-  if [ -n "$selected_program_favorites" ]; then
-    # The master program-installation menu owns which app packages should be
-    # pinned. Keep baseline desktop utilities above, then add the selected app
-    # .desktop ids without treating this as a full FAVORITES_APPS override.
+  if [ -n "$managed_program_favorites" ]; then
+    # Master handoff owns program favourites. Baseline utilities stay above;
+    # selected rows may be empty when every [f] marker is cleared.
+    local selected_entry
+    local -a _selected_program_favorites=()
+    if [ -n "$selected_program_favorites" ]; then
+      IFS=', ' read -r -a _selected_program_favorites <<<"$selected_program_favorites"
+      for selected_entry in "${_selected_program_favorites[@]}"; do
+        [ -n "$selected_entry" ] && add_favorite "$selected_entry"
+      done
+    fi
+  elif [ -n "$selected_program_favorites" ]; then
+    # Legacy master handoff without managed metadata: keep baseline utilities and
+    # add only the selected program .desktop ids.
     local selected_entry
     local -a _selected_program_favorites=()
     IFS=', ' read -r -a _selected_program_favorites <<<"$selected_program_favorites"
@@ -103,7 +145,7 @@ configure_favorites() {
       [ "${#_candidates[@]}" -gt 0 ] && add_favorite "${_candidates[@]}"
     done < <(favorite_app_candidate_groups)
   fi
-  
+
   # Allow the user to fully customize the dock favorites. The default offered is
   # the installed-app list computed above (comma-joined); FAVORITES_APPS or an
   # interactive entry overrides it with a verbatim, comma/space-separated list of
@@ -121,6 +163,34 @@ configure_favorites() {
   # Split on commas and whitespace, scoping IFS to just this read.
   FAVORITES=()
   IFS=', ' read -r -a FAVORITES <<<"$resolved"
+
+  if [ "$favorites_manual_override" = "0" ] && [ -n "$managed_reconcile_ids" ]; then
+    local current_raw managed_entry preserved_entry merged_entry
+    local -a current_favorites=() managed_ids=() preserved=() merged=()
+    local -A managed_set=() merged_set=()
+
+    current_raw="$(user_gsettings get org.gnome.shell favorite-apps 2>/dev/null || true)"
+    if [[ "$current_raw" == \[* ]]; then
+      mapfile -t current_favorites < <(parse_gsettings_string_array "$current_raw")
+    fi
+    IFS=', ' read -r -a managed_ids <<<"$managed_reconcile_ids"
+    for managed_entry in "${managed_ids[@]}"; do
+      [ -n "$managed_entry" ] && managed_set[$managed_entry]=1
+    done
+    for preserved_entry in "${current_favorites[@]}"; do
+      [ -n "$preserved_entry" ] || continue
+      [[ -n "${managed_set[$preserved_entry]:-}" ]] && continue
+      preserved+=("$preserved_entry")
+    done
+    for merged_entry in "${FAVORITES[@]}" "${preserved[@]}"; do
+      [ -n "$merged_entry" ] || continue
+      [[ -n "${merged_set[$merged_entry]:-}" ]] && continue
+      merged_set[$merged_entry]=1
+      merged+=("$merged_entry")
+    done
+    FAVORITES=("${merged[@]}")
+    log "info" "Reconciled dock favorites: preserved ${#preserved[@]} unmanaged entries"
+  fi
 
   if [ "${#FAVORITES[@]}" -gt 0 ]; then
     user_gsettings set org.gnome.shell favorite-apps "$(join_as_gsettings_array "${FAVORITES[@]}")"

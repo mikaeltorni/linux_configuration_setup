@@ -6,6 +6,7 @@
 #   - gsettings_key_exists(schema, key): Check if a key exists in a schema.
 #   - user_gsettings_set_if_key_exists(schema, key, value): Set only if key exists.
 #   - join_as_gsettings_array(values...): Format values as a GSettings array string.
+#   - parse_gsettings_string_array(raw): Split a gsettings string-array value into lines.
 
 # user_gsettings — Run gsettings as the target user (thin wrapper).
 #   Args: $@ — arguments forwarded to gsettings.
@@ -48,4 +49,22 @@ join_as_gsettings_array() {
   done
   out+="]"
   printf "%s" "$out"
+}
+
+# parse_gsettings_string_array — Split a gsettings/dconf string-array value into
+#   one element per line. Empty arrays and malformed values print nothing.
+#   Args: $1 — raw value such as ['a.desktop', 'b.desktop'].
+#   Returns: 0 always.
+parse_gsettings_string_array() {
+  local raw="${1:-}" entry
+  log "debug" "parse_gsettings_string_array: $raw"
+  raw="${raw#@as }"
+  raw="${raw#[}"
+  raw="${raw%]}"
+  raw="${raw//\'/}"
+  IFS=', ' read -r -a _parsed <<<"$raw"
+  for entry in "${_parsed[@]}"; do
+    [ -n "$entry" ] && printf '%s\n' "$entry"
+  done
+  return 0
 }
