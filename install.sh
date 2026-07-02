@@ -111,7 +111,7 @@ run_and_log_with_reboot() {
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   case "${1:-}" in
     --list-selected-startup-apps) list_selected_app_autostart; exit $? ;;
-    --list-components|--detect|--help|-h|--uninstall|--uninstall=*) component_main "$@"; exit $? ;;
   esac
+  if isc_route_readonly_args "$@"; then exit $?; fi
   run_and_log_with_reboot "$@"
 fi
