@@ -325,6 +325,38 @@ echo "--- dash_to_panel lifecycle ---"
 source "$SCRIPT_DIR/lib/dash_to_panel.sh"
 mkdir -p "$TARGET_HOME/.local/share/gnome-shell/extensions/$D2P_EXT_ID"
 printf '{"uuid":"%s"}\n' "$D2P_EXT_ID" >"$TARGET_HOME/.local/share/gnome-shell/extensions/$D2P_EXT_ID/metadata.json"
+cp "$SCRIPT_DIR/tests/fixtures/dash-to-panel-v73-appIcons.js" \
+  "$TARGET_HOME/.local/share/gnome-shell/extensions/$D2P_EXT_ID/appIcons.js"
+
+# The pinned Dash-to-Panel release must be patched reproducibly so a click on a
+# secondary panel places the newly launched window on that panel's monitor.
+D2P_PATCH_FIXTURE="$TARGET_HOME/dash-to-panel-patch-fixture"
+mkdir -p "$D2P_PATCH_FIXTURE"
+cp "$SCRIPT_DIR/tests/fixtures/dash-to-panel-v73-appIcons.js" \
+  "$D2P_PATCH_FIXTURE/appIcons.js"
+if d2p_apply_monitor_launch_patch "$D2P_PATCH_FIXTURE" && \
+   d2p_apply_monitor_launch_patch "$D2P_PATCH_FIXTURE"; then
+  pass "Dash-to-Panel monitor-launch patch applies idempotently"
+else
+  fail "Dash-to-Panel monitor-launch patch applies idempotently"
+fi
+assert_file_contains "$D2P_PATCH_FIXTURE/appIcons.js" \
+  "_armLaunchMonitorPlacement()" \
+  "Dash-to-Panel patch records the clicked panel monitor before launch"
+assert_file_contains "$D2P_PATCH_FIXTURE/appIcons.js" \
+  "newWindow.move_to_monitor(targetMonitor)" \
+  "Dash-to-Panel patch moves the new app window to the clicked monitor"
+D2P_UNKNOWN_FIXTURE="$TARGET_HOME/dash-to-panel-unknown-fixture"
+mkdir -p "$D2P_UNKNOWN_FIXTURE"
+printf '%s\n' 'unsupported upstream source' >"$D2P_UNKNOWN_FIXTURE/appIcons.js"
+if d2p_apply_monitor_launch_patch "$D2P_UNKNOWN_FIXTURE"; then
+  fail "Dash-to-Panel monitor-launch patch rejects unknown upstream source"
+else
+  pass "Dash-to-Panel monitor-launch patch rejects unknown upstream source"
+fi
+assert_file_contains "$D2P_UNKNOWN_FIXTURE/appIcons.js" \
+  "unsupported upstream source" \
+  "Dash-to-Panel patch leaves unknown upstream source unchanged"
 
 D2P_ENABLED_EXTENSIONS="['$D2P_EXT_ID']"
 D2P_DISABLED_EXTENSIONS="['ubuntu-dock@ubuntu.com']"
