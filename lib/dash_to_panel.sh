@@ -129,8 +129,11 @@ configure_dash_to_panel() {
   
   # Core dash-to-panel settings
   run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/show-favorites true || true
-  run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/isolate-workspaces true || true  
-  run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/isolate-monitors false || true
+  run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/isolate-workspaces true || true
+  # Show a panel on every monitor and isolate them, so clicking a taskbar icon
+  # on a given monitor launches/focuses windows on that same monitor.
+  run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/multi-monitors true || true
+  run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/isolate-monitors true || true
   run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/stockgs-keep-top-panel false || true
   run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/show-activities-button false || true
   
