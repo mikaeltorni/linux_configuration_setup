@@ -210,7 +210,7 @@ or none, and **Enter** installs the selection. Components:
 | `display_refresh` | Display refresh rate / VRR | on |
 | `autostart_apps` | General autostart applications | on |
 | `selected_app_autostart` | Master-selected app startup (`s` in app menu) | on |
-| `kitty_defaults` | Kitty terminal defaults | on |
+| `kitty_defaults` | Kitty terminal defaults (close prompt and Ctrl+Backspace word deletion) | on |
 | `app_rules` | App window rules extension | on |
 | `uv_setup` | UV package manager and supply-chain protection | on |
 | `tmux_defaults` | Tmux defaults | on |

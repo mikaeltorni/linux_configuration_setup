@@ -223,12 +223,14 @@ rm -f "$KITTY_CONF"
 configure_kitty_defaults
 assert_file_exists "$KITTY_CONF" "kitty.conf should be created when absent"
 assert_grep '^confirm_os_window_close 0$' "$KITTY_CONF" "created conf disables close prompt"
+assert_grep '^map ctrl+backspace send_key ctrl+w$' "$KITTY_CONF" "created conf maps Ctrl+Backspace to word deletion"
 
 # Case 2: existing unrelated line preserved, setting appended.
 printf 'allow_remote_control yes\n' >"$KITTY_CONF"
 configure_kitty_defaults
 assert_grep '^allow_remote_control yes$' "$KITTY_CONF" "existing lines are preserved"
 assert_grep '^confirm_os_window_close 0$' "$KITTY_CONF" "setting appended to existing conf"
+assert_grep '^map ctrl+backspace send_key ctrl+w$' "$KITTY_CONF" "word deletion mapping appended to existing conf"
 
 # Case 3: stale value replaced in place (not duplicated).
 printf 'confirm_os_window_close yes\n' >"$KITTY_CONF"
@@ -240,4 +242,21 @@ if [ "$count" -ne 1 ]; then
   exit 1
 fi
 
-printf 'PASS: configure_kitty_defaults disables the close prompt idempotently\n'
+# Case 4: stale mapping replaced in place (not duplicated).
+printf 'map ctrl+backspace send_text all stale\n' >"$KITTY_CONF"
+configure_kitty_defaults
+assert_grep '^map ctrl+backspace send_key ctrl+w$' "$KITTY_CONF" "stale Ctrl+Backspace mapping replaced"
+count="$(grep -c '^map ctrl+backspace' "$KITTY_CONF")"
+if [ "$count" -ne 1 ]; then
+  printf 'FAIL: Ctrl+Backspace mapping should appear once (found %s)\n' "$count" >&2
+  exit 1
+fi
+
+configure_kitty_defaults
+count="$(grep -c '^map ctrl+backspace' "$KITTY_CONF")"
+if [ "$count" -ne 1 ]; then
+  printf 'FAIL: Ctrl+Backspace mapping should remain idempotent (found %s)\n' "$count" >&2
+  exit 1
+fi
+
+printf 'PASS: configure_kitty_defaults applies Kitty defaults idempotently\n'

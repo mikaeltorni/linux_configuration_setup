@@ -6,7 +6,7 @@
 #     Create or copy a .desktop file into ~/.config/autostart/.
 #   - configure_autostart_apps(): Create the general autostart launcher + entry.
 #   - configure_selected_app_autostart(): Reconcile master-menu [s] selections.
-#   - configure_kitty_defaults(): Ensure Kitty config disables the close prompt.
+#   - configure_kitty_defaults(): Apply shared Kitty close and key-map defaults.
 #
 # Sourced after lib/helpers.sh, lib/gsettings_helpers.sh, lib/gnome_desktop.sh.
 # Depends on: msg, run_as_target, find_desktop_file_path
@@ -242,23 +242,28 @@ fi
 # ── Kitty terminal defaults ──────────────────────────────────────────────────
 
 # configure_kitty_defaults — Ensure ~/.config/kitty/kitty.conf disables the
-#   "Are you sure you want to close this OS window" confirmation prompt by
-#   setting `confirm_os_window_close 0`.
-#   Idempotent: creates the file if absent, replaces an existing
-#   confirm_os_window_close line, or appends the setting — without disturbing
-#   any other lines (e.g. allow_remote_control added by other tooling).
+#   close-window confirmation and translates Ctrl+Backspace to Ctrl+W, the
+#   conventional terminal word-rubout key. Idempotently creates, replaces, or
+#   appends both settings without disturbing unrelated configuration.
 configure_kitty_defaults() {
-  msg "Configuring Kitty defaults (disable close-window confirmation)"
+  msg "Configuring Kitty defaults (close confirmation and word deletion)"
+  log "info" "Applying managed Kitty defaults for $TARGET_USER"
 
   run_as_target bash -lc '
 set -eu
 conf="$HOME/.config/kitty/kitty.conf"
 mkdir -p "$(dirname "$conf")"
 if [ ! -f "$conf" ]; then
-  printf "# Managed by linux_configuration_setup.\nconfirm_os_window_close 0\n" > "$conf"
-elif grep -q "^confirm_os_window_close" "$conf"; then
+  printf "# Managed by linux_configuration_setup.\n" > "$conf"
+fi
+if grep -q "^confirm_os_window_close" "$conf"; then
   sed -i "s/^confirm_os_window_close.*/confirm_os_window_close 0/" "$conf"
 else
   printf "\n# Do not prompt when closing an OS window that has running programs.\nconfirm_os_window_close 0\n" >> "$conf"
+fi
+if grep -q "^map ctrl+backspace" "$conf"; then
+  sed -i "s/^map ctrl+backspace.*/map ctrl+backspace send_key ctrl+w/" "$conf"
+else
+  printf "\n# Make Ctrl+Backspace use the standard terminal word-rubout key.\nmap ctrl+backspace send_key ctrl+w\n" >> "$conf"
 fi'
 }
