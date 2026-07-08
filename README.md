@@ -33,6 +33,7 @@ This repository configures the GNOME desktop environment after base packages are
 - **Display refresh**: Xorg xrandr max refresh rate or Wayland VRR
 - **Autostart applications**: Spotify, GitKraken, EasyEffects, and Kitty
 - **App workspace rules**: `app-rules@local` GNOME extension assigns windows to specific workspaces (e.g., Monkeytype → workspace 7, ChatGPT → workspace 0). PWAs themselves are installed manually; once present, these rules match them by window class.
+- **Active-monitor placement**: Installs `~/.local/bin/pin-window-to-active-monitor.sh`, a runtime helper that moves a window to the monitor containing the mouse pointer. The open-kitty-and-sort hotkey (`linux_hotkey_window_tools`) calls it so newly-launched kitty windows stay on the active monitor even when the workspace is crowded and GNOME would have placed them on a different display.
 - **UV package manager**: Install astral.sh/uv, deploy the global rolling 24-hour supply-chain cutoff, and disable GUI autostart
 - **tmux defaults**: Deploy `configs/tmux/.tmux.conf` to the target user's home
 
@@ -107,12 +108,14 @@ linux_configuration_setup/
 │   ├── gsettings_helpers.sh  # GSettings/dconf helper functions
 │   ├── system_config.sh      # RTC, clock, lock, dark mode, mouse accel
 │   ├── autostart.sh          # Unified master-selected application startup
+│   ├── active_monitor.sh     # Pin-window-to-active-monitor helper installer
 │   ├── cursor_theme.sh       # Purple Cross cursor build, aliases, and defaults
 │   └── gnome_desktop.sh      # GNOME desktop config (favorites, terminal themes, display, extensions)
 ├── scripts/
 │   ├── logging_utils.py      # Centralized Python logging and call tracing
 │   ├── extract_cursor.py     # CUR-to-PNG cursor extraction helper
 │   ├── keyring_snapshot.py   # Secret Service export/import helper
+│   ├── pin-window-to-active-monitor.sh  # Move a window to the pointer's monitor
 │   └── activate_passwordless_keyring.sh  # Next-boot keyring activator
 ├── configs/
 │   ├── tmux/.tmux.conf            # tmux user defaults
@@ -212,6 +215,7 @@ or none, and **Enter** installs the selection. Components:
 | `selected_app_autostart` | Master-selected app startup (`s` in app menu) | on |
 | `kitty_defaults` | Kitty terminal defaults (close prompt and Ctrl+Backspace word deletion) | on |
 | `app_rules` | App window rules extension | on |
+| `active_monitor_placement` | Pin new windows to the active monitor (helper for the kitty hotkey) | on |
 | `uv_setup` | UV package manager and supply-chain protection | on |
 | `tmux_defaults` | Tmux defaults | on |
 | `dash_to_panel` | Dash-to-Panel layout (replaces Ubuntu Dock) | on |
