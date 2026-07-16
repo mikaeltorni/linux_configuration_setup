@@ -24,11 +24,13 @@ configure_tmux_defaults
 
 diff -q "$CONFIG_DIR/uv/uv.toml" "$TARGET_HOME/.config/uv/uv.toml" >/dev/null
 diff -q "$CONFIG_DIR/tmux/.tmux.conf" "$TARGET_HOME/.tmux.conf" >/dev/null
+grep -qx 'set -g history-limit 2147483647' "$TARGET_HOME/.tmux.conf"
 
 # Repeated deployment must reproduce the same files without failure.
 configure_uv_autostart
 configure_tmux_defaults
 diff -q "$CONFIG_DIR/uv/uv.toml" "$TARGET_HOME/.config/uv/uv.toml" >/dev/null
 diff -q "$CONFIG_DIR/tmux/.tmux.conf" "$TARGET_HOME/.tmux.conf" >/dev/null
+grep -qx 'set -g history-limit 2147483647' "$TARGET_HOME/.tmux.conf"
 
 printf 'test_uv_tmux_config.sh: all assertions passed\n'

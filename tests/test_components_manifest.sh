@@ -53,6 +53,11 @@ uv_row="$(printf '%s\n' "${ISC_COMPONENTS[@]}" | grep '^uv_setup|')"
   printf 'FAIL: tmux config is missing from configurations folder\n' >&2
   exit 1
 }
+tmux_row="$(printf '%s\n' "${ISC_COMPONENTS[@]}" | grep '^tmux_defaults|')"
+[[ "$tmux_row" == *"full chat history"* ]] || {
+  printf 'FAIL: tmux_defaults should advertise full chat history\n' >&2
+  exit 1
+}
 [ "${#ISC_COMPONENTS[@]}" -gt 0 ] && pass "ISC_COMPONENTS is non-empty" \
   || fail "ISC_COMPONENTS is non-empty"
 

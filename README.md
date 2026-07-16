@@ -35,7 +35,9 @@ This repository configures the GNOME desktop environment after base packages are
 - **App workspace rules**: `app-rules@local` GNOME extension assigns windows to specific workspaces (e.g., Monkeytype → workspace 7, ChatGPT → workspace 0). PWAs themselves are installed manually; once present, these rules match them by window class.
 - **Active-monitor placement**: Installs `~/.local/bin/pin-window-to-active-monitor.sh`, a runtime helper that moves a window to the monitor containing the mouse pointer. The open-kitty-and-sort hotkey (`linux_hotkey_window_tools`) calls it so newly-launched kitty windows stay on the active monitor even when the workspace is crowded and GNOME would have placed them on a different display.
 - **UV package manager**: Install astral.sh/uv, deploy the global rolling 24-hour supply-chain cutoff, and disable GUI autostart
-- **tmux defaults**: Deploy `configs/tmux/.tmux.conf` to the target user's home
+- **tmux defaults with full chat history**: Deploy `configs/tmux/.tmux.conf` to
+  the target user's home with tmux's maximum accepted history limit
+  (`2147483647` lines), which is effectively uncapped for complete agent chats
 
 ## Installation
 
@@ -217,7 +219,7 @@ or none, and **Enter** installs the selection. Components:
 | `app_rules` | App window rules extension | on |
 | `active_monitor_placement` | Pin new windows to the active monitor (helper for the kitty hotkey) | on |
 | `uv_setup` | UV package manager and supply-chain protection | on |
-| `tmux_defaults` | Tmux defaults | on |
+| `tmux_defaults` | Tmux defaults with full chat history | on |
 | `dash_to_panel` | Dash-to-Panel layout (replaces Ubuntu Dock) | on |
 
 ## Detect, reconfigure, and uninstall

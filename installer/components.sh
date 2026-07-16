@@ -39,6 +39,6 @@ ISC_COMPONENTS=(
   "app_rules|App window rules extension|on|configure_app_rules_extension|detect_app_rules|uninstall_app_rules"
   "active_monitor_placement|Pin new windows to the active monitor|on|configure_active_monitor_placement|detect_active_monitor_placement|uninstall_active_monitor_placement"
   "uv_setup|UV package manager and supply-chain protection|on|configure_uv_autostart|detect_uv_setup|uninstall_uv_setup"
-  "tmux_defaults|Tmux defaults|on|configure_tmux_defaults|detect_tmux_defaults|uninstall_tmux_defaults"
+  "tmux_defaults|Tmux defaults with full chat history|on|configure_tmux_defaults|detect_tmux_defaults|uninstall_tmux_defaults"
   "dash_to_panel|Dash-to-Panel layout (replaces Ubuntu Dock)|on|configure_dash_to_panel|detect_dash_to_panel|uninstall_dash_to_panel"
 )
