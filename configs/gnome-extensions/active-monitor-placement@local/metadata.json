@@ -1,0 +1,7 @@
+{
+  "uuid": "active-monitor-placement@local",
+  "name": "Active Monitor Placement",
+  "description": "Correct new windows onto the active/pointer monitor when GNOME places them on a crowded or other display",
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "version": 1
+}

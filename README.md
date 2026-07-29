@@ -110,7 +110,7 @@ linux_configuration_setup/
 │   ├── gsettings_helpers.sh  # GSettings/dconf helper functions
 │   ├── system_config.sh      # RTC, clock, lock, dark mode, mouse accel
 │   ├── autostart.sh          # Unified master-selected application startup
-│   ├── active_monitor.sh     # Pin-window-to-active-monitor helper installer
+│   ├── active_monitor.sh     # Active-monitor placement (CLI helper + Shell extension)
 │   ├── cursor_theme.sh       # Purple Cross cursor build, aliases, and defaults
 │   └── gnome_desktop.sh      # GNOME desktop config (favorites, terminal themes, display, extensions)
 ├── scripts/
@@ -126,8 +126,28 @@ linux_configuration_setup/
 │   │   └── purple_cross.cur    # Purple Cross cursor theme asset
 │   └── gnome-extensions/
 │       ├── app-rules@local/    # GNOME Shell extension: per-app workspace/sticky rules
+│       └── active-monitor-placement@local/  # New windows → pointer/active monitor
 └── .gitignore
 ```
+
+## Active monitor placement (`active_monitor_placement`)
+
+When a monitor is crowded, GNOME/Mutter often places a newly opened window on
+another display (commonly the second monitor). The `active_monitor_placement`
+component fixes that system-wide:
+
+1. **`active-monitor-placement@local`** — GNOME Shell extension that listens for
+   `window-created`, rechecks after short delays (WM placement is async), and
+   moves normal (non–skip-taskbar) windows onto the pointer/current monitor when
+   they landed elsewhere. Pure decision logic lives in `placementPolicy.js` so
+   it is unit-tested without a live Shell.
+2. **`pin-window-to-active-monitor.sh`** — CLI helper in `~/.local/bin/` for
+   scripts (notably `open-kitty-and-sort`) that already pin a specific window ID.
+
+Both artifacts are installed by default (`on` in the component menu). After
+deploy, enable is persisted in `enabled-extensions`; if the Shell does not load
+new extension code mid-session, log out and back in (installers never kill
+GNOME Shell).
 
 ## App Workspace Rules (app-rules@local)
 
@@ -217,7 +237,7 @@ or none, and **Enter** installs the selection. Components:
 | `selected_app_autostart` | Master-selected app startup (`s` in app menu) | on |
 | `kitty_defaults` | Kitty terminal defaults (close prompt and Ctrl+Backspace word deletion) | on |
 | `app_rules` | App window rules extension | on |
-| `active_monitor_placement` | Pin new windows to the active monitor (helper for the kitty hotkey) | on |
+| `active_monitor_placement` | Pin new windows to the active/pointer monitor (session extension + CLI helper) | on |
 | `uv_setup` | UV package manager and supply-chain protection | on |
 | `tmux_defaults` | Tmux defaults with full chat history | on |
 | `dash_to_panel` | Dash-to-Panel layout (replaces Ubuntu Dock) | on |

@@ -29,7 +29,12 @@ detect_display_refresh()   { local v; v="$(cfg_get org.gnome.mutter experimental
 detect_autostart_apps()    { [ -f "$TARGET_HOME/.local/bin/autostart_apps.sh" ]; }
 detect_selected_app_autostart() { [ -f "$TARGET_HOME/.local/state/linux-configuration-setup/selected-app-autostart.list" ]; }
 detect_app_rules()         { [ -d "$TARGET_HOME/.local/share/gnome-shell/extensions/app-rules@local" ]; }
-detect_active_monitor_placement() { [ -f "$TARGET_HOME/.local/bin/pin-window-to-active-monitor.sh" ]; }
+# Helper CLI plus the session-wide extension both constitute the fix.
+detect_active_monitor_placement() {
+  [ -f "$TARGET_HOME/.local/bin/pin-window-to-active-monitor.sh" ] &&
+    [ -d "$TARGET_HOME/.local/share/gnome-shell/extensions/active-monitor-placement@local" ] &&
+    [ -f "$TARGET_HOME/.local/share/gnome-shell/extensions/active-monitor-placement@local/placementPolicy.js" ]
+}
 detect_uv_setup()          { [ -x "$TARGET_HOME/.local/bin/uv" ] && [ -f "$TARGET_HOME/.config/uv/uv.toml" ] && [ ! -e "$TARGET_HOME/.config/autostart/uv-python.desktop" ]; }
 detect_tmux_defaults()     { [ -f "$TARGET_HOME/.tmux.conf" ]; }
 
@@ -85,8 +90,30 @@ uninstall_app_rules() {
   run_as_target rm -rf "$TARGET_HOME/.local/share/gnome-shell/extensions/app-rules@local"
 }
 uninstall_active_monitor_placement() {
-  msg "Removing pin-window-to-active-monitor helper"
+  msg "Removing active-monitor placement helper and extension"
   run_as_target rm -f "$TARGET_HOME/.local/bin/pin-window-to-active-monitor.sh"
+  run_as_target gnome-extensions disable active-monitor-placement@local 2>/dev/null || true
+  run_as_target rm -rf "$TARGET_HOME/.local/share/gnome-shell/extensions/active-monitor-placement@local"
+  # Drop from enabled-extensions when gsettings is available (best-effort).
+  if command -v python3 >/dev/null 2>&1; then
+    local current new
+    current="$(run_as_target gsettings get org.gnome.shell enabled-extensions 2>/dev/null || true)"
+    if [ -n "$current" ]; then
+      new="$(VAL='active-monitor-placement@local' python3 - "$current" <<'PY'
+import ast, os, sys
+try:
+    items = ast.literal_eval((sys.argv[1] or "").strip() or "[]")
+    items = items if isinstance(items, list) else []
+except Exception:
+    items = []
+val = os.environ["VAL"]
+items = [x for x in items if x != val]
+print("[" + ", ".join("'" + x + "'" for x in items) + "]")
+PY
+)"
+      run_as_target gsettings set org.gnome.shell enabled-extensions "$new" 2>/dev/null || true
+    fi
+  fi
 }
 uninstall_uv_setup()       { msg "Removing UV configuration"; run_as_target rm -f "$TARGET_HOME/.config/autostart/uv-python.desktop" "$TARGET_HOME/.config/uv/uv.toml"; }
 uninstall_tmux_defaults()  { msg "Removing tmux defaults"; run_as_target rm -f "$TARGET_HOME/.tmux.conf"; }
