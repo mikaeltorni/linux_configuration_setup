@@ -73,6 +73,12 @@ if [ -f "$EXT_DIR/extension.js" ]; then
   grep -qF 'decideActiveMonitorPlacement' "$EXT_DIR/extension.js" \
     && pass "extension uses shipped decideActiveMonitorPlacement" \
     || fail "extension uses shipped decideActiveMonitorPlacement"
+  grep -qF 'isWindowMoveSafe' "$EXT_DIR/extension.js" \
+    && pass "extension gates moves with isWindowMoveSafe" \
+    || fail "extension gates moves with isWindowMoveSafe"
+  grep -qF 'get_compositor_private' "$EXT_DIR/extension.js" \
+    && pass "extension requires mapped compositor actor" \
+    || fail "extension requires mapped compositor actor"
 fi
 
 echo ""
@@ -116,9 +122,10 @@ const cases = [
     expectMove: false, expectTarget: null, expectReason: 'skip-taskbar',
   },
   {
-    name: 'move-unassigned-window',
+    // Must NOT move while unassigned: Mutter move_to_monitor can SIGSEGV the Shell.
+    name: 'no-move-unassigned-window',
     input: { skipTaskbar: false, windowMonitor: -1, activeMonitor: 1, monitorCount: 2 },
-    expectMove: true, expectTarget: 1, expectReason: 'unassigned-monitor',
+    expectMove: false, expectTarget: null, expectReason: 'unassigned-monitor',
   },
   {
     name: 'no-move-invalid-active',

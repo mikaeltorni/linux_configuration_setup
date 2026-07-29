@@ -20,8 +20,11 @@
  * @param {number} input.activeMonitor - pointer / current monitor index
  * @param {number} input.monitorCount - number of monitors on the display
  * @returns {{shouldMove: boolean, targetMonitor: number|null, reason: string}}
- *   shouldMove is true only when the window is a normal candidate and is not
- *   already on a valid active monitor; targetMonitor is then a clamped index.
+ *   shouldMove is true only when the window is a normal candidate, already has
+ *   a valid monitor index, and that index is not the active monitor.
+ *   Unassigned windows (monitor -1) return shouldMove false so callers never
+ *   invoke Mutter move APIs until placement is safe; targetMonitor is a
+ *   clamped index when shouldMove is true.
  */
 export function decideActiveMonitorPlacement(input) {
   const skipTaskbar = Boolean(input?.skipTaskbar);
@@ -52,13 +55,20 @@ export function decideActiveMonitorPlacement(input) {
     windowMonitor >= 0 &&
     windowMonitor < monitorCount;
 
-  if (windowOnValidMonitor && windowMonitor === activeMonitor) {
+  // Unassigned / not-yet-placed windows must not be moved: Mutter can SIGSEGV
+  // the Shell if move_to_monitor runs before the window has a real monitor.
+  // Later rechecks (after the WM assigns a monitor) still correct a wrong one.
+  if (!windowOnValidMonitor) {
+    return { shouldMove: false, targetMonitor: null, reason: 'unassigned-monitor' };
+  }
+
+  if (windowMonitor === activeMonitor) {
     return { shouldMove: false, targetMonitor: null, reason: 'already-on-active' };
   }
 
   return {
     shouldMove: true,
     targetMonitor: activeMonitor,
-    reason: windowOnValidMonitor ? 'wrong-monitor' : 'unassigned-monitor',
+    reason: 'wrong-monitor',
   };
 }
