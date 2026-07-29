@@ -9,10 +9,15 @@
 // shipped policy without a live Shell. A delayed recheck mirrors the known
 // open-kitty-and-sort race: the WM may finish placement after the first map.
 //
+// Safety: never call move_to_monitor until the window is mapped and already
+// has a valid monitor index. Calling Mutter with an unassigned window can
+// SIGSEGV the entire GNOME Shell (signal 11) — that is not catchable in JS.
+//
 // Components:
 //   - isSkipTaskbar: detect utility / skip-taskbar windows.
+//   - isWindowMoveSafe: mapped + valid-monitor gate before Mutter move APIs.
 //   - resolveActiveMonitor: clamp pointer/current monitor index.
-//   - resolveWindowMonitor: read window monitor without calling APIs with -1.
+//   - resolveWindowMonitor: read window monitor without treating -1 as usable.
 //   - applyPlacement: run policy and move when needed.
 //   - ActiveMonitorPlacementExtension: window-created + delayed recheck wiring.
 
@@ -20,9 +25,10 @@ import GLib from 'gi://GLib';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import { decideActiveMonitorPlacement } from './placementPolicy.js';
 
-// Delays (ms) for placement rechecks after window-created. The first pass
-// catches early wrong placement; later passes cover Mutter's async placement.
-const RECHECK_DELAYS_MS = [50, 300, 700];
+// Delays (ms) for placement rechecks after window-created. Early passes often
+// see unassigned monitors (policy: no move); later passes correct once Mutter
+// has finished its own (possibly wrong) placement.
+const RECHECK_DELAYS_MS = [100, 350, 800];
 
 /**
  * Whether a window is a utility / skip-taskbar candidate that must not be moved.
@@ -45,6 +51,42 @@ function isSkipTaskbar(win) {
 }
 
 /**
+ * Whether it is safe to call move_to_monitor on this window.
+ *
+ * Requires a compositor actor (mapped) and a non-negative get_monitor() index.
+ * Both gates prevent the known Mutter SIGSEGV on premature move_to_monitor.
+ *
+ * @param {Meta.Window|null} win - Window under consideration.
+ * @returns {boolean} true only when Mutter move APIs may be called.
+ */
+function isWindowMoveSafe(win) {
+  if (!win || typeof win.move_to_monitor !== 'function') {
+    return false;
+  }
+  try {
+    if (typeof win.get_compositor_private === 'function') {
+      const actor = win.get_compositor_private();
+      if (!actor) {
+        return false;
+      }
+    }
+    if (typeof win.get_monitor !== 'function') {
+      return false;
+    }
+    const index = win.get_monitor();
+    // Coerce GJS number; reject -1 and NaN. Do not require Number.isInteger
+    // alone in case GJS surfaces integers as floating values.
+    const n = Number(index);
+    if (!Number.isFinite(n) || n < 0) {
+      return false;
+    }
+    return true;
+  } catch (_e) {
+    return false;
+  }
+}
+
+/**
  * Resolve the active (pointer / current) monitor index, clamped to a valid range.
  *
  * @param {Meta.Display} display - global.display
@@ -60,10 +102,11 @@ function resolveActiveMonitor(display) {
   let index = typeof display.get_current_monitor === 'function'
     ? display.get_current_monitor()
     : -1;
-  if (!Number.isInteger(index) || index < 0 || index >= monitorCount) {
+  const n = Number(index);
+  if (!Number.isFinite(n) || n < 0 || n >= monitorCount) {
     return -1;
   }
-  return index;
+  return Math.trunc(n);
 }
 
 /**
@@ -77,11 +120,11 @@ function resolveWindowMonitor(win) {
     if (typeof win.get_monitor !== 'function') {
       return -1;
     }
-    const index = win.get_monitor();
-    if (!Number.isInteger(index) || index < 0) {
+    const n = Number(win.get_monitor());
+    if (!Number.isFinite(n) || n < 0) {
       return -1;
     }
-    return index;
+    return Math.trunc(n);
   } catch (_e) {
     return -1;
   }
@@ -91,20 +134,11 @@ function resolveWindowMonitor(win) {
  * Apply pure placement policy and move the window when it landed elsewhere.
  *
  * @param {Meta.Window} win - Candidate window.
- * @param {string} phase - Log label for which recheck fired (e.g. "delay-300").
+ * @param {string} phase - Log label for which recheck fired (e.g. "delay-350").
  * @returns {boolean} true when a move was performed.
  */
 function applyPlacement(win, phase) {
-  if (!win || typeof win.move_to_monitor !== 'function') {
-    return false;
-  }
-
-  // Window may have been destroyed between schedule and fire.
-  try {
-    if (typeof win.get_compositor_private === 'function' && !win.get_compositor_private()) {
-      // Still allow windows that are mapping; only bail if clearly gone.
-    }
-  } catch (_e) {
+  if (!isWindowMoveSafe(win)) {
     return false;
   }
 
@@ -116,6 +150,15 @@ function applyPlacement(win, phase) {
   const windowMonitor = resolveWindowMonitor(win);
   const skipTaskbar = isSkipTaskbar(win);
 
+  // Second hard gate: never pass an unassigned window into move_to_monitor.
+  if (windowMonitor < 0 || windowMonitor >= monitorCount) {
+    return false;
+  }
+  if (activeMonitor < 0 || activeMonitor >= monitorCount) {
+    console.log(`[active-monitor-placement] skip (${phase}): invalid-active-monitor`);
+    return false;
+  }
+
   const decision = decideActiveMonitorPlacement({
     skipTaskbar,
     windowMonitor,
@@ -124,28 +167,43 @@ function applyPlacement(win, phase) {
   });
 
   if (!decision.shouldMove) {
-    // already-on-active and skip-taskbar are the common quiet paths; log only
-    // unusual bailouts (invalid monitors, empty display) for diagnostics.
-    if (decision.reason !== 'already-on-active' && decision.reason !== 'skip-taskbar') {
+    // Quiet for already-on-active / skip-taskbar / still-unassigned.
+    if (
+      decision.reason !== 'already-on-active' &&
+      decision.reason !== 'skip-taskbar' &&
+      decision.reason !== 'unassigned-monitor'
+    ) {
       console.log(`[active-monitor-placement] skip (${phase}): ${decision.reason}`);
     }
     return false;
   }
 
-  const target = decision.targetMonitor;
-  if (!Number.isInteger(target) || target < 0 || target >= monitorCount) {
+  const target = Number(decision.targetMonitor);
+  if (!Number.isFinite(target) || target < 0 || target >= monitorCount) {
     console.log(`[active-monitor-placement] refuse move with invalid target ${target}`);
+    return false;
+  }
+  const targetIndex = Math.trunc(target);
+
+  // Idempotent: if a race placed us correctly since the decision, do nothing.
+  if (resolveWindowMonitor(win) === targetIndex) {
+    return false;
+  }
+
+  // Re-check mapped state immediately before the Mutter call.
+  if (!isWindowMoveSafe(win)) {
     return false;
   }
 
   try {
-    win.move_to_monitor(target);
+    win.move_to_monitor(targetIndex);
     console.log(
-      `[active-monitor-placement] moved window to monitor ${target} ` +
+      `[active-monitor-placement] moved window to monitor ${targetIndex} ` +
       `(from ${windowMonitor}, reason=${decision.reason}, phase=${phase})`
     );
     return true;
   } catch (e) {
+    // JS exceptions only; C-level SIGSEGV cannot be caught — prevented by gates.
     console.log(`[active-monitor-placement] move_to_monitor failed: ${e}`);
     return false;
   }
@@ -161,7 +219,7 @@ export default class ActiveMonitorPlacementExtension extends Extension {
   }
 
   /**
-   * Schedule immediate + delayed placement corrections for a new window.
+   * Schedule delayed placement corrections for a new window.
    *
    * @param {Meta.Window} win - Newly created window.
    * @returns {void}
@@ -175,6 +233,11 @@ export default class ActiveMonitorPlacementExtension extends Extension {
       const sourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delayMs, () => {
         this._timeouts = this._timeouts.filter((id) => id !== sourceId);
         try {
+          // Window may have been destroyed between schedule and fire.
+          if (!win || (typeof win.get_compositor_private === 'function' &&
+              !win.get_compositor_private() && resolveWindowMonitor(win) < 0)) {
+            return GLib.SOURCE_REMOVE;
+          }
           applyPlacement(win, `delay-${delayMs}`);
         } catch (e) {
           console.log(`[active-monitor-placement] recheck error: ${e}`);
