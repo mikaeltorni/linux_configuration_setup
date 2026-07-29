@@ -27,8 +27,9 @@ import { decideActiveMonitorPlacement } from './placementPolicy.js';
 
 // Delays (ms) for placement rechecks after window-created. Early passes often
 // see unassigned monitors (policy: no move); later passes correct once Mutter
-// has finished its own (possibly wrong) placement.
-const RECHECK_DELAYS_MS = [100, 350, 800];
+// has finished its own (possibly wrong) placement. Include a late pass for
+// slow-to-map clients (kitty/gtk sometimes assign geometry after 1s).
+const RECHECK_DELAYS_MS = [150, 400, 900, 1600];
 
 /**
  * Whether a window is a utility / skip-taskbar candidate that must not be moved.
@@ -87,7 +88,11 @@ function isWindowMoveSafe(win) {
 }
 
 /**
- * Resolve the active (pointer / current) monitor index, clamped to a valid range.
+ * Resolve the active (pointer) monitor index, clamped to a valid range.
+ *
+ * Uses global pointer coordinates first so a newly focused window that landed
+ * on the wrong display cannot redefine "active" via focus-based APIs. Falls
+ * back to display.get_current_monitor() when pointer geometry is unavailable.
  *
  * @param {Meta.Display} display - global.display
  * @returns {number} Zero-based monitor index, or -1 when none are available.
@@ -99,6 +104,39 @@ function resolveActiveMonitor(display) {
   if (monitorCount <= 0) {
     return -1;
   }
+
+  // Pointer hit-test (authoritative for "monitor the user is working on").
+  try {
+    if (typeof global.get_pointer === 'function' &&
+        typeof display.get_monitor_geometry === 'function') {
+      const pointer = global.get_pointer();
+      const px = Number(pointer?.[0]);
+      const py = Number(pointer?.[1]);
+      if (Number.isFinite(px) && Number.isFinite(py)) {
+        for (let i = 0; i < monitorCount; i++) {
+          const geo = display.get_monitor_geometry(i);
+          if (!geo) {
+            continue;
+          }
+          const gx = Number(geo.x);
+          const gy = Number(geo.y);
+          const gw = Number(geo.width);
+          const gh = Number(geo.height);
+          if (
+            Number.isFinite(gx) && Number.isFinite(gy) &&
+            Number.isFinite(gw) && Number.isFinite(gh) &&
+            px >= gx && px < gx + gw &&
+            py >= gy && py < gy + gh
+          ) {
+            return i;
+          }
+        }
+      }
+    }
+  } catch (_e) {
+    // fall through to get_current_monitor
+  }
+
   let index = typeof display.get_current_monitor === 'function'
     ? display.get_current_monitor()
     : -1;
@@ -139,6 +177,10 @@ function resolveWindowMonitor(win) {
  */
 function applyPlacement(win, phase) {
   if (!isWindowMoveSafe(win)) {
+    // Last recheck: surface that we never got a move-safe window (mapping race).
+    if (phase === `delay-${RECHECK_DELAYS_MS[RECHECK_DELAYS_MS.length - 1]}`) {
+      console.log(`[active-monitor-placement] skip (${phase}): not-move-safe`);
+    }
     return false;
   }
 
@@ -152,6 +194,9 @@ function applyPlacement(win, phase) {
 
   // Second hard gate: never pass an unassigned window into move_to_monitor.
   if (windowMonitor < 0 || windowMonitor >= monitorCount) {
+    if (phase === `delay-${RECHECK_DELAYS_MS[RECHECK_DELAYS_MS.length - 1]}`) {
+      console.log(`[active-monitor-placement] skip (${phase}): unassigned-monitor`);
+    }
     return false;
   }
   if (activeMonitor < 0 || activeMonitor >= monitorCount) {
