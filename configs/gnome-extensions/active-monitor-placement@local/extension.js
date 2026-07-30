@@ -9,6 +9,11 @@
 // shipped policy without a live Shell. A delayed recheck mirrors the known
 // open-kitty-and-sort race: the WM may finish placement after the first map.
 //
+// Stability: the target monitor is snapshotted once per open (at schedule, or
+// on the first recheck that can resolve it). Rechecks reuse that frozen target
+// so later focus/pointer noise cannot thrash the window across monitors
+// (journal pattern: delay-150 → mon1, delay-400 → mon2, delay-900 → mon1).
+//
 // Safety: never call move_to_monitor until the window is mapped and already
 // has a valid monitor index. Calling Mutter with an unassigned window can
 // SIGSEGV the entire GNOME Shell (signal 11) — that is not catchable in JS.
@@ -18,12 +23,15 @@
 //   - isWindowMoveSafe: mapped + valid-monitor gate before Mutter move APIs.
 //   - resolveActiveMonitor: clamp pointer/current monitor index.
 //   - resolveWindowMonitor: read window monitor without treating -1 as usable.
-//   - applyPlacement: run policy and move when needed.
+//   - applyPlacement: run policy and move when needed (uses frozen target).
 //   - ActiveMonitorPlacementExtension: window-created + delayed recheck wiring.
 
 import GLib from 'gi://GLib';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
-import { decideActiveMonitorPlacement } from './placementPolicy.js';
+import {
+  decideActiveMonitorPlacement,
+  freezeTargetMonitor,
+} from './placementPolicy.js';
 
 // Delays (ms) for placement rechecks after window-created. Early passes often
 // see unassigned monitors (policy: no move); later passes correct once Mutter
@@ -173,9 +181,10 @@ function resolveWindowMonitor(win) {
  *
  * @param {Meta.Window} win - Candidate window.
  * @param {string} phase - Log label for which recheck fired (e.g. "delay-350").
+ * @param {number} frozenActiveMonitor - Target monitor snapshotted for this open.
  * @returns {boolean} true when a move was performed.
  */
-function applyPlacement(win, phase) {
+function applyPlacement(win, phase, frozenActiveMonitor) {
   if (!isWindowMoveSafe(win)) {
     // Last recheck: surface that we never got a move-safe window (mapping race).
     if (phase === `delay-${RECHECK_DELAYS_MS[RECHECK_DELAYS_MS.length - 1]}`) {
@@ -188,7 +197,9 @@ function applyPlacement(win, phase) {
   const monitorCount = typeof display.get_n_monitors === 'function'
     ? display.get_n_monitors()
     : 0;
-  const activeMonitor = resolveActiveMonitor(display);
+  // Never re-resolve the live pointer here: use the per-open frozen target so
+  // delayed rechecks cannot thrash across monitors when focus/pointer moves.
+  const activeMonitor = Number(frozenActiveMonitor);
   const windowMonitor = resolveWindowMonitor(win);
   const skipTaskbar = isSkipTaskbar(win);
 
@@ -199,7 +210,11 @@ function applyPlacement(win, phase) {
     }
     return false;
   }
-  if (activeMonitor < 0 || activeMonitor >= monitorCount) {
+  if (
+    !Number.isFinite(activeMonitor) ||
+    activeMonitor < 0 ||
+    activeMonitor >= monitorCount
+  ) {
     console.log(`[active-monitor-placement] skip (${phase}): invalid-active-monitor`);
     return false;
   }
@@ -207,7 +222,7 @@ function applyPlacement(win, phase) {
   const decision = decideActiveMonitorPlacement({
     skipTaskbar,
     windowMonitor,
-    activeMonitor,
+    activeMonitor: Math.trunc(activeMonitor),
     monitorCount,
   });
 
@@ -266,12 +281,25 @@ export default class ActiveMonitorPlacementExtension extends Extension {
   /**
    * Schedule delayed placement corrections for a new window.
    *
+   * Snapshots the active (pointer) monitor once so all rechecks share one
+   * stable target. If the snapshot is invalid at schedule time, the first
+   * recheck that can resolve a candidate freezes it for the remaining phases.
+   *
    * @param {Meta.Window} win - Newly created window.
    * @returns {void}
    */
   _schedulePlacement(win) {
     if (!win || isSkipTaskbar(win)) {
       return;
+    }
+
+    // Per-open frozen target (shared across timeouts for this schedule only).
+    // Prefer schedule-time pointer/panel monitor; fill once if still invalid.
+    let frozenTarget = resolveActiveMonitor(global.display);
+    if (frozenTarget >= 0) {
+      console.log(
+        `[active-monitor-placement] snapshot target monitor ${frozenTarget} at schedule`
+      );
     }
 
     for (const delayMs of RECHECK_DELAYS_MS) {
@@ -283,7 +311,24 @@ export default class ActiveMonitorPlacementExtension extends Extension {
               !win.get_compositor_private() && resolveWindowMonitor(win) < 0)) {
             return GLib.SOURCE_REMOVE;
           }
-          applyPlacement(win, `delay-${delayMs}`);
+          const display = global.display;
+          const monitorCount = typeof display.get_n_monitors === 'function'
+            ? display.get_n_monitors()
+            : 0;
+          // Fill frozen target only while still invalid; never re-chase pointer.
+          const previousFrozen = frozenTarget;
+          frozenTarget = freezeTargetMonitor(
+            frozenTarget,
+            resolveActiveMonitor(display),
+            monitorCount
+          );
+          if (previousFrozen < 0 && frozenTarget >= 0) {
+            console.log(
+              `[active-monitor-placement] freeze target monitor ${frozenTarget} ` +
+              `(phase=delay-${delayMs})`
+            );
+          }
+          applyPlacement(win, `delay-${delayMs}`, frozenTarget);
         } catch (e) {
           console.log(`[active-monitor-placement] recheck error: ${e}`);
         }

@@ -5,7 +5,41 @@
 // module directly, and extension.js applies the same decision at runtime.
 //
 // Components:
+//   - freezeTargetMonitor: stable target for one open across delayed rechecks.
 //   - decideActiveMonitorPlacement: pure move / no-move policy for new windows.
+
+/**
+ * Freeze the target monitor for one window-open across delayed rechecks.
+ *
+ * Rechecks must not re-resolve the pointer/focus monitor every time: live
+ * pointer chase after focus lands on a newly mapped window is what produces
+ * cross-monitor thrash (e.g. 0→1→2→1 in journal for one open). Prefer a valid
+ * snapshot from schedule time; only adopt a candidate when the snapshot is
+ * still invalid (e.g. pointer geometry unavailable at window-created).
+ *
+ * @param {number} snapshot - Previously frozen target, or -1 if none yet.
+ * @param {number} candidate - Freshly resolved pointer/panel monitor index.
+ * @param {number} monitorCount - Number of monitors on the display.
+ * @returns {number} Stable zero-based monitor index, or -1 when neither is valid.
+ */
+export function freezeTargetMonitor(snapshot, candidate, monitorCount) {
+  const count = Number(monitorCount);
+  if (!Number.isFinite(count) || count <= 0) {
+    return -1;
+  }
+
+  const snap = Number(snapshot);
+  if (Number.isFinite(snap) && Number.isInteger(snap) && snap >= 0 && snap < count) {
+    return snap;
+  }
+
+  const cand = Number(candidate);
+  if (Number.isFinite(cand) && Number.isInteger(cand) && cand >= 0 && cand < count) {
+    return cand;
+  }
+
+  return -1;
+}
 
 /**
  * Decide whether a window should be moved onto the active (pointer) monitor.
@@ -14,10 +48,13 @@
  * Invalid indices never produce a move target — callers must not call
  * move_to_monitor with an out-of-range index (Mutter asserts which_monitor >= 0).
  *
+ * For one open, pass a *frozen* activeMonitor (from freezeTargetMonitor) on
+ * every recheck so pointer/focus noise cannot thrash the window across displays.
+ *
  * @param {object} input
  * @param {boolean} input.skipTaskbar - true for utility / skip-taskbar windows
  * @param {number} input.windowMonitor - window's current monitor index (-1 if unassigned)
- * @param {number} input.activeMonitor - pointer / current monitor index
+ * @param {number} input.activeMonitor - frozen pointer / panel / primary target index
  * @param {number} input.monitorCount - number of monitors on the display
  * @returns {{shouldMove: boolean, targetMonitor: number|null, reason: string}}
  *   shouldMove is true only when the window is a normal candidate, already has

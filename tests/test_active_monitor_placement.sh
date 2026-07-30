@@ -73,12 +73,31 @@ if [ -f "$EXT_DIR/extension.js" ]; then
   grep -qF 'decideActiveMonitorPlacement' "$EXT_DIR/extension.js" \
     && pass "extension uses shipped decideActiveMonitorPlacement" \
     || fail "extension uses shipped decideActiveMonitorPlacement"
+  grep -qF 'freezeTargetMonitor' "$EXT_DIR/extension.js" \
+    && pass "extension uses freezeTargetMonitor for stable target" \
+    || fail "extension uses freezeTargetMonitor for stable target"
   grep -qF 'isWindowMoveSafe' "$EXT_DIR/extension.js" \
     && pass "extension gates moves with isWindowMoveSafe" \
     || fail "extension gates moves with isWindowMoveSafe"
   grep -qF 'get_compositor_private' "$EXT_DIR/extension.js" \
     && pass "extension requires mapped compositor actor" \
     || fail "extension requires mapped compositor actor"
+  grep -qF 'snapshot target monitor' "$EXT_DIR/extension.js" \
+    && pass "extension snapshots target at schedule" \
+    || fail "extension snapshots target at schedule"
+  # Rechecks must apply the frozen target, not re-resolve live pointer each phase.
+  if grep -qF 'applyPlacement(win, `delay-${delayMs}`, frozenTarget)' "$EXT_DIR/extension.js"; then
+    pass "rechecks pass frozenTarget into applyPlacement"
+  else
+    fail "rechecks pass frozenTarget into applyPlacement"
+  fi
+  # applyPlacement must not call resolveActiveMonitor (would re-chase pointer).
+  if awk '/^function applyPlacement/,/^function |^export /' "$EXT_DIR/extension.js" \
+      | grep -q 'resolveActiveMonitor'; then
+    fail "applyPlacement must not re-resolve active monitor live"
+  else
+    pass "applyPlacement does not re-resolve active monitor live"
+  fi
 fi
 
 echo ""
@@ -100,8 +119,13 @@ if (!policyPath) {
 }
 const mod = await import(pathToFileURL(policyPath).href);
 const decide = mod.decideActiveMonitorPlacement;
+const freeze = mod.freezeTargetMonitor;
 if (typeof decide !== 'function') {
   console.error('MISSING_EXPORT');
+  process.exit(2);
+}
+if (typeof freeze !== 'function') {
+  console.error('MISSING_FREEZE_EXPORT');
   process.exit(2);
 }
 
@@ -166,6 +190,117 @@ for (const c of cases) {
     );
   }
 }
+
+// freezeTargetMonitor: keep valid snapshot; adopt candidate only when empty.
+const freezeCases = [
+  {
+    name: 'freeze-keeps-valid-snapshot',
+    args: [1, 2, 3],
+    expect: 1,
+  },
+  {
+    name: 'freeze-adopts-candidate-when-snapshot-invalid',
+    args: [-1, 2, 3],
+    expect: 2,
+  },
+  {
+    name: 'freeze-ignores-out-of-range-candidate',
+    args: [-1, 5, 3],
+    expect: -1,
+  },
+  {
+    name: 'freeze-ignores-changing-candidate-when-frozen',
+    args: [0, 2, 3],
+    expect: 0,
+  },
+  {
+    name: 'freeze-no-monitors',
+    args: [0, 1, 0],
+    expect: -1,
+  },
+];
+for (const c of freezeCases) {
+  const got = freeze(...c.args);
+  if (got === c.expect) {
+    console.log(`CASE_PASS ${c.name}`);
+  } else {
+    failed += 1;
+    console.log(`CASE_FAIL ${c.name} got=${got} expect=${c.expect}`);
+  }
+}
+
+// Multi-recheck stability with a fixed snapshot (the extension contract).
+// Window starts on monitor 0; snapshot target is 1; live pointer "moves" to
+// 0, then 2, then 1 across phases — freeze must keep target 1, and decide
+// must produce at most one corrective move (to 1), never thrash to 0 or 2.
+{
+  const monitorCount = 3;
+  const livePointerSequence = [1, 0, 2, 1]; // schedule + delay phases
+  let frozen = -1;
+  let windowMonitor = 0;
+  const moves = [];
+  for (let i = 0; i < livePointerSequence.length; i++) {
+    frozen = freeze(frozen, livePointerSequence[i], monitorCount);
+    const d = decide({
+      skipTaskbar: false,
+      windowMonitor,
+      activeMonitor: frozen,
+      monitorCount,
+    });
+    if (d.shouldMove) {
+      moves.push({ phase: i, from: windowMonitor, to: d.targetMonitor });
+      windowMonitor = d.targetMonitor;
+    }
+  }
+  const onlyToSnapshot =
+    moves.length <= 1 &&
+    moves.every((m) => m.to === 1) &&
+    windowMonitor === 1 &&
+    frozen === 1;
+  if (onlyToSnapshot) {
+    console.log(`CASE_PASS multi-recheck-stable-snapshot moves=${JSON.stringify(moves)}`);
+  } else {
+    failed += 1;
+    console.log(
+      `CASE_FAIL multi-recheck-stable-snapshot frozen=${frozen} ` +
+      `windowMonitor=${windowMonitor} moves=${JSON.stringify(moves)}`
+    );
+  }
+}
+
+// Contrast: without freeze, re-resolving live pointer each phase thrash-moves.
+{
+  const monitorCount = 3;
+  const livePointerSequence = [1, 0, 2, 1];
+  let windowMonitor = 0;
+  const thrashMoves = [];
+  for (let i = 0; i < livePointerSequence.length; i++) {
+    const d = decide({
+      skipTaskbar: false,
+      windowMonitor,
+      activeMonitor: livePointerSequence[i],
+      monitorCount,
+    });
+    if (d.shouldMove) {
+      thrashMoves.push({ phase: i, from: windowMonitor, to: d.targetMonitor });
+      windowMonitor = d.targetMonitor;
+    }
+  }
+  const thrashed =
+    thrashMoves.length >= 2 &&
+    new Set(thrashMoves.map((m) => m.to)).size >= 2;
+  if (thrashed) {
+    console.log(
+      `CASE_PASS multi-recheck-without-snapshot-thrashes moves=${JSON.stringify(thrashMoves)}`
+    );
+  } else {
+    failed += 1;
+    console.log(
+      `CASE_FAIL multi-recheck-without-snapshot-thrashes moves=${JSON.stringify(thrashMoves)}`
+    );
+  }
+}
+
 process.exit(failed === 0 ? 0 : 1);
 NODE
   )" || true
@@ -175,12 +310,14 @@ NODE
       CASE_PASS\ *) pass "policy: ${line#CASE_PASS }" ;;
       CASE_FAIL\ *) fail "policy: ${line#CASE_FAIL }" ;;
       MISSING_EXPORT) fail "decideActiveMonitorPlacement exported" ;;
+      MISSING_FREEZE_EXPORT) fail "freezeTargetMonitor exported" ;;
     esac
   done <<< "$policy_out"
   if ! echo "$policy_out" | grep -q 'CASE_PASS'; then
     fail "policy runner produced at least one CASE_PASS"
   fi
 fi
+
 
 echo ""
 echo "--- install library defines configure function ---"
