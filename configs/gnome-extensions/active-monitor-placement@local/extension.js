@@ -257,6 +257,9 @@ function applyPlacement(win, phase) {
 export default class ActiveMonitorPlacementExtension extends Extension {
   enable() {
     this._timeouts = [];
+    // Windows already corrected this session: skip later rechecks so we do not
+    // thrash move_to_monitor on the same map (journal spam + fight with tilers).
+    this._corrected = new Set();
     this._sig = global.display.connect('window-created', (_disp, win) => {
       this._schedulePlacement(win);
     });
@@ -278,12 +281,17 @@ export default class ActiveMonitorPlacementExtension extends Extension {
       const sourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delayMs, () => {
         this._timeouts = this._timeouts.filter((id) => id !== sourceId);
         try {
+          if (this._corrected?.has(win)) {
+            return GLib.SOURCE_REMOVE;
+          }
           // Window may have been destroyed between schedule and fire.
           if (!win || (typeof win.get_compositor_private === 'function' &&
               !win.get_compositor_private() && resolveWindowMonitor(win) < 0)) {
             return GLib.SOURCE_REMOVE;
           }
-          applyPlacement(win, `delay-${delayMs}`);
+          if (applyPlacement(win, `delay-${delayMs}`)) {
+            this._corrected?.add(win);
+          }
         } catch (e) {
           console.log(`[active-monitor-placement] recheck error: ${e}`);
         }
@@ -308,6 +316,7 @@ export default class ActiveMonitorPlacementExtension extends Extension {
       }
       this._timeouts = [];
     }
+    this._corrected = null;
     console.log('[active-monitor-placement] disabled');
   }
 }
