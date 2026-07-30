@@ -196,6 +196,13 @@ lib_text="$(cat "$lib_file")"
 [[ "$lib_text" == *"active-monitor-placement@local"* ]] && pass "configure deploys extension uuid" || fail "configure deploys extension uuid"
 [[ "$lib_text" == *"placementPolicy.js"* ]] || [[ "$lib_text" == *'ACTIVE_MONITOR_EXT'* ]] \
   && pass "configure references extension source" || fail "configure references extension source"
+# Reconfigure must force-reactivate (remove+add enabled-extensions), not only add.
+[[ "$lib_text" == *"_active_monitor_strv_edit remove"* ]] && [[ "$lib_text" == *"_active_monitor_strv_edit add"* ]] \
+  && pass "configure force-reactivates via remove+add enabled-extensions" \
+  || fail "configure force-reactivates via remove+add enabled-extensions"
+[[ "$lib_text" == *"EnableExtension"* ]] \
+  && pass "configure uses D-Bus EnableExtension path" \
+  || fail "configure uses D-Bus EnableExtension path"
 
 echo ""
 echo "--- component is declared in manifest ---"

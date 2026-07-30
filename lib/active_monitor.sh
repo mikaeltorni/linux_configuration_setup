@@ -99,12 +99,21 @@ _active_monitor_deploy_extension() {
     fi
   done
 
-  # Persist enable without blocking the installer on a slow Shell D-Bus call.
-  log "info" "enabling user extensions and $ACTIVE_MONITOR_EXT_UUID"
+  # Reconfigure must re-activate in-session: if the UUID is already listed as
+  # enabled but the extension is INACTIVE (e.g. after disable or code replace),
+  # a plain "add" + enable is a no-op. Drop then re-add the UUID so Shell reloads
+  # the module, then fire a time-boxed enable (never block the installer).
+  log "info" "enabling user extensions and force-reactivating $ACTIVE_MONITOR_EXT_UUID"
   run_as_target gsettings set org.gnome.shell disable-user-extensions false 2>/dev/null || true
-  _active_monitor_strv_edit add org.gnome.shell enabled-extensions "$ACTIVE_MONITOR_EXT_UUID"
+  _active_monitor_strv_edit remove org.gnome.shell enabled-extensions "$ACTIVE_MONITOR_EXT_UUID"
   _active_monitor_strv_edit remove org.gnome.shell disabled-extensions "$ACTIVE_MONITOR_EXT_UUID"
+  _active_monitor_strv_edit add org.gnome.shell enabled-extensions "$ACTIVE_MONITOR_EXT_UUID"
+  # Best-effort live enable: gsettings change alone often loads the extension;
+  # gnome-extensions enable is detached because it can hang on a busy session bus.
   run_as_target sh -c 'timeout 5 gnome-extensions enable "$1" >/dev/null 2>&1 </dev/null &' _ "$ACTIVE_MONITOR_EXT_UUID" || true
+  # D-Bus EnableExtension is another path that succeeds when CLI enable is sticky-
+  # inactive; fire-and-forget with a short timeout.
+  run_as_target sh -c 'timeout 5 gdbus call --session --dest org.gnome.Shell.Extensions --object-path /org/gnome/Shell/Extensions --method org.gnome.Shell.Extensions.EnableExtension "$1" >/dev/null 2>&1 </dev/null &' _ "$ACTIVE_MONITOR_EXT_UUID" || true
 
   log "info" "deployed $ACTIVE_MONITOR_EXT_UUID to $ext_dst"
   msg "  Extension deployed to $ext_dst"
