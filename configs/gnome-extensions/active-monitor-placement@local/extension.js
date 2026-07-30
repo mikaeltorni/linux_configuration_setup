@@ -272,6 +272,9 @@ function applyPlacement(win, phase, frozenActiveMonitor) {
 export default class ActiveMonitorPlacementExtension extends Extension {
   enable() {
     this._timeouts = [];
+    // Windows already corrected this session: skip later rechecks after first
+    // successful move (pairs with frozen target; avoids recheck spam / tiler fights).
+    this._corrected = new Set();
     this._sig = global.display.connect('window-created', (_disp, win) => {
       this._schedulePlacement(win);
     });
@@ -284,6 +287,7 @@ export default class ActiveMonitorPlacementExtension extends Extension {
    * Snapshots the active (pointer) monitor once so all rechecks share one
    * stable target. If the snapshot is invalid at schedule time, the first
    * recheck that can resolve a candidate freezes it for the remaining phases.
+   * After a successful move, later rechecks for the same window are skipped.
    *
    * @param {Meta.Window} win - Newly created window.
    * @returns {void}
@@ -306,6 +310,9 @@ export default class ActiveMonitorPlacementExtension extends Extension {
       const sourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delayMs, () => {
         this._timeouts = this._timeouts.filter((id) => id !== sourceId);
         try {
+          if (this._corrected?.has(win)) {
+            return GLib.SOURCE_REMOVE;
+          }
           // Window may have been destroyed between schedule and fire.
           if (!win || (typeof win.get_compositor_private === 'function' &&
               !win.get_compositor_private() && resolveWindowMonitor(win) < 0)) {
@@ -328,7 +335,9 @@ export default class ActiveMonitorPlacementExtension extends Extension {
               `(phase=delay-${delayMs})`
             );
           }
-          applyPlacement(win, `delay-${delayMs}`, frozenTarget);
+          if (applyPlacement(win, `delay-${delayMs}`, frozenTarget)) {
+            this._corrected?.add(win);
+          }
         } catch (e) {
           console.log(`[active-monitor-placement] recheck error: ${e}`);
         }
@@ -353,6 +362,7 @@ export default class ActiveMonitorPlacementExtension extends Extension {
       }
       this._timeouts = [];
     }
+    this._corrected = null;
     console.log('[active-monitor-placement] disabled');
   }
 }
