@@ -7,6 +7,7 @@
 // Components:
 //   - freezeTargetMonitor: stable target for one open across delayed rechecks.
 //   - decideActiveMonitorPlacement: pure move / no-move policy for new windows.
+//   - shouldStopPlacementRechecks: terminal open when already on frozen target.
 
 /**
  * Freeze the target monitor for one window-open across delayed rechecks.
@@ -108,4 +109,28 @@ export function decideActiveMonitorPlacement(input) {
     targetMonitor: activeMonitor,
     reason: 'wrong-monitor',
   };
+}
+
+/**
+ * Whether delayed rechecks for one open should stop after this decision.
+ *
+ * already-on-active means the window has settled on the frozen pointer/panel
+ * target. Further rechecks must not run: external primary placement (e.g.
+ * multi/split kitty place_on_primary) can move the window to the primary
+ * monitor after that settle; a later recheck would still hold the frozen
+ * pointer target and drag it back off primary.
+ *
+ * Unassigned / invalid / skip-taskbar are not terminal — callers may recheck
+ * once the window maps or the target becomes valid. A successful move is
+ * terminal at the call site (separate from this helper).
+ *
+ * @param {{shouldMove?: boolean, reason?: string}|null|undefined} decision
+ *   Result of decideActiveMonitorPlacement.
+ * @returns {boolean} true when rechecks for this open should stop.
+ */
+export function shouldStopPlacementRechecks(decision) {
+  if (!decision || typeof decision !== 'object') {
+    return false;
+  }
+  return decision.reason === 'already-on-active';
 }
