@@ -76,6 +76,12 @@ if [ -f "$EXT_DIR/extension.js" ]; then
   grep -qF 'freezeTargetMonitor' "$EXT_DIR/extension.js" \
     && pass "extension uses freezeTargetMonitor for stable target" \
     || fail "extension uses freezeTargetMonitor for stable target"
+  grep -qF 'shouldStopPlacementRechecks' "$EXT_DIR/extension.js" \
+    && pass "extension uses shouldStopPlacementRechecks" \
+    || fail "extension uses shouldStopPlacementRechecks"
+  grep -qF "outcome === 'moved' || outcome === 'settled'" "$EXT_DIR/extension.js" \
+    && pass "extension marks corrected on moved or settled" \
+    || fail "extension marks corrected on moved or settled"
   grep -qF 'isWindowMoveSafe' "$EXT_DIR/extension.js" \
     && pass "extension gates moves with isWindowMoveSafe" \
     || fail "extension gates moves with isWindowMoveSafe"
@@ -120,12 +126,17 @@ if (!policyPath) {
 const mod = await import(pathToFileURL(policyPath).href);
 const decide = mod.decideActiveMonitorPlacement;
 const freeze = mod.freezeTargetMonitor;
+const shouldStop = mod.shouldStopPlacementRechecks;
 if (typeof decide !== 'function') {
   console.error('MISSING_EXPORT');
   process.exit(2);
 }
 if (typeof freeze !== 'function') {
   console.error('MISSING_FREEZE_EXPORT');
+  process.exit(2);
+}
+if (typeof shouldStop !== 'function') {
+  console.error('MISSING_STOP_EXPORT');
   process.exit(2);
 }
 
@@ -301,6 +312,133 @@ for (const c of freezeCases) {
   }
 }
 
+// shouldStopPlacementRechecks: only already-on-active is terminal via policy.
+{
+  const stopCases = [
+    {
+      name: 'stop-on-already-on-active',
+      decision: { shouldMove: false, targetMonitor: null, reason: 'already-on-active' },
+      expect: true,
+    },
+    {
+      name: 'no-stop-on-unassigned',
+      decision: { shouldMove: false, targetMonitor: null, reason: 'unassigned-monitor' },
+      expect: false,
+    },
+    {
+      name: 'no-stop-on-wrong-monitor-decision',
+      decision: { shouldMove: true, targetMonitor: 1, reason: 'wrong-monitor' },
+      expect: false,
+    },
+    {
+      name: 'no-stop-on-null',
+      decision: null,
+      expect: false,
+    },
+  ];
+  for (const c of stopCases) {
+    const got = shouldStop(c.decision);
+    if (got === c.expect) {
+      console.log(`CASE_PASS ${c.name}`);
+    } else {
+      failed += 1;
+      console.log(`CASE_FAIL ${c.name} got=${got} expect=${c.expect}`);
+    }
+  }
+}
+
+// Programmatic primary survival: freeze pointer≠primary, settle already-on-active,
+// external place_on_primary moves to primary, later rechecks must NOT move back.
+// Mirrors multi/split kitty: pointer mon 1, primary mon 0.
+{
+  const monitorCount = 3;
+  const pointerMonitor = 1;
+  const primaryMonitor = 0;
+  let frozen = freeze(-1, pointerMonitor, monitorCount);
+  let windowMonitor = pointerMonitor; // lands with pointer first
+  let stopped = false;
+  const extensionMoves = [];
+
+  // Phase 0 (delay-150): already-on-active → must stop rechecks (settled).
+  {
+    const d = decide({
+      skipTaskbar: false,
+      windowMonitor,
+      activeMonitor: frozen,
+      monitorCount,
+    });
+    if (d.shouldMove) {
+      extensionMoves.push({ phase: 0, from: windowMonitor, to: d.targetMonitor });
+      windowMonitor = d.targetMonitor;
+      stopped = true;
+    } else if (shouldStop(d)) {
+      stopped = true;
+    }
+  }
+
+  // External multi/split place_on_primary (not the extension).
+  windowMonitor = primaryMonitor;
+
+  // Phases 1–3 (delay-400/900/1600): if we wrongly continued, frozen pointer
+  // would pull the window off primary. With stop, no further moves.
+  for (let phase = 1; phase <= 3; phase++) {
+    if (stopped) {
+      continue;
+    }
+    frozen = freeze(frozen, pointerMonitor, monitorCount);
+    const d = decide({
+      skipTaskbar: false,
+      windowMonitor,
+      activeMonitor: frozen,
+      monitorCount,
+    });
+    if (d.shouldMove) {
+      extensionMoves.push({ phase, from: windowMonitor, to: d.targetMonitor });
+      windowMonitor = d.targetMonitor;
+    }
+    if (shouldStop(d)) {
+      stopped = true;
+    }
+  }
+
+  // Contrast: without stop, continuing rechecks after primary would undo it.
+  let undoMonitor = primaryMonitor;
+  const undoMoves = [];
+  for (let phase = 1; phase <= 3; phase++) {
+    const d = decide({
+      skipTaskbar: false,
+      windowMonitor: undoMonitor,
+      activeMonitor: pointerMonitor,
+      monitorCount,
+    });
+    if (d.shouldMove) {
+      undoMoves.push({ phase, from: undoMonitor, to: d.targetMonitor });
+      undoMonitor = d.targetMonitor;
+    }
+  }
+
+  const primarySurvived =
+    stopped === true &&
+    extensionMoves.length === 0 &&
+    windowMonitor === primaryMonitor &&
+    undoMoves.length >= 1 &&
+    undoMoves.every((m) => m.to === pointerMonitor);
+
+  if (primarySurvived) {
+    console.log(
+      `CASE_PASS primary-survives-after-settle-and-stop ` +
+      `windowMonitor=${windowMonitor} undoWould=${JSON.stringify(undoMoves)}`
+    );
+  } else {
+    failed += 1;
+    console.log(
+      `CASE_FAIL primary-survives-after-settle-and-stop stopped=${stopped} ` +
+      `windowMonitor=${windowMonitor} extensionMoves=${JSON.stringify(extensionMoves)} ` +
+      `undoMoves=${JSON.stringify(undoMoves)}`
+    );
+  }
+}
+
 process.exit(failed === 0 ? 0 : 1);
 NODE
   )" || true
@@ -311,6 +449,7 @@ NODE
       CASE_FAIL\ *) fail "policy: ${line#CASE_FAIL }" ;;
       MISSING_EXPORT) fail "decideActiveMonitorPlacement exported" ;;
       MISSING_FREEZE_EXPORT) fail "freezeTargetMonitor exported" ;;
+      MISSING_STOP_EXPORT) fail "shouldStopPlacementRechecks exported" ;;
     esac
   done <<< "$policy_out"
   if ! echo "$policy_out" | grep -q 'CASE_PASS'; then

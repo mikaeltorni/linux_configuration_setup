@@ -23,7 +23,8 @@
 //   - isWindowMoveSafe: mapped + valid-monitor gate before Mutter move APIs.
 //   - resolveActiveMonitor: clamp pointer/current monitor index.
 //   - resolveWindowMonitor: read window monitor without treating -1 as usable.
-//   - applyPlacement: run policy and move when needed (uses frozen target).
+//   - applyPlacement: run policy and move when needed (uses frozen target);
+//     returns moved|settled|pending so already-on-active stops rechecks.
 //   - ActiveMonitorPlacementExtension: window-created + delayed recheck wiring.
 
 import GLib from 'gi://GLib';
@@ -31,6 +32,7 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import {
   decideActiveMonitorPlacement,
   freezeTargetMonitor,
+  shouldStopPlacementRechecks,
 } from './placementPolicy.js';
 
 // Delays (ms) for placement rechecks after window-created. Early passes often
@@ -182,7 +184,10 @@ function resolveWindowMonitor(win) {
  * @param {Meta.Window} win - Candidate window.
  * @param {string} phase - Log label for which recheck fired (e.g. "delay-350").
  * @param {number} frozenActiveMonitor - Target monitor snapshotted for this open.
- * @returns {boolean} true when a move was performed.
+ * @returns {'moved'|'settled'|'pending'}
+ *   moved: Mutter move performed; settled: already on frozen target (or race
+ *   placed there) — stop rechecks so external primary placement can stick;
+ *   pending: try again on a later delay.
  */
 function applyPlacement(win, phase, frozenActiveMonitor) {
   if (!isWindowMoveSafe(win)) {
@@ -190,7 +195,7 @@ function applyPlacement(win, phase, frozenActiveMonitor) {
     if (phase === `delay-${RECHECK_DELAYS_MS[RECHECK_DELAYS_MS.length - 1]}`) {
       console.log(`[active-monitor-placement] skip (${phase}): not-move-safe`);
     }
-    return false;
+    return 'pending';
   }
 
   const display = global.display;
@@ -208,7 +213,7 @@ function applyPlacement(win, phase, frozenActiveMonitor) {
     if (phase === `delay-${RECHECK_DELAYS_MS[RECHECK_DELAYS_MS.length - 1]}`) {
       console.log(`[active-monitor-placement] skip (${phase}): unassigned-monitor`);
     }
-    return false;
+    return 'pending';
   }
   if (
     !Number.isFinite(activeMonitor) ||
@@ -216,7 +221,7 @@ function applyPlacement(win, phase, frozenActiveMonitor) {
     activeMonitor >= monitorCount
   ) {
     console.log(`[active-monitor-placement] skip (${phase}): invalid-active-monitor`);
-    return false;
+    return 'pending';
   }
 
   const decision = decideActiveMonitorPlacement({
@@ -227,32 +232,36 @@ function applyPlacement(win, phase, frozenActiveMonitor) {
   });
 
   if (!decision.shouldMove) {
-    // Quiet for already-on-active / skip-taskbar / still-unassigned.
+    // Terminal when already on the frozen target: stop rechecks so multi/split
+    // place_on_primary can move to primary without a later recheck undoing it.
+    if (shouldStopPlacementRechecks(decision)) {
+      return 'settled';
+    }
+    // Quiet for skip-taskbar / still-unassigned.
     if (
-      decision.reason !== 'already-on-active' &&
       decision.reason !== 'skip-taskbar' &&
       decision.reason !== 'unassigned-monitor'
     ) {
       console.log(`[active-monitor-placement] skip (${phase}): ${decision.reason}`);
     }
-    return false;
+    return 'pending';
   }
 
   const target = Number(decision.targetMonitor);
   if (!Number.isFinite(target) || target < 0 || target >= monitorCount) {
     console.log(`[active-monitor-placement] refuse move with invalid target ${target}`);
-    return false;
+    return 'pending';
   }
   const targetIndex = Math.trunc(target);
 
-  // Idempotent: if a race placed us correctly since the decision, do nothing.
+  // Idempotent: race already placed us on the frozen target — treat as settled.
   if (resolveWindowMonitor(win) === targetIndex) {
-    return false;
+    return 'settled';
   }
 
   // Re-check mapped state immediately before the Mutter call.
   if (!isWindowMoveSafe(win)) {
-    return false;
+    return 'pending';
   }
 
   try {
@@ -261,19 +270,20 @@ function applyPlacement(win, phase, frozenActiveMonitor) {
       `[active-monitor-placement] moved window to monitor ${targetIndex} ` +
       `(from ${windowMonitor}, reason=${decision.reason}, phase=${phase})`
     );
-    return true;
+    return 'moved';
   } catch (e) {
     // JS exceptions only; C-level SIGSEGV cannot be caught — prevented by gates.
     console.log(`[active-monitor-placement] move_to_monitor failed: ${e}`);
-    return false;
+    return 'pending';
   }
 }
 
 export default class ActiveMonitorPlacementExtension extends Extension {
   enable() {
     this._timeouts = [];
-    // Windows already corrected this session: skip later rechecks after first
-    // successful move (pairs with frozen target; avoids recheck spam / tiler fights).
+    // Windows settled this session (moved or already-on-active on frozen target):
+    // skip later rechecks so external primary placement can stick and we avoid
+    // recheck spam / tiler fights.
     this._corrected = new Set();
     this._sig = global.display.connect('window-created', (_disp, win) => {
       this._schedulePlacement(win);
@@ -287,7 +297,8 @@ export default class ActiveMonitorPlacementExtension extends Extension {
    * Snapshots the active (pointer) monitor once so all rechecks share one
    * stable target. If the snapshot is invalid at schedule time, the first
    * recheck that can resolve a candidate freezes it for the remaining phases.
-   * After a successful move, later rechecks for the same window are skipped.
+   * After a successful move or already-on-active settle, later rechecks for
+   * the same window are skipped (so place_on_primary is not undone).
    *
    * @param {Meta.Window} win - Newly created window.
    * @returns {void}
@@ -335,7 +346,9 @@ export default class ActiveMonitorPlacementExtension extends Extension {
               `(phase=delay-${delayMs})`
             );
           }
-          if (applyPlacement(win, `delay-${delayMs}`, frozenTarget)) {
+          const outcome = applyPlacement(win, `delay-${delayMs}`, frozenTarget);
+          // Terminal on move OR already-on-active settle — not only on move.
+          if (outcome === 'moved' || outcome === 'settled') {
             this._corrected?.add(win);
           }
         } catch (e) {
