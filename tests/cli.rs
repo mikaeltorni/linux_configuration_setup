@@ -1,5 +1,6 @@
 //! CLI contract for lcs-tools gsettings and metadata helpers.
 
+use std::path::PathBuf;
 use std::process::Command;
 use tempfile::tempdir;
 
@@ -68,4 +69,27 @@ fn patch_metadata_appends_and_pins() {
 fn rejects_wrong_usage() {
     let none = bin().output().expect("no args");
     assert_eq!(none.status.code(), Some(2));
+}
+
+#[test]
+fn extract_cursor_writes_png_and_hotspot() {
+    let dir = tempdir().expect("tempdir");
+    let out = dir.path().join("purple-cross.png");
+    let asset = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("configs/cursors/purple_cross.cur");
+    let result = bin()
+        .args([
+            "extract-cursor",
+            asset.to_str().unwrap(),
+            out.to_str().unwrap(),
+            "32",
+        ])
+        .output()
+        .expect("extract-cursor");
+    assert!(
+        result.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&result.stdout).trim(), "9 9");
+    assert!(out.is_file());
 }

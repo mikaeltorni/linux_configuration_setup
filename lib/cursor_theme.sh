@@ -244,7 +244,7 @@ EOF
 #   set it as the user's cursor theme. Installs xcursorgen (x11-apps) on demand.
 #   Args: none.
 #   Returns: 0. Logs a warning and returns early if the asset or required tools
-#     (python3-pil) are missing, so a clean install never aborts here.
+#     (lcs-tools, xcursorgen) are missing, so a clean install never aborts here.
 configure_purple_cross_default_cursor() {
   msg "Configuring Purple Cross default cursor"
 
@@ -276,26 +276,29 @@ configure_purple_cross_default_cursor() {
   local legacy_theme_dir="$TARGET_HOME/.icons/$theme_name"
   local legacy_theme_target="../.local/share/icons/$theme_name"
   local build_dir="$TARGET_HOME/.cache/isc/purple-cross-cursor-build"
-  local python_bin
-
   if ! need_cmd xcursorgen; then apt_install x11-apps; fi
-  if ! python_bin="$(find_python_with_module PIL)"; then
-    log "warn" "python3-pil is required to build the Purple Cross cursor — skipping cursor setup"
+  if ! declare -F lcs_bin >/dev/null 2>&1; then
+    # shellcheck source=lcs_bin.sh
+    source "$SCRIPT_DIR/lib/lcs_bin.sh"
+  fi
+  if ! ensure_lcs_bin; then
+    log "warn" "lcs-tools is required to build the Purple Cross cursor — skipping cursor setup"
     return 0
   fi
 
   run_as_target mkdir -p "$TARGET_HOME/.cache/isc"
   rm -rf "$build_dir" 2>/dev/null || true
-  run_as_target mkdir -p "$build_dir" "$cursors_dir" "$default_theme_dir" "$legacy_default_theme_dir"
+  run_as_target mkdir -p "$build_dir"
 
   local png_path="$build_dir/purple-cross.png"
   local hotspot
-  log "debug" "configure_purple_cross_default_cursor: using $python_bin for cursor extraction"
-  if ! hotspot="$(run_as_target "$python_bin" "$SCRIPT_DIR/scripts/extract_cursor.py" \
+  log "debug" "configure_purple_cross_default_cursor: using lcs-tools extract-cursor"
+  if ! hotspot="$(run_as_target "$LCS_BIN" extract-cursor \
     "$asset_path" "$png_path" "$PURPLE_CROSS_CURSOR_SIZE")"; then
     log "warn" "failed to extract Purple Cross cursor asset — skipping cursor setup"
     return 0
   fi
+  run_as_target mkdir -p "$cursors_dir" "$default_theme_dir" "$legacy_default_theme_dir"
 
   local hotspot_x hotspot_y
   read -r hotspot_x hotspot_y <<<"$hotspot"
