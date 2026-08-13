@@ -95,25 +95,11 @@ uninstall_active_monitor_placement() {
   run_as_target gnome-extensions disable active-monitor-placement@local 2>/dev/null || true
   run_as_target rm -rf "$TARGET_HOME/.local/share/gnome-shell/extensions/active-monitor-placement@local"
   # Drop from enabled-extensions when gsettings is available (best-effort).
-  if command -v python3 >/dev/null 2>&1; then
-    local current new
-    current="$(run_as_target gsettings get org.gnome.shell enabled-extensions 2>/dev/null || true)"
-    if [ -n "$current" ]; then
-      new="$(VAL='active-monitor-placement@local' python3 - "$current" <<'PY'
-import ast, os, sys
-try:
-    items = ast.literal_eval((sys.argv[1] or "").strip() or "[]")
-    items = items if isinstance(items, list) else []
-except Exception:
-    items = []
-val = os.environ["VAL"]
-items = [x for x in items if x != val]
-print("[" + ", ".join("'" + x + "'" for x in items) + "]")
-PY
-)"
-      run_as_target gsettings set org.gnome.shell enabled-extensions "$new" 2>/dev/null || true
-    fi
+  if ! declare -F strv_edit >/dev/null 2>&1; then
+    # shellcheck source=gsettings_helpers.sh
+    source "$SCRIPT_DIR/lib/gsettings_helpers.sh"
   fi
+  strv_edit remove org.gnome.shell enabled-extensions active-monitor-placement@local
 }
 uninstall_uv_setup()       { msg "Removing UV configuration"; run_as_target rm -f "$TARGET_HOME/.config/autostart/uv-python.desktop" "$TARGET_HOME/.config/uv/uv.toml"; }
 uninstall_tmux_defaults()  { msg "Removing tmux defaults"; run_as_target rm -f "$TARGET_HOME/.tmux.conf"; }

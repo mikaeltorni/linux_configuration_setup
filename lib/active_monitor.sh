@@ -27,25 +27,11 @@ ACTIVE_MONITOR_EXT_DST_REL=".local/share/gnome-shell/extensions/$ACTIVE_MONITOR_
 # component does not depend on dash_to_panel's private d2p_strv_edit.
 # Args: $1 op, $2 schema, $3 key, $4 value. Returns: 0 (set is best-effort).
 _active_monitor_strv_edit() {
-  local op="$1" schema="$2" key="$3" value="$4" current new
-  current="$(run_as_target gsettings get "$schema" "$key" 2>/dev/null || printf '[]')"
-  new="$(OP="$op" VAL="$value" python3 - "$current" <<'PY'
-import ast, os, sys
-raw = (sys.argv[1] or "").strip() or "[]"
-try:
-    items = ast.literal_eval(raw)
-    items = items if isinstance(items, list) else []
-except Exception:
-    items = []
-val, op = os.environ["VAL"], os.environ["OP"]
-if op == "add" and val not in items:
-    items.append(val)
-elif op == "remove":
-    items = [x for x in items if x != val]
-print("[" + ", ".join("'" + x + "'" for x in items) + "]")
-PY
-)"
-  run_as_target gsettings set "$schema" "$key" "$new" 2>/dev/null || true
+  if ! declare -F strv_edit >/dev/null 2>&1; then
+    # shellcheck source=gsettings_helpers.sh
+    source "$SCRIPT_DIR/lib/gsettings_helpers.sh"
+  fi
+  strv_edit "$@"
 }
 
 # _active_monitor_deploy_helper — copy the pin-window CLI helper to ~/.local/bin.

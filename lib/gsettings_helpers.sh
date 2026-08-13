@@ -51,6 +51,33 @@ join_as_gsettings_array() {
   printf "%s" "$out"
 }
 
+# shellcheck source=lcs_bin.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lcs_bin.sh"
+
+# strv_edit — Idempotently add or remove a value in a gsettings string-array.
+#   Args: $1 add|remove; $2 schema; $3 key; $4 value.
+#   Returns: 0 (the underlying set is best-effort).
+strv_edit() {
+  local op="$1" schema="$2" key="$3" value="$4" current new action
+  case "$op" in
+    add) action=append ;;
+    remove) action=remove ;;
+    *) return 1 ;;
+  esac
+  current="$(run_as_target gsettings get "$schema" "$key" 2>/dev/null || printf '[]')"
+  new="$(CURRENT="$current" lcs_bin "$action" "$value")" || return 1
+  run_as_target gsettings set "$schema" "$key" "$new" 2>/dev/null || true
+}
+
+# strv_contains — Succeed when VALUE is an exact member of a gsettings array.
+#   Args: $1 schema; $2 key; $3 value.
+#   Returns: 0 when present, non-zero otherwise.
+strv_contains() {
+  local schema="$1" key="$2" value="$3" current
+  current="$(run_as_target gsettings get "$schema" "$key" 2>/dev/null)" || return 1
+  CURRENT="$current" lcs_bin contains "$value"
+}
+
 # parse_gsettings_string_array — Split a gsettings/dconf string-array value into
 #   one element per line. Empty arrays and malformed values print nothing.
 #   Args: $1 — raw value such as ['a.desktop', 'b.desktop'].

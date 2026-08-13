@@ -96,6 +96,8 @@ Run the shell and Python tests before changing installer behavior:
 bash tests/test_cursor_theme.sh
 bash tests/test_gnome_desktop.sh
 bash tests/test_shell_helpers.sh
+bash tests/test_active_monitor_placement.sh
+cargo test
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
@@ -108,6 +110,7 @@ linux_configuration_setup/
 │   ├── helpers.sh          # Repository-specific helpers and Python selection
 │   ├── logging.sh          # Centralized logging with levels
 │   ├── gsettings_helpers.sh  # GSettings/dconf helper functions
+│   ├── lcs_bin.sh            # Resolves/builds the lcs-tools Rust helper
 │   ├── system_config.sh      # RTC, clock, lock, dark mode, mouse accel
 │   ├── autostart.sh          # Unified master-selected application startup
 │   ├── active_monitor.sh     # Active-monitor placement (CLI helper + Shell extension)
@@ -119,6 +122,7 @@ linux_configuration_setup/
 │   ├── keyring_snapshot.py   # Secret Service export/import helper
 │   ├── pin-window-to-active-monitor.sh  # Move a window to the pointer's monitor
 │   └── activate_passwordless_keyring.sh  # Next-boot keyring activator
+├── src/                    # lcs-tools (GSettings arrays + metadata pin)
 ├── configs/
 │   ├── tmux/.tmux.conf            # tmux user defaults
 │   ├── uv/uv.toml                 # global rolling publication cutoff
@@ -174,7 +178,7 @@ Window-count badges are owned by `linux_taskbar_window_count` and installed sepa
 This repo is run **after** `linux_installations_setup` has cloned it. It requires:
 - GNOME Shell running with GSettings available
 - Target user's session bus at `$XDG_RUNTIME_DIR/bus`
-- `python3` for safe GSettings list parsing
+- `lcs-tools` (Rust, `src/`) for GSettings string-array edits and extension metadata pinning
 - Pillow (`python3-pil`) and `xcursorgen` for rebuilding the Purple Cross cursor theme
 
 ## Troubleshooting
