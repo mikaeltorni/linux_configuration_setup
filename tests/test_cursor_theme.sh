@@ -125,12 +125,11 @@ cp "$SCRIPT_DIR/configs/cursors/purple_cross.cur" "$CONFIG_DIR/cursors/purple_cr
 
 FAKE_BIN="$TARGET_HOME/fake-bin"
 mkdir -p "$FAKE_BIN"
-cat >"$FAKE_BIN/python3" <<'EOF'
+cat >"$FAKE_BIN/lcs-tools" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-if [ "${1:-}" = "-c" ]; then
-  [ "${FAKE_PIL_AVAILABLE:-1}" -eq 1 ]
-  exit
+if [ "${FAKE_LCS_AVAILABLE:-1}" -ne 1 ]; then
+  exit 1
 fi
 printf 'fake-png\n' >"$3"
 printf '4 5\n'
@@ -140,24 +139,24 @@ cat >"$FAKE_BIN/xcursorgen" <<'EOF'
 set -euo pipefail
 printf 'fake-xcursor\n' >"${@: -1}"
 EOF
-chmod +x "$FAKE_BIN/python3" "$FAKE_BIN/xcursorgen"
+chmod +x "$FAKE_BIN/lcs-tools" "$FAKE_BIN/xcursorgen"
 PATH="$FAKE_BIN:$PATH"
 export PATH
-PYTHON_CANDIDATES=python3
-export PYTHON_CANDIDATES
+LCS_BIN="$FAKE_BIN/lcs-tools"
+export LCS_BIN
 
-FAKE_PIL_AVAILABLE=0
-export FAKE_PIL_AVAILABLE
+FAKE_LCS_AVAILABLE=0
+export FAKE_LCS_AVAILABLE
 >"$TARGET_HOME/messages.log"
 configure_purple_cross_default_cursor
-assert_path_absent "$theme_dir" "skips cleanly when Pillow is unavailable"
+assert_path_absent "$theme_dir" "skips cleanly when cursor extraction fails"
 assert_file_contains \
   "$TARGET_HOME/messages.log" \
-  "python3-pil is required" \
-  "logs the missing Pillow dependency"
+  "failed to extract Purple Cross cursor asset" \
+  "logs the extractor failure"
 
-FAKE_PIL_AVAILABLE=1
-export FAKE_PIL_AVAILABLE
+FAKE_LCS_AVAILABLE=1
+export FAKE_LCS_AVAILABLE
 XCURSORGEN_AVAILABLE=0
 configure_purple_cross_default_cursor
 

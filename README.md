@@ -118,7 +118,6 @@ linux_configuration_setup/
 │   └── gnome_desktop.sh      # GNOME desktop config (favorites, terminal themes, display, extensions)
 ├── scripts/
 │   ├── logging_utils.py      # Centralized Python logging and call tracing
-│   ├── extract_cursor.py     # CUR-to-PNG cursor extraction helper
 │   ├── keyring_snapshot.py   # Secret Service export/import helper
 │   ├── pin-window-to-active-monitor.sh  # Move a window to the pointer's monitor
 │   └── activate_passwordless_keyring.sh  # Next-boot keyring activator
@@ -178,8 +177,8 @@ Window-count badges are owned by `linux_taskbar_window_count` and installed sepa
 This repo is run **after** `linux_installations_setup` has cloned it. It requires:
 - GNOME Shell running with GSettings available
 - Target user's session bus at `$XDG_RUNTIME_DIR/bus`
-- `lcs-tools` (Rust, `src/`) for GSettings string-array edits and extension metadata pinning
-- Pillow (`python3-pil`) and `xcursorgen` for rebuilding the Purple Cross cursor theme
+- `lcs-tools` (Rust, `src/`) for GSettings string-array edits, extension metadata pinning, and CUR-to-PNG cursor extraction
+- `xcursorgen` for rebuilding the Purple Cross cursor theme
 
 ## Troubleshooting
 
