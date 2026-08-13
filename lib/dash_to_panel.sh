@@ -28,45 +28,24 @@ d2p_installed() {
 }
 
 # d2p_strv_edit add|remove SCHEMA KEY VALUE - idempotently add/remove a value in
-# a gsettings string-array key without an external helper.
+# a gsettings string-array key via lcs-tools.
 d2p_strv_edit() {
-  local op="$1" schema="$2" key="$3" value="$4" current new
-  current="$(run_as_target gsettings get "$schema" "$key" 2>/dev/null || printf '[]')"
-  new="$(OP="$op" VAL="$value" python3 - "$current" <<'PY'
-import ast, os, sys
-raw = (sys.argv[1] or "").strip() or "[]"
-try:
-    items = ast.literal_eval(raw); items = items if isinstance(items, list) else []
-except Exception:
-    items = []
-val, op = os.environ["VAL"], os.environ["OP"]
-if op == "add" and val not in items:
-    items.append(val)
-elif op == "remove":
-    items = [x for x in items if x != val]
-print("[" + ", ".join("'" + x + "'" for x in items) + "]")
-PY
-)"
-  run_as_target gsettings set "$schema" "$key" "$new" 2>/dev/null || true
+  if ! declare -F strv_edit >/dev/null 2>&1; then
+    # shellcheck source=gsettings_helpers.sh
+    source "$SCRIPT_DIR/lib/gsettings_helpers.sh"
+  fi
+  strv_edit "$@"
 }
 
 # d2p_strv_contains SCHEMA KEY VALUE - return success when VALUE is an exact
 # member of a gsettings string-array. Malformed or unavailable settings are
 # treated as absent so lifecycle detection never reports a false positive.
 d2p_strv_contains() {
-  local schema="$1" key="$2" value="$3" current
-  current="$(run_as_target gsettings get "$schema" "$key" 2>/dev/null)" || return 1
-  VAL="$value" python3 - "$current" <<'PY'
-import ast
-import os
-import sys
-
-try:
-    values = ast.literal_eval(sys.argv[1])
-except (SyntaxError, ValueError):
-    raise SystemExit(1)
-raise SystemExit(0 if isinstance(values, list) and os.environ["VAL"] in values else 1)
-PY
+  if ! declare -F strv_contains >/dev/null 2>&1; then
+    # shellcheck source=gsettings_helpers.sh
+    source "$SCRIPT_DIR/lib/gsettings_helpers.sh"
+  fi
+  strv_contains "$@"
 }
 
 # d2p_download_install - fetch + verify + extract the pinned EGO build, then pin
@@ -106,8 +85,11 @@ d2p_download_install() {
   rm -rf "$tmpdir"
   shell_version="$(gnome-shell --version 2>/dev/null | awk '{print int($3)}')"
   if [ -n "$shell_version" ] && [ -f "$ext_dir/metadata.json" ]; then
-    python3 "$SCRIPT_DIR/scripts/patch_extension_metadata.py" \
-      "$ext_dir/metadata.json" "$shell_version" 9999 || true
+    if ! declare -F lcs_bin >/dev/null 2>&1; then
+      # shellcheck source=lcs_bin.sh
+      source "$SCRIPT_DIR/lib/lcs_bin.sh"
+    fi
+    lcs_bin patch-metadata "$ext_dir/metadata.json" "$shell_version" 9999 || true
   fi
 }
 

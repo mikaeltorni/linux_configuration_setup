@@ -1,5 +1,8 @@
 linux_bash_install-*.log
 *.pyc
+target/
+dist/
+.cargo-container/
 
 *.log
 .log/
