@@ -103,3 +103,94 @@ uninstall_active_monitor_placement() {
 }
 uninstall_uv_setup()       { msg "Removing UV configuration"; run_as_target rm -f "$TARGET_HOME/.config/autostart/uv-python.desktop" "$TARGET_HOME/.config/uv/uv.toml"; }
 uninstall_tmux_defaults()  { msg "Removing tmux defaults"; run_as_target rm -f "$TARGET_HOME/.tmux.conf"; }
+
+# uninstall_terminal_theme — Reset every key configure_terminal_dark_theme set.
+#   Each terminal is reset back to its own schema default (never to a second
+#   hardcoded theme), so the desktop decides the colors again. Keys and
+#   profiles that do not exist on this machine are skipped, exactly as the
+#   configure step skips them.
+#   Args: none. Returns: 0.
+uninstall_terminal_theme() {
+  msg "Resetting terminal theme to the desktop defaults"
+  cfg_reset org.gnome.Console theme
+  cfg_reset org.gnome.Ptyxis interface-style
+
+  local ptyxis_profile="" profile_id="" schema=""
+  if gsettings_key_exists org.gnome.Ptyxis default-profile-uuid; then
+    ptyxis_profile="$(user_gsettings get org.gnome.Ptyxis default-profile-uuid 2>/dev/null || true)"
+  fi
+  ptyxis_profile="${ptyxis_profile//\'/}"
+  if [ -n "$ptyxis_profile" ]; then
+    for schema in "org.gnome.Ptyxis.Profile:/org/gnome/ptyxis/profiles/${ptyxis_profile}/" \
+                  "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/${ptyxis_profile}/"; do
+      cfg_reset "$schema" bold-is-bright
+      cfg_reset "$schema" palette
+    done
+  fi
+
+  if gsettings_key_exists org.gnome.Terminal.ProfilesList default; then
+    profile_id="$(user_gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null || true)"
+  fi
+  profile_id="${profile_id//\'/}"
+  if [ -n "$profile_id" ]; then
+    schema="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:${profile_id}/"
+    cfg_reset "$schema" use-theme-colors
+    cfg_reset "$schema" background-color
+    cfg_reset "$schema" foreground-color
+    cfg_reset "$schema" bold-color-same-as-fg
+  fi
+}
+
+# kitty_managed_keys — Print the kitty.conf settings this repo manages.
+#   One key per line; used by both the detector and the uninstall step so the
+#   two can never drift from configure_kitty_defaults.
+#   Args: none. Returns: 0.
+kitty_managed_keys() {
+  printf '%s\n' confirm_os_window_close "map ctrl+backspace" wayland_titlebar_color
+}
+
+# detect_kitty_defaults — True when every managed kitty.conf setting is present.
+#   Args: none. Returns: 0 when all managed keys are set, 1 otherwise.
+detect_kitty_defaults() {
+  local conf="$TARGET_HOME/.config/kitty/kitty.conf" key
+  [ -f "$conf" ] || return 1
+  while read -r key; do
+    grep -q "^${key}" "$conf" || return 1
+  done < <(kitty_managed_keys)
+  return 0
+}
+
+# uninstall_kitty_defaults — Drop the managed settings from kitty.conf.
+#   Only the lines this repo writes (and the comment line each one is preceded
+#   by) are removed; every other customization in the user's kitty.conf is kept,
+#   and the file itself is never deleted.
+#   Args: none. Returns: 0.
+uninstall_kitty_defaults() {
+  local conf="$TARGET_HOME/.config/kitty/kitty.conf"
+  msg "Removing managed Kitty defaults from kitty.conf"
+  run_as_target test -f "$conf" || return 0
+  run_as_target python3 - "$conf" <<'PY'
+"""Strip the installer-managed kitty settings, keeping user content intact."""
+import sys
+
+MANAGED = ("confirm_os_window_close", "map ctrl+backspace", "wayland_titlebar_color")
+path = sys.argv[1]
+with open(path, encoding="utf-8") as handle:
+    lines = handle.read().splitlines()
+
+kept: list[str] = []
+for line in lines:
+    if line.startswith(MANAGED):
+        # Drop the comment block written directly above the managed setting.
+        while kept and kept[-1].startswith("#"):
+            kept.pop()
+        while kept and not kept[-1].strip():
+            kept.pop()
+        continue
+    kept.append(line)
+
+text = "\n".join(kept).rstrip("\n")
+with open(path, "w", encoding="utf-8") as handle:
+    handle.write(text + "\n" if text else "")
+PY
+}
