@@ -21,7 +21,24 @@ DESKTOP_DIRS=(
 mkdir -p "$TARGET_HOME/.local/share/applications"
 
 log() { :; }  # silence shared-helper debug logging in this harness
-source "$SCRIPT_DIR/../linux_installation_scripts_functions/installer_helpers.sh"
+# Resolve the shared framework checkout the same way install.sh does: an
+# explicit override, then the sibling directory, then the projects folder (so
+# the suite also runs from a git worktree, where the sibling is one level up).
+isc_helpers_path() {
+  local root="$1" candidate
+  for candidate in "${ISC_FUNCTIONS_DIR:-}" \
+                   "$root/../linux_installation_scripts_functions" \
+                   "$root/../../linux_installation_scripts_functions" \
+                   "$HOME/projects/linux_installation_scripts_functions"; do
+    [ -n "$candidate" ] || continue
+    if [ -f "$candidate/installer_helpers.sh" ]; then
+      printf '%s\n' "$candidate/installer_helpers.sh"
+      return 0
+    fi
+  done
+  return 1
+}
+source "$(isc_helpers_path "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/lib/helpers.sh"
 source "$SCRIPT_DIR/lib/gsettings_helpers.sh"
 source "$SCRIPT_DIR/lib/gnome_desktop.sh"

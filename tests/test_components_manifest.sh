@@ -66,7 +66,24 @@ tmux_row="$(printf '%s\n' "${ISC_COMPONENTS[@]}" | grep '^tmux_defaults|')"
 # Component step functions live under lib/; the preflight hook may also be a
 # shared-framework helper (e.g. ensure_session_bus) from the sibling
 # linux_installation_scripts_functions checkout, so include those too.
-shared_helpers="$SCRIPT_DIR/../linux_installation_scripts_functions/installer_helpers.sh"
+# Resolve the shared framework checkout the same way install.sh does: an
+# explicit override, then the sibling directory, then the projects folder (so
+# the suite also runs from a git worktree, where the sibling is one level up).
+isc_helpers_path() {
+  local root="$1" candidate
+  for candidate in "${ISC_FUNCTIONS_DIR:-}" \
+                   "$root/../linux_installation_scripts_functions" \
+                   "$root/../../linux_installation_scripts_functions" \
+                   "$HOME/projects/linux_installation_scripts_functions"; do
+    [ -n "$candidate" ] || continue
+    if [ -f "$candidate/installer_helpers.sh" ]; then
+      printf '%s\n' "$candidate/installer_helpers.sh"
+      return 0
+    fi
+  done
+  return 1
+}
+shared_helpers="$(isc_helpers_path "$SCRIPT_DIR" || true)"
 lib_functions="$(grep -rhoE '^[a-zA-Z_][a-zA-Z0-9_]*\s*\(\)' \
   "$SCRIPT_DIR"/lib/*.sh ${shared_helpers:+"$shared_helpers"} 2>/dev/null \
   | sed -E 's/\s*\(\)//' | sort -u)"
@@ -141,7 +158,11 @@ done
 echo ""
 echo "--- --list-components is side-effect free and matches the manifest ---"
 tmp_home="$(mktemp -d)"
-list_out="$(HOME="$tmp_home" bash "$SCRIPT_DIR/install.sh" --list-components 2>/dev/null)"
+# The isolated HOME hides the usual ~/projects fallback, so hand the installer
+# the framework checkout explicitly instead of letting it reach the network.
+isc_functions_dir="$(dirname "$(isc_helpers_path "$SCRIPT_DIR")")"
+list_out="$(HOME="$tmp_home" ISC_FUNCTIONS_DIR="$isc_functions_dir" \
+  bash "$SCRIPT_DIR/install.sh" --list-components 2>/dev/null)"
 listed_ids="$(printf '%s\n' "$list_out" | awk -F'\t' 'NF{print $1}')"
 expected_ids="$(printf '%s\n' "${manifest_ids[@]}")"
 assert_eq "$expected_ids" "$listed_ids" "--list-components prints the manifest ids in order"

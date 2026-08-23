@@ -264,6 +264,14 @@ uses a live check where deterministic and otherwise an install receipt under
 `${XDG_STATE_HOME:-~/.local/state}/isc/receipts/`; a component without a reversal
 step simply clears that receipt on uninstall.
 
+Two reversals are worth spelling out. Uninstalling `terminal_theme` resets every
+terminal key it set back to that terminal's own schema default (it never writes a
+second theme), and uninstalling `kitty_defaults` removes only the settings this
+repo appended to `~/.config/kitty/kitty.conf` — the rest of your kitty config,
+and the file itself, are left alone. `passwordless_keyring` deliberately has no
+reversal: re-locking the login keyring would need a password the installer does
+not have, and guessing wrong would cut you off from your stored secrets.
+
 ## Disclaimer
 
 This software is provided under the MIT License on an **“as is”** basis, without warranties of any kind. To the maximum extent permitted by applicable law, the authors and copyright holders shall not be liable for any claims, damages, losses, or other liability arising from the use of this software.

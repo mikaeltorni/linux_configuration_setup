@@ -26,7 +26,24 @@ touch "$TARGET_HOME/.local/share/applications/custom.desktop"
 # Shared helpers (need_cmd, apt_install, run_as_target, …) live in the framework;
 # repo-specific helpers (find_desktop_*) live in lib/helpers.sh.
 log() { :; }  # silence the framework helpers' debug logging in this harness
-source "$ROOT_DIR/../linux_installation_scripts_functions/installer_helpers.sh"
+# Resolve the shared framework checkout the same way install.sh does: an
+# explicit override, then the sibling directory, then the projects folder (so
+# the suite also runs from a git worktree, where the sibling is one level up).
+isc_helpers_path() {
+  local root="$1" candidate
+  for candidate in "${ISC_FUNCTIONS_DIR:-}" \
+                   "$root/../linux_installation_scripts_functions" \
+                   "$root/../../linux_installation_scripts_functions" \
+                   "$HOME/projects/linux_installation_scripts_functions"; do
+    [ -n "$candidate" ] || continue
+    if [ -f "$candidate/installer_helpers.sh" ]; then
+      printf '%s\n' "$candidate/installer_helpers.sh"
+      return 0
+    fi
+  done
+  return 1
+}
+source "$(isc_helpers_path "$ROOT_DIR")"
 source lib/helpers.sh
 
 # Test need_cmd returns correct exit codes for existing command
