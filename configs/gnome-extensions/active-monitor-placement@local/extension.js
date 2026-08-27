@@ -25,9 +25,18 @@
 //   - resolveWindowMonitor: read window monitor without treating -1 as usable.
 //   - applyPlacement: run policy and move when needed (uses frozen target);
 //     returns moved|settled|pending so already-on-active stops rechecks.
+//   - hasExplicitMonitorRule: honor app-rules' per-application monitor pins.
 //   - ActiveMonitorPlacementExtension: window-created + delayed recheck wiring.
+//
+// Coexistence with app-rules@local: the installer's [m] menu action pins chosen
+// applications (e.g. Spotify, Discord) to a fixed monitor in
+// ~/.config/app-rules/user-rules.json. Those windows are explicitly excluded
+// here, because a pointer-following correction would immediately undo the
+// user's fixed choice. Every other window keeps the active-monitor behavior.
 
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import Shell from 'gi://Shell';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import {
   decideActiveMonitorPlacement,
@@ -40,6 +49,81 @@ import {
 // has finished its own (possibly wrong) placement. Include a late pass for
 // slow-to-map clients (kitty/gtk sometimes assign geometry after 1s).
 const RECHECK_DELAYS_MS = [150, 400, 900, 1600];
+
+/**
+ * Read the app ids that app-rules@local pins to a fixed monitor.
+ *
+ * The file is installer-owned and rewritten by the master menu, so it is
+ * re-read when its modification time changes rather than cached for the whole
+ * session. Any read or parse failure yields an empty set, which simply keeps
+ * the previous (pointer-following) behavior for every window.
+ *
+ * @param {{mtime: number, ids: Set<string>}} cache - Mutable cache record.
+ * @returns {Set<string>} Lower-cased app ids with an explicit monitor rule.
+ */
+function explicitMonitorAppIds(cache) {
+  const path = GLib.build_filenamev([
+    GLib.get_user_config_dir(), 'app-rules', 'user-rules.json',
+  ]);
+  let mtime = 0;
+  try {
+    const info = Gio.File.new_for_path(path).query_info(
+      'time::modified', Gio.FileQueryInfoFlags.NONE, null);
+    mtime = info.get_attribute_uint64('time::modified');
+  } catch (_e) {
+    cache.mtime = 0;
+    cache.ids = new Set();
+    return cache.ids;
+  }
+  if (mtime === cache.mtime) {
+    return cache.ids;
+  }
+
+  const ids = new Set();
+  try {
+    const [ok, bytes] = GLib.file_get_contents(path);
+    if (ok) {
+      const parsed = JSON.parse(new TextDecoder().decode(bytes));
+      for (const rule of parsed.rules || []) {
+        if (!rule || !rule.monitor || !Array.isArray(rule.appIds)) {
+          continue;
+        }
+        for (const appId of rule.appIds) {
+          ids.add(String(appId).toLowerCase());
+        }
+      }
+    }
+  } catch (e) {
+    console.log(`[active-monitor-placement] failed to read ${path}: ${e}`);
+  }
+  cache.mtime = mtime;
+  cache.ids = ids;
+  if (ids.size > 0) {
+    console.log(`[active-monitor-placement] ${ids.size} app id(s) pinned by app-rules; leaving them alone`);
+  }
+  return ids;
+}
+
+/**
+ * Whether a window belongs to an application with an explicit monitor pin.
+ *
+ * @param {Meta.Window|null} win - Window under consideration.
+ * @param {{mtime: number, ids: Set<string>}} cache - Rule cache record.
+ * @returns {boolean} true when app-rules owns this window's placement.
+ */
+function hasExplicitMonitorRule(win, cache) {
+  const ids = explicitMonitorAppIds(cache);
+  if (ids.size === 0 || !win) {
+    return false;
+  }
+  try {
+    const app = Shell.WindowTracker.get_default().get_window_app(win);
+    const appId = app ? app.get_id() : null;
+    return Boolean(appId) && ids.has(appId.toLowerCase());
+  } catch (_e) {
+    return false;
+  }
+}
 
 /**
  * Whether a window is a utility / skip-taskbar candidate that must not be moved.
@@ -281,6 +365,8 @@ function applyPlacement(win, phase, frozenActiveMonitor) {
 export default class ActiveMonitorPlacementExtension extends Extension {
   enable() {
     this._timeouts = [];
+    // app-rules' explicit monitor pins, refreshed when the rules file changes.
+    this._monitorRuleCache = { mtime: 0, ids: new Set() };
     // Windows settled this session (moved or already-on-active on frozen target):
     // skip later rechecks so external primary placement can stick and we avoid
     // recheck spam / tiler fights.
@@ -305,6 +391,12 @@ export default class ActiveMonitorPlacementExtension extends Extension {
    */
   _schedulePlacement(win) {
     if (!win || isSkipTaskbar(win)) {
+      return;
+    }
+
+    // app-rules owns this application's monitor: never fight its fixed choice.
+    if (hasExplicitMonitorRule(win, this._monitorRuleCache)) {
+      console.log('[active-monitor-placement] skip: app has an explicit app-rules monitor');
       return;
     }
 

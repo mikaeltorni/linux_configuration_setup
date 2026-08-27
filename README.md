@@ -143,7 +143,10 @@ component fixes that system-wide:
    `window-created`, rechecks after short delays (WM placement is async), and
    moves normal (non–skip-taskbar) windows onto the pointer/current monitor when
    they landed elsewhere. Pure decision logic lives in `placementPolicy.js` so
-   it is unit-tested without a live Shell.
+   it is unit-tested without a live Shell. Applications that carry an explicit
+   monitor rule in `~/.config/app-rules/user-rules.json` (written by the master
+   installer's `[m]` menu action) are skipped, so a pinned display always wins
+   over the pointer heuristic.
 2. **`pin-window-to-active-monitor.sh`** — CLI helper in `~/.local/bin/` for
    scripts (notably `open-kitty-and-sort`) that already pin a specific window ID.
 
@@ -167,6 +170,11 @@ Current rules:
 | OBS Studio | Workspace 7 |
 | Discord | Sticky (all workspaces) |
 | Spotify | Sticky (all workspaces) |
+
+Rules may also pin an application to a display monitor (`"monitor": 1`, matched
+by connector plus geometry so the number keeps meaning the same after a
+re-plug). Monitor numbers follow GNOME Settings → Displays. `linux_workspaces_setup`
+owns writing those rules; this repository ships the extension that applies them.
 
 **Note:** After modifying the extension, log out and back in for changes to take effect. GNOME Shell does not hot-reload extensions on Wayland.
 
