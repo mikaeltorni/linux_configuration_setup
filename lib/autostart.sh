@@ -195,18 +195,33 @@ configure_selected_app_autostart() {
     done <"$state_file"
   fi
 
-  # These extra filenames were created by older setup-chain components before
-  # the unified [s] selector existed but are not all current metadata candidates.
-  run_as_target rm -f \
-    "$autostart_dir/spotify.desktop" \
-    "$autostart_dir/gitkraken.desktop" \
-    "$autostart_dir/gitkraken-autostart.desktop" \
-    "$autostart_dir/easyeffects.desktop" \
-    "$autostart_dir/albert.desktop"
+  # Filenames written by older setup-chain components before the unified [s]
+  # selector existed. They are not metadata candidates, so each is tied to the
+  # candidate that superseded it and is only cleared when this run actually
+  # manages that application — otherwise a partial run would delete a legacy
+  # launcher it has no authority over. Rows are "alias:anchor|anchor…".
+  local legacy_row legacy_alias legacy_anchors legacy_anchor
+  for legacy_row in \
+    "gitkraken-autostart.desktop:gitkraken.desktop|gitkraken_gitkraken.desktop" \
+    "easyeffects.desktop:com.github.wwmm.easyeffects.desktop|org.gnome.EasyEffects.desktop"; do
+    legacy_alias="${legacy_row%%:*}"
+    legacy_anchors="${legacy_row#*:}"
+    IFS='|' read -r -a candidates <<<"$legacy_anchors"
+    for legacy_anchor in "${candidates[@]}"; do
+      [ -n "${managed_basenames[$legacy_anchor]:-}" ] || continue
+      log "debug" "Removing legacy startup alias $legacy_alias for $legacy_anchor"
+      run_as_target rm -f "$autostart_dir/$legacy_alias"
+      break
+    done
+  done
   # Older EasyEffects setup enabled a user service in addition to its desktop
-  # entry. Disable that duplicate login path; the selected desktop launcher is
-  # now the single source of startup behavior. Do not stop a running instance.
-  run_as_target systemctl --user disable easyeffects.service >/dev/null 2>&1 || true
+  # entry. Disable that duplicate login path when this run manages EasyEffects;
+  # the selected desktop launcher is now the single source of startup behavior.
+  # Do not stop a running instance.
+  if [ -n "${managed_basenames[com.github.wwmm.easyeffects.desktop]:-}" ] \
+     || [ -n "${managed_basenames[org.gnome.EasyEffects.desktop]:-}" ]; then
+    run_as_target systemctl --user disable easyeffects.service >/dev/null 2>&1 || true
+  fi
   run_as_target sh -c ': > "$1"' _ "$pending_file"
   if [ "${#preserved[@]}" -gt 0 ]; then
     printf '%s\n' "${preserved[@]}" | run_as_target tee -a "$pending_file" >/dev/null
