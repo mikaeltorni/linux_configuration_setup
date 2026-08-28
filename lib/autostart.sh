@@ -134,10 +134,15 @@ EOF
 # MANAGED_STARTUP_APPS contain semicolon-separated launcher groups; within each
 # group, pipe-separated desktop filenames are ordered alternatives.
 #
-# Only entries recorded in this feature's state file and legacy entries created
-# by this setup chain are removed. Unrelated user-managed autostart files remain
-# untouched. Missing desktop files are logged and skipped rather than replaced
-# with launchers whose Exec command cannot be derived safely.
+# Reconciliation is scoped to MANAGED_STARTUP_APPS: only launchers this run
+# actually manages, plus the legacy entries created by this setup chain for
+# those same applications, are removed. Persisted entries outside that superset
+# are preserved on disk and re-recorded in the state file, so a partial handoff
+# (single-component run, repository subset, or a direct child-installer
+# invocation) cannot wipe startup apps it was never told about. Unrelated
+# user-managed autostart files remain untouched. Missing desktop files are
+# logged and skipped rather than replaced with launchers whose Exec command
+# cannot be derived safely.
 # Args: none. Returns 0 after reconciliation; filesystem errors propagate.
 configure_selected_app_autostart() {
   local selected="${SELECTED_STARTUP_APPS:-}"
@@ -147,7 +152,8 @@ configure_selected_app_autostart() {
   local pending_file="$state_file.pending"
   local autostart_dir="$TARGET_HOME/.config/autostart"
   local basename group candidate desktop_src known=0 managed_group
-  local -a groups=() candidates=() managed_groups=()
+  local -a groups=() candidates=() managed_groups=() preserved=()
+  local -A managed_basenames=()
 
   if [ -z "$managed" ]; then
     log "info" "Selected app autostart skipped: no master startup metadata"
@@ -158,26 +164,36 @@ configure_selected_app_autostart() {
   log "info" "Reconciling master-selected application startup entries"
   run_as_target install -d -m 0755 "$autostart_dir" "$state_dir"
 
-  if [ -f "$state_file" ]; then
-    while IFS= read -r basename; do
-      [[ "$basename" == *.desktop && "$basename" != */* ]] || continue
-      log "debug" "Removing previously managed startup entry: $basename"
-      run_as_target rm -f "$autostart_dir/$basename"
-    done <"$state_file"
-  fi
-
-  IFS=';' read -r -a managed_groups <<<"$managed"
-  # Remove every recognized candidate first. This adopts launchers written by
+  # Index every launcher this run is authorized to touch, and clear each one
+  # up front. Removing recognized candidates first adopts launchers written by
   # older per-app installers and guarantees clearing [S] removes the app even
   # when it predates the managed state file.
+  IFS=';' read -r -a managed_groups <<<"$managed"
   for managed_group in "${managed_groups[@]}"; do
     IFS='|' read -r -a candidates <<<"$managed_group"
     for candidate in "${candidates[@]}"; do
       [[ "$candidate" == *.desktop && "$candidate" != */* ]] || continue
+      managed_basenames["$candidate"]=1
       log "debug" "Removing managed startup candidate before reconciliation: $candidate"
       run_as_target rm -f "$autostart_dir/$candidate"
     done
   done
+
+  # Carry over persisted entries that this run's metadata does not cover. A
+  # partial handoff (a single-component run, a repository subset, or a manual
+  # child-installer invocation) only describes part of the user's [s] choices,
+  # so anything outside MANAGED_STARTUP_APPS keeps both its launcher and its
+  # state row. Without this the narrow run would silently delete every startup
+  # app it happened not to know about.
+  if [ -f "$state_file" ]; then
+    while IFS= read -r basename; do
+      [[ "$basename" == *.desktop && "$basename" != */* ]] || continue
+      if [ -z "${managed_basenames[$basename]:-}" ]; then
+        log "info" "Preserving startup entry outside this run's managed metadata: $basename"
+        preserved+=("$basename")
+      fi
+    done <"$state_file"
+  fi
 
   # These extra filenames were created by older setup-chain components before
   # the unified [s] selector existed but are not all current metadata candidates.
@@ -192,6 +208,9 @@ configure_selected_app_autostart() {
   # now the single source of startup behavior. Do not stop a running instance.
   run_as_target systemctl --user disable easyeffects.service >/dev/null 2>&1 || true
   run_as_target sh -c ': > "$1"' _ "$pending_file"
+  if [ "${#preserved[@]}" -gt 0 ]; then
+    printf '%s\n' "${preserved[@]}" | run_as_target tee -a "$pending_file" >/dev/null
+  fi
 
   IFS=';' read -r -a groups <<<"$selected"
   for group in "${groups[@]}"; do
