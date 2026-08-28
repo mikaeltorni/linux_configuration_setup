@@ -126,6 +126,24 @@ assert_file_missing \
   "$TARGET_HOME/.config/autostart/gitkraken_gitkraken.desktop" \
   "clearing GitKraken [S] should remove its managed launcher"
 
+# SmartGit uses the same generic [S] reconciliation path as GitKraken.
+printf '[Desktop Entry]\nName=SmartGit\nExec=/opt/smartgit/bin/smartgit.sh %%U\n' \
+  >"$TARGET_HOME/.local/share/applications/smartgit.desktop"
+MANAGED_STARTUP_APPS='smartgit.desktop'
+SELECTED_STARTUP_APPS='smartgit.desktop'
+configure_selected_app_autostart
+assert_file_exists \
+  "$TARGET_HOME/.config/autostart/smartgit.desktop" \
+  "SmartGit [S] should install its desktop launcher"
+assert_grep '^X-GNOME-Autostart-enabled=true$' \
+  "$TARGET_HOME/.config/autostart/smartgit.desktop" \
+  "SmartGit [S] should enable GNOME autostart"
+SELECTED_STARTUP_APPS=''
+configure_selected_app_autostart
+assert_file_missing \
+  "$TARGET_HOME/.config/autostart/smartgit.desktop" \
+  "clearing SmartGit [S] should remove its managed launcher"
+
 # A launcher created before it became [S]-managed must be detected as enabled
 # and removed when the user clears [S].
 printf '[Desktop Entry]\nName=Cursor\nExec=cursor\nX-GNOME-Autostart-enabled=true\n' \

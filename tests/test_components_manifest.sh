@@ -135,6 +135,15 @@ else
 fi
 
 echo ""
+echo "--- SmartGit follows GitKraken's built-in workspace rule ---"
+app_rules_extension="$SCRIPT_DIR/configs/gnome-extensions/app-rules@local/extension.js"
+if grep -Fq "appIds: ['gitkraken.desktop', 'gitkraken_gitkraken.desktop', 'smartgit.desktop'], workspace: 2" "$app_rules_extension"; then
+  pass "SmartGit is pinned to the same zero-based workspace as GitKraken"
+else
+  fail "SmartGit is pinned to the same zero-based workspace as GitKraken"
+fi
+
+echo ""
 echo "--- the preflight hook maps to a defined function ---"
 if [ -n "${ISC_PREFLIGHT:-}" ]; then
   if printf '%s\n' "$lib_functions" | grep -qx "$ISC_PREFLIGHT"; then
