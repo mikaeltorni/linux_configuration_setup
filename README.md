@@ -31,7 +31,7 @@ This repository configures the GNOME desktop environment after base packages are
 - **GNOME favorites**: Baseline desktop utilities plus favorite metadata published by application-owning repositories; the master installer forwards selected rows as `SELECTED_FAVORITE_APPS` and the complete managed set as `MANAGED_FAVORITE_APPS` so user-pinned PWAs and other unrelated dock favourites survive config reloads
 - **Terminal themes**: Dark background/light text for Console, Ptyxis, GNOME Terminal
 - **Display refresh**: Xorg xrandr max refresh rate or Wayland VRR
-- **Autostart applications**: Spotify, GitKraken, EasyEffects, and Kitty
+- **Autostart applications**: Spotify, GitKraken, SmartGit, EasyEffects, and Kitty
 - **App workspace rules**: `app-rules@local` GNOME extension assigns windows to specific workspaces (e.g., Monkeytype → workspace 7, ChatGPT → workspace 0). PWAs themselves are installed manually; once present, these rules match them by window class.
 - **Active-monitor placement**: Installs `~/.local/bin/pin-window-to-active-monitor.sh`, a runtime helper that moves a window to the monitor containing the mouse pointer. The open-kitty-and-sort hotkey (`linux_hotkey_window_tools`) calls it so newly-launched kitty windows stay on the active monitor even when the workspace is crowded and GNOME would have placed them on a different display.
 - **UV package manager**: Install astral.sh/uv, deploy the global rolling 24-hour supply-chain cutoff, and disable GUI autostart
@@ -165,6 +165,7 @@ Current rules:
 |-----|----------------------|
 | Cursor (cursor.desktop) | Workspace 0 |
 | GitKraken | Workspace 2 |
+| SmartGit | Workspace 2 |
 | Monkeytype PWA | Workspace 7 |
 | ChatGPT PWA | Workspace 0 |
 | OBS Studio | Workspace 7 |
@@ -192,7 +193,7 @@ This repo is run **after** `linux_installations_setup` has cloned it. It require
 
 - If the Purple Cross cursor does not appear immediately everywhere, restart affected applications. Some Wayland and XWayland clients cache cursor themes after startup.
 - The installer writes `~/.local/share/icons/default/index.theme` and `~/.icons/default/index.theme`, then links `~/.icons/PurpleCrossDefault` to the generated theme so applications that read Xcursor defaults outside GNOME GSettings can load it.
-- GitKraken, Spotify, EasyEffects, Albert, Cursor, and the other application
+- GitKraken, SmartGit, Spotify, EasyEffects, Albert, Cursor, and the other application
   launchers use the master menu's `[S]` selection as their single startup
   authority. The reconciler removes obsolete legacy aliases to prevent duplicate
   launches.

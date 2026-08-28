@@ -23,7 +23,7 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 // Built-in workspace pins. Always active.
 const RULES = [
   { appIds: ['cursor.desktop'], workspace: 0 },
-  { appIds: ['gitkraken.desktop', 'gitkraken_gitkraken.desktop'], workspace: 2 },
+  { appIds: ['gitkraken.desktop', 'gitkraken_gitkraken.desktop', 'smartgit.desktop'], workspace: 2 },
   { appIds: ['monkeytype.desktop', 'chrome-picebhhlijnlefeleilfbanaghjlkkna-Default.desktop'], workspace: 7 },
   { appIds: ['chatgpt.desktop'], workspace: 0 },
   { appIds: ['com.obsproject.Studio.desktop', 'obs.desktop'], workspace: 7 },
