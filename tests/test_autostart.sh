@@ -144,6 +144,73 @@ assert_file_missing \
   "$TARGET_HOME/.config/autostart/smartgit.desktop" \
   "clearing SmartGit [S] should remove its managed launcher"
 
+# Regression: a run whose metadata covers only part of the user's selection
+# must not delete the startup apps it does not manage. A single-component or
+# subset run (how the SmartGit change was verified) once wiped every other
+# selected launcher and dropped it from the state file for good.
+printf '[Desktop Entry]\nName=Spotify\nExec=/snap/bin/spotify %%U\n' \
+  >"$TARGET_HOME/.local/share/applications/spotify_spotify.desktop"
+printf '[Desktop Entry]\nName=Zeta\nExec=zeta\n' \
+  >"$TARGET_HOME/.local/share/applications/zeta.desktop"
+MANAGED_STARTUP_APPS='smartgit.desktop;spotify.desktop|spotify_spotify.desktop;zeta.desktop'
+SELECTED_STARTUP_APPS='spotify.desktop|spotify_spotify.desktop;zeta.desktop'
+configure_selected_app_autostart
+assert_file_exists \
+  "$TARGET_HOME/.config/autostart/spotify_spotify.desktop" \
+  "full run should install the Spotify launcher"
+assert_file_exists \
+  "$TARGET_HOME/.config/autostart/zeta.desktop" \
+  "full run should install the Zeta launcher"
+
+# Now reconcile with SmartGit-only metadata, exactly like the narrow run that
+# broke login startup: Spotify and Albert are out of scope and must survive.
+MANAGED_STARTUP_APPS='smartgit.desktop'
+SELECTED_STARTUP_APPS='smartgit.desktop'
+configure_selected_app_autostart
+assert_file_exists \
+  "$TARGET_HOME/.config/autostart/smartgit.desktop" \
+  "narrow run should install its own selected launcher"
+assert_file_exists \
+  "$TARGET_HOME/.config/autostart/spotify_spotify.desktop" \
+  "narrow run must not delete an unmanaged Spotify startup entry"
+assert_file_exists \
+  "$TARGET_HOME/.config/autostart/zeta.desktop" \
+  "narrow run must not delete an unmanaged Zeta startup entry"
+selected_list="$(list_selected_app_autostart)"
+for survivor in spotify_spotify.desktop zeta.desktop smartgit.desktop; do
+  grep -qx "$survivor" <<<"$selected_list" || {
+    printf 'FAIL: narrow run dropped %s from the persisted selection\n' "$survivor" >&2
+    exit 1
+  }
+done
+grep -qx spotify_spotify.desktop \
+  "$TARGET_HOME/.local/state/linux-configuration-setup/selected-app-autostart.list" || {
+  printf 'FAIL: preserved entry should be re-recorded in the state file\n' >&2
+  exit 1
+}
+# The preserved rows must not be duplicated across repeated narrow runs.
+configure_selected_app_autostart
+duplicate_count="$(grep -cx spotify_spotify.desktop \
+  "$TARGET_HOME/.local/state/linux-configuration-setup/selected-app-autostart.list")"
+if [ "$duplicate_count" != "1" ]; then
+  printf 'FAIL: preserved entry duplicated %s times in the state file\n' "$duplicate_count" >&2
+  exit 1
+fi
+# A full run that still manages those apps stays authoritative: clearing [S]
+# for everything removes them.
+MANAGED_STARTUP_APPS='smartgit.desktop;spotify.desktop|spotify_spotify.desktop;zeta.desktop'
+SELECTED_STARTUP_APPS=''
+configure_selected_app_autostart
+assert_file_missing \
+  "$TARGET_HOME/.config/autostart/spotify_spotify.desktop" \
+  "a run that manages Spotify must still honor a cleared [S]"
+assert_file_missing \
+  "$TARGET_HOME/.config/autostart/zeta.desktop" \
+  "a run that manages Zeta must still honor a cleared [S]"
+assert_file_missing \
+  "$TARGET_HOME/.config/autostart/smartgit.desktop" \
+  "a run that manages SmartGit must still honor a cleared [S]"
+
 # A launcher created before it became [S]-managed must be detected as enabled
 # and removed when the user clears [S].
 printf '[Desktop Entry]\nName=Cursor\nExec=cursor\nX-GNOME-Autostart-enabled=true\n' \
