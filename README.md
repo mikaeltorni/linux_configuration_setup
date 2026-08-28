@@ -58,7 +58,7 @@ sudo bash install.sh
 | `SELECTED_FAVORITE_APPS` | _(unset)_ | Internal master-installer handoff: comma/space-separated program-menu favourites merged with baseline dock entries |
 | `MANAGED_FAVORITE_APPS` | _(unset)_ | Internal master handoff: complete favourite-capable `.desktop` id set used to reconcile installer-owned dock entries while preserving unrelated favourites |
 | `SELECTED_STARTUP_APPS` | _(unset)_ | Internal master handoff: semicolon-separated selected launcher groups; pipe separates filename alternatives |
-| `MANAGED_STARTUP_APPS` | _(unset)_ | Internal master handoff: complete startup-capable launcher set used to validate and reconcile tracked entries |
+| `MANAGED_STARTUP_APPS` | _(unset)_ | Internal master handoff: complete startup-capable launcher set. It is the reconciler's authority boundary — persisted entries outside it are preserved, so a partial handoff never deletes startup apps it was not told about |
 | `TARGET_HOME_OVERRIDE` | Target user's passwd home | Override the target home for isolated installer tests/automation |
 | `CURSOR_SOURCE_FILE` | bundled `purple_cross.cur` | Path to your own cursor image (`cursor_theme` component) |
 
@@ -196,7 +196,15 @@ This repo is run **after** `linux_installations_setup` has cloned it. It require
 - GitKraken, SmartGit, Spotify, EasyEffects, Albert, Cursor, and the other application
   launchers use the master menu's `[S]` selection as their single startup
   authority. The reconciler removes obsolete legacy aliases to prevent duplicate
-  launches.
+  launches, but only for applications the current run manages.
+- `[S]` reconciliation is scoped to `MANAGED_STARTUP_APPS`. A run that only
+  describes part of the selection — a single-component run
+  (`--select selected_app_autostart`), a repository subset, or a direct child
+  installer invocation — leaves every persisted entry outside that set on disk
+  and re-records it in
+  `~/.local/state/linux-configuration-setup/selected-app-autostart.list`. Pass
+  the complete managed superset whenever you want cleared `[S]` markers to
+  actually remove launchers.
 - Log out and back in before testing GNOME Shell extension code changes.
 - PWAs (Monkeytype, ChatGPT, Claude, etc.) are installed manually from Chrome — this repo no longer creates their desktop entries, icons, or autostart files. Once you have installed a PWA, the `app-rules@local` extension assigns its window to the mapped workspace. If a PWA does not land on its workspace, verify the extension is enabled and that the PWA's window class matches a rule.
 - Dash-to-Panel is configured with one isolated panel per monitor. Its pinned
