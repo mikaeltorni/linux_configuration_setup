@@ -211,6 +211,46 @@ assert_file_missing \
   "$TARGET_HOME/.config/autostart/smartgit.desktop" \
   "a run that manages SmartGit must still honor a cleared [S]"
 
+# Legacy setup-chain aliases are cleared only by a run that manages the app
+# that superseded them, and are otherwise left alone.
+printf '[Desktop Entry]\nName=EasyEffects legacy\nExec=easyeffects\n' \
+  >"$TARGET_HOME/.config/autostart/easyeffects.desktop"
+printf '[Desktop Entry]\nName=GitKraken legacy\nExec=gitkraken\n' \
+  >"$TARGET_HOME/.config/autostart/gitkraken-autostart.desktop"
+printf '[Desktop Entry]\nName=Albert\nExec=albert\n' \
+  >"$TARGET_HOME/.local/share/applications/albert.desktop"
+MANAGED_STARTUP_APPS='albert.desktop'
+SELECTED_STARTUP_APPS='albert.desktop'
+configure_selected_app_autostart
+assert_file_exists \
+  "$TARGET_HOME/.config/autostart/easyeffects.desktop" \
+  "an Albert-only run must not clear the legacy EasyEffects alias"
+assert_file_exists \
+  "$TARGET_HOME/.config/autostart/gitkraken-autostart.desktop" \
+  "an Albert-only run must not clear the legacy GitKraken alias"
+assert_file_exists \
+  "$TARGET_HOME/.config/autostart/albert.desktop" \
+  "Albert [S] should install its desktop launcher"
+
+MANAGED_STARTUP_APPS='albert.desktop;com.github.wwmm.easyeffects.desktop|org.gnome.EasyEffects.desktop;gitkraken.desktop|gitkraken_gitkraken.desktop'
+SELECTED_STARTUP_APPS='albert.desktop'
+configure_selected_app_autostart
+assert_file_missing \
+  "$TARGET_HOME/.config/autostart/easyeffects.desktop" \
+  "a run managing EasyEffects should clear its legacy alias"
+assert_file_missing \
+  "$TARGET_HOME/.config/autostart/gitkraken-autostart.desktop" \
+  "a run managing GitKraken should clear its legacy alias"
+assert_file_exists \
+  "$TARGET_HOME/.config/autostart/albert.desktop" \
+  "Albert should survive a wider run that still selects it"
+MANAGED_STARTUP_APPS='albert.desktop'
+SELECTED_STARTUP_APPS=''
+configure_selected_app_autostart
+assert_file_missing \
+  "$TARGET_HOME/.config/autostart/albert.desktop" \
+  "clearing Albert [S] should remove its managed launcher"
+
 # A launcher created before it became [S]-managed must be detected as enabled
 # and removed when the user clears [S].
 printf '[Desktop Entry]\nName=Cursor\nExec=cursor\nX-GNOME-Autostart-enabled=true\n' \
