@@ -104,6 +104,12 @@ if [ -f "$EXT_DIR/extension.js" ]; then
   else
     pass "applyPlacement does not re-resolve active monitor live"
   fi
+  if grep -qF 'const BUILTIN_FIXED_MONITOR_APP_IDS' "$EXT_DIR/extension.js" && \
+     grep -qF "'smartgit.desktop'" "$EXT_DIR/extension.js"; then
+    pass "active-monitor-placement leaves SmartGit's fixed monitor alone"
+  else
+    fail "active-monitor-placement leaves SmartGit's fixed monitor alone"
+  fi
 fi
 
 echo ""
