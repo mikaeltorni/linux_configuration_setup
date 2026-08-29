@@ -105,10 +105,12 @@ if [ -f "$EXT_DIR/extension.js" ]; then
     pass "applyPlacement does not re-resolve active monitor live"
   fi
   if grep -qF 'const BUILTIN_FIXED_MONITOR_APP_IDS' "$EXT_DIR/extension.js" && \
-     grep -qF "'smartgit.desktop'" "$EXT_DIR/extension.js"; then
-    pass "active-monitor-placement leaves SmartGit's fixed monitor alone"
+     grep -qF "'smartgit.desktop'" "$EXT_DIR/extension.js" && \
+     grep -qF "'gitkraken.desktop'" "$EXT_DIR/extension.js" && \
+     grep -qF "'gitkraken_gitkraken.desktop'" "$EXT_DIR/extension.js"; then
+    pass "active-monitor-placement leaves Git clients' fixed monitors alone"
   else
-    fail "active-monitor-placement leaves SmartGit's fixed monitor alone"
+    fail "active-monitor-placement leaves Git clients' fixed monitors alone"
   fi
 fi
 
