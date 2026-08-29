@@ -54,6 +54,8 @@ const RECHECK_DELAYS_MS = [150, 400, 900, 1600];
 // placement even when the dynamic user-rules file has no monitor entry.
 const BUILTIN_FIXED_MONITOR_APP_IDS = new Set([
   'smartgit.desktop',
+  'gitkraken.desktop',
+  'gitkraken_gitkraken.desktop',
 ]);
 
 /**
