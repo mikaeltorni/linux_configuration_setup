@@ -50,6 +50,12 @@ import {
 // slow-to-map clients (kitty/gtk sometimes assign geometry after 1s).
 const RECHECK_DELAYS_MS = [150, 400, 900, 1600];
 
+// Built-in app-rules monitor pins must be excluded from pointer-following
+// placement even when the dynamic user-rules file has no monitor entry.
+const BUILTIN_FIXED_MONITOR_APP_IDS = new Set([
+  'smartgit.desktop',
+]);
+
 /**
  * Read the app ids that app-rules@local pins to a fixed monitor.
  *
@@ -72,14 +78,14 @@ function explicitMonitorAppIds(cache) {
     mtime = info.get_attribute_uint64('time::modified');
   } catch (_e) {
     cache.mtime = 0;
-    cache.ids = new Set();
+    cache.ids = new Set(BUILTIN_FIXED_MONITOR_APP_IDS);
     return cache.ids;
   }
   if (mtime === cache.mtime) {
     return cache.ids;
   }
 
-  const ids = new Set();
+  const ids = new Set(BUILTIN_FIXED_MONITOR_APP_IDS);
   try {
     const [ok, bytes] = GLib.file_get_contents(path);
     if (ok) {
