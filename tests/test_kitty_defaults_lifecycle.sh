@@ -34,7 +34,6 @@ EOF
 configure_kitty_defaults
 grep -qx 'confirm_os_window_close 0' "$CONF"
 grep -qx 'map ctrl+backspace send_key ctrl+w' "$CONF"
-grep -qx 'map apostrophe discard_event' "$CONF"
 grep -qx 'wayland_titlebar_color background' "$CONF"
 detect_kitty_defaults
 
@@ -49,7 +48,6 @@ if detect_kitty_defaults; then
 fi
 ! grep -q '^confirm_os_window_close' "$CONF"
 ! grep -q '^map ctrl+backspace' "$CONF"
-! grep -q '^map apostrophe' "$CONF"
 ! grep -q '^wayland_titlebar_color' "$CONF"
 
 # The user's own settings survive, and the file is never deleted.
