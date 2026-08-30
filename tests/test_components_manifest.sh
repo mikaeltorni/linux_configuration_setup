@@ -58,6 +58,19 @@ tmux_row="$(printf '%s\n' "${ISC_COMPONENTS[@]}" | grep '^tmux_defaults|')"
   printf 'FAIL: tmux_defaults should advertise full chat history\n' >&2
   exit 1
 }
+kitty_apostrophe_row="$(printf '%s\n' "${ISC_COMPONENTS[@]}" | grep '^kitty_ignore_apostrophe|')"
+[[ "$kitty_apostrophe_row" == *'|on|configure_kitty_apostrophe_filter|detect_kitty_apostrophe_filter|uninstall_kitty_apostrophe_filter' ]] || {
+  printf 'FAIL: kitty_ignore_apostrophe should be independently selectable and default on\n' >&2
+  exit 1
+}
+python3 - "$SCRIPT_DIR/installation_configs/default.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    defaults = json.load(handle)
+assert defaults["components"]["kitty_ignore_apostrophe"]["on"] == 1
+PY
 [ "${#ISC_COMPONENTS[@]}" -gt 0 ] && pass "ISC_COMPONENTS is non-empty" \
   || fail "ISC_COMPONENTS is non-empty"
 
