@@ -146,7 +146,7 @@ uninstall_terminal_theme() {
 #   two can never drift from configure_kitty_defaults.
 #   Args: none. Returns: 0.
 kitty_managed_keys() {
-  printf '%s\n' confirm_os_window_close "map ctrl+backspace" wayland_titlebar_color
+  printf '%s\n' confirm_os_window_close "map ctrl+backspace" "map apostrophe" wayland_titlebar_color
 }
 
 # detect_kitty_defaults — True when every managed kitty.conf setting is present.
@@ -173,7 +173,12 @@ uninstall_kitty_defaults() {
 """Strip the installer-managed kitty settings, keeping user content intact."""
 import sys
 
-MANAGED = ("confirm_os_window_close", "map ctrl+backspace", "wayland_titlebar_color")
+MANAGED = (
+    "confirm_os_window_close",
+    "map ctrl+backspace",
+    "map apostrophe",
+    "wayland_titlebar_color",
+)
 path = sys.argv[1]
 with open(path, encoding="utf-8") as handle:
     lines = handle.read().splitlines()

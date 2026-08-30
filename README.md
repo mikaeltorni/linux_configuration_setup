@@ -30,6 +30,9 @@ This repository configures the GNOME desktop environment after base packages are
 - **Cursor theme**: Bundled Purple Cross by default; set `CURSOR_SOURCE_FILE=/path/to/your.cur` (or type a path) to build the theme from your own cursor image
 - **GNOME favorites**: Baseline desktop utilities plus favorite metadata published by application-owning repositories; the master installer forwards selected rows as `SELECTED_FAVORITE_APPS` and the complete managed set as `MANAGED_FAVORITE_APPS` so user-pinned PWAs and other unrelated dock favourites survive config reloads
 - **Terminal themes**: Dark background/light text for Console, Ptyxis, GNOME Terminal
+- **Kitty defaults**: Window behavior, Ctrl+Backspace word deletion, and an
+  apostrophe-only `discard_event` mapping that leaves all other terminal input
+  unchanged
 - **Display refresh**: Xorg xrandr max refresh rate or Wayland VRR
 - **Autostart applications**: Spotify, GitKraken, SmartGit, EasyEffects, and Kitty
 - **App workspace rules**: `app-rules@local` GNOME extension assigns windows to specific workspaces (e.g., Monkeytype → workspace 7, ChatGPT → workspace 0). PWAs themselves are installed manually; once present, these rules match them by window class.
@@ -255,7 +258,7 @@ or none, and **Enter** installs the selection. Components:
 | `display_refresh` | Display refresh rate / VRR | on |
 | `autostart_apps` | General autostart applications | on |
 | `selected_app_autostart` | Master-selected app startup (`s` in app menu) | on |
-| `kitty_defaults` | Kitty terminal defaults (close prompt and Ctrl+Backspace word deletion) | on |
+| `kitty_defaults` | Kitty terminal defaults (window behavior, word deletion, and apostrophe suppression) | on |
 | `app_rules` | App window rules extension | on |
 | `active_monitor_placement` | Pin new windows to the active/pointer monitor (session extension + CLI helper) | on |
 | `uv_setup` | UV package manager and supply-chain protection | on |

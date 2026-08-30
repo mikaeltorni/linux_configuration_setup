@@ -6,7 +6,7 @@
 #     Create or copy a .desktop file into ~/.config/autostart/.
 #   - configure_autostart_apps(): Create the general autostart launcher + entry.
 #   - configure_selected_app_autostart(): Reconcile master-menu [s] selections.
-#   - configure_kitty_defaults(): Apply shared Kitty window and key-map defaults.
+#   - configure_kitty_defaults(): Apply shared Kitty window and input defaults.
 #
 # Sourced after lib/helpers.sh, lib/gsettings_helpers.sh, lib/gnome_desktop.sh.
 # Depends on: msg, run_as_target, find_desktop_file_path
@@ -278,10 +278,13 @@ fi
 # configure_kitty_defaults — Ensure ~/.config/kitty/kitty.conf uses a readable
 #   Wayland titlebar with visible controls, disables the close-window
 #   confirmation, and translates Ctrl+Backspace to Ctrl+W, the conventional
-#   terminal word-rubout key. Idempotently creates, replaces, or appends all
-#   managed settings without disturbing unrelated configuration.
+#   terminal word-rubout key. The unmodified apostrophe key is discarded so an
+#   accidental press cannot reach a shell or terminal application; shifted
+#   apostrophe and all other input remain untouched. Idempotently creates,
+#   replaces, or appends all managed settings without disturbing unrelated
+#   configuration.
 configure_kitty_defaults() {
-  msg "Configuring Kitty defaults (Wayland titlebar, close confirmation, and word deletion)"
+  msg "Configuring Kitty defaults (window behavior and input mappings)"
   log "info" "Applying managed Kitty defaults for $TARGET_USER"
 
   run_as_target bash -lc '
@@ -300,6 +303,11 @@ if grep -q "^map ctrl+backspace" "$conf"; then
   sed -i "s/^map ctrl+backspace.*/map ctrl+backspace send_key ctrl+w/" "$conf"
 else
   printf "\n# Make Ctrl+Backspace use the standard terminal word-rubout key.\nmap ctrl+backspace send_key ctrl+w\n" >> "$conf"
+fi
+if grep -q "^map apostrophe" "$conf"; then
+  sed -i "s/^map apostrophe.*/map apostrophe discard_event/" "$conf"
+else
+  printf "\n# Ignore accidental apostrophe input while leaving every other key unchanged.\nmap apostrophe discard_event\n" >> "$conf"
 fi
 if grep -q "^wayland_titlebar_color" "$conf"; then
   sed -i "s/^wayland_titlebar_color.*/wayland_titlebar_color background/" "$conf"
