@@ -36,6 +36,26 @@ grep -q 'Applying Kitty apostrophe input filter' "$LOG_FILE"
 configure_kitty_apostrophe_filter
 [ "$(grep -c '^map apostrophe ' "$CONF")" -eq 1 ]
 
+# The environment switch supports explicit on/off without affecting other keys.
+KITTY_IGNORE_APOSTROPHE=off configure_kitty_apostrophe_filter
+if detect_kitty_apostrophe_filter; then
+  printf 'KITTY_IGNORE_APOSTROPHE=off left the filter enabled\n' >&2
+  exit 1
+fi
+grep -qx 'map a send_text all a' "$CONF"
+grep -qx 'map shift+apostrophe send_text all "' "$CONF"
+KITTY_IGNORE_APOSTROPHE=on configure_kitty_apostrophe_filter
+detect_kitty_apostrophe_filter
+
+# Invalid values fail closed before changing the existing config.
+before_invalid="$(cat "$CONF")"
+if KITTY_IGNORE_APOSTROPHE=maybe configure_kitty_apostrophe_filter; then
+  printf 'invalid KITTY_IGNORE_APOSTROPHE value was accepted\n' >&2
+  exit 1
+fi
+[ "$(cat "$CONF")" = "$before_invalid" ]
+grep -q 'Invalid KITTY_IGNORE_APOSTROPHE value: maybe' "$LOG_FILE"
+
 # Detection checks the effective action, not merely the key's presence.
 sed -i 's/^map apostrophe.*/map apostrophe no_op/' "$CONF"
 if detect_kitty_apostrophe_filter; then
@@ -45,7 +65,10 @@ fi
 configure_kitty_apostrophe_filter
 
 uninstall_kitty_apostrophe_filter
-! grep -q '^map apostrophe ' "$CONF"
+if grep -q '^map apostrophe ' "$CONF"; then
+  printf 'uninstall left an apostrophe mapping behind\n' >&2
+  exit 1
+fi
 grep -qx 'map a send_text all a' "$CONF"
 grep -qx 'map shift+apostrophe send_text all "' "$CONF"
 grep -q 'Removing Kitty apostrophe input filter' "$LOG_FILE"
@@ -54,6 +77,9 @@ grep -q 'Removing Kitty apostrophe input filter' "$LOG_FILE"
 uninstall_kitty_apostrophe_filter
 rm -f "$CONF"
 uninstall_kitty_apostrophe_filter
-! detect_kitty_apostrophe_filter
+if detect_kitty_apostrophe_filter; then
+  printf 'absent config was detected as enabled\n' >&2
+  exit 1
+fi
 
 printf 'test_kitty_apostrophe_filter.sh: all assertions passed\n'

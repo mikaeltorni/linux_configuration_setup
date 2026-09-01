@@ -62,12 +62,20 @@ sudo bash install.sh
 | `MANAGED_FAVORITE_APPS` | _(unset)_ | Internal master handoff: complete favourite-capable `.desktop` id set used to reconcile installer-owned dock entries while preserving unrelated favourites |
 | `SELECTED_STARTUP_APPS` | _(unset)_ | Internal master handoff: semicolon-separated selected launcher groups; pipe separates filename alternatives |
 | `MANAGED_STARTUP_APPS` | _(unset)_ | Internal master handoff: complete startup-capable launcher set. It is the reconciler's authority boundary — persisted entries outside it are preserved, so a partial handoff never deletes startup apps it was not told about |
+| `KITTY_IGNORE_APOSTROPHE` | `on` | `on` consumes unmodified apostrophes in Kitty; `off` removes the filter (`kitty_ignore_apostrophe` component) |
 | `TARGET_HOME_OVERRIDE` | Target user's passwd home | Override the target home for isolated installer tests/automation |
 | `CURSOR_SOURCE_FILE` | bundled `purple_cross.cur` | Path to your own cursor image (`cursor_theme` component) |
 
 These overrides are read from the environment on non-interactive runs (including
 the master installer); on an interactive terminal each prompts with its default
 pre-filled so you can edit or accept it.
+
+The Kitty filter can be switched in place without running unrelated components:
+
+```bash
+KITTY_IGNORE_APOSTROPHE=off bash install.sh --select kitty_ignore_apostrophe
+KITTY_IGNORE_APOSTROPHE=on bash install.sh --select kitty_ignore_apostrophe
+```
 
 ## Idempotency
 
