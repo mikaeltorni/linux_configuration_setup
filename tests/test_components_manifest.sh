@@ -67,6 +67,10 @@ kitty_apostrophe_row="$(printf '%s\n' "${ISC_COMPONENTS[@]}" | grep '^kitty_igno
   printf 'FAIL: kitty_ignore_apostrophe should advertise its environment switch\n' >&2
   exit 1
 }
+[[ "$kitty_apostrophe_row" == *'outside tmux'* ]] || {
+  printf 'FAIL: kitty_ignore_apostrophe should advertise its tmux exemption\n' >&2
+  exit 1
+}
 python3 - "$SCRIPT_DIR/installation_configs/default.json" <<'PY'
 import json
 import sys
