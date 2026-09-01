@@ -2,7 +2,7 @@
 # kitty_input.sh — Reversible Kitty input-filter configuration.
 #
 # Public functions:
-#   - configure_kitty_apostrophe_filter(): Consume only unmodified apostrophes.
+#   - configure_kitty_apostrophe_filter(): Apply KITTY_IGNORE_APOSTROPHE=on/off.
 #   - detect_kitty_apostrophe_filter(): Check for the exact discard mapping.
 #   - uninstall_kitty_apostrophe_filter(): Remove only the managed mapping.
 #
@@ -14,10 +14,30 @@ KITTY_APOSTROPHE_MAPPING="map apostrophe discard_event"
 # configure_kitty_apostrophe_filter — Install the exact Kitty mapping that
 #   consumes an unmodified apostrophe. Modifier combinations and all other keys
 #   remain available to the terminal application. Existing apostrophe actions
-#   are replaced so the effective behavior is deterministic.
-#   Args: none. Returns: 0 when the config is updated.
+#   are replaced so the effective behavior is deterministic. The
+#   KITTY_IGNORE_APOSTROPHE environment variable accepts on (default) or off;
+#   off delegates to the same reversible uninstall path used by the component.
+#   Args: none. Returns: 0 after applying the requested state, 2 for an invalid
+#   environment value without changing the config.
 configure_kitty_apostrophe_filter() {
+  local requested_state="${KITTY_IGNORE_APOSTROPHE:-on}"
+  case "$requested_state" in
+    on)
+      ;;
+    off)
+      log "info" "KITTY_IGNORE_APOSTROPHE requested state: off"
+      uninstall_kitty_apostrophe_filter
+      return
+      ;;
+    *)
+      msg "Invalid KITTY_IGNORE_APOSTROPHE value '$requested_state' (expected on or off)"
+      log "error" "Invalid KITTY_IGNORE_APOSTROPHE value: $requested_state"
+      return 2
+      ;;
+  esac
+
   msg "Enabling Kitty apostrophe input filter"
+  log "info" "KITTY_IGNORE_APOSTROPHE requested state: on"
   log "info" "Applying Kitty apostrophe input filter for $TARGET_USER"
 
   run_as_target env \

@@ -63,6 +63,10 @@ kitty_apostrophe_row="$(printf '%s\n' "${ISC_COMPONENTS[@]}" | grep '^kitty_igno
   printf 'FAIL: kitty_ignore_apostrophe should be independently selectable and default on\n' >&2
   exit 1
 }
+[[ "$kitty_apostrophe_row" == *'KITTY_IGNORE_APOSTROPHE=on/off'* ]] || {
+  printf 'FAIL: kitty_ignore_apostrophe should advertise its environment switch\n' >&2
+  exit 1
+}
 python3 - "$SCRIPT_DIR/installation_configs/default.json" <<'PY'
 import json
 import sys
