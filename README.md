@@ -32,7 +32,8 @@ This repository configures the GNOME desktop environment after base packages are
 - **Terminal themes**: Dark background/light text for Console, Ptyxis, GNOME Terminal
 - **Kitty defaults**: Window behavior and Ctrl+Backspace word deletion
 - **Optional Kitty input filter**: A default-on apostrophe-only `discard_event`
-  mapping that leaves all other terminal input unchanged
+  mapping for bare Kitty consoles; tmux sessions receive apostrophes normally,
+  and all other terminal input remains unchanged
 - **Display refresh**: Xorg xrandr max refresh rate or Wayland VRR
 - **Autostart applications**: Spotify, GitKraken, SmartGit, EasyEffects, and Kitty
 - **App workspace rules**: `app-rules@local` GNOME extension assigns windows to specific workspaces (e.g., Monkeytype → workspace 7, ChatGPT → workspace 0). PWAs themselves are installed manually; once present, these rules match them by window class.
@@ -62,7 +63,7 @@ sudo bash install.sh
 | `MANAGED_FAVORITE_APPS` | _(unset)_ | Internal master handoff: complete favourite-capable `.desktop` id set used to reconcile installer-owned dock entries while preserving unrelated favourites |
 | `SELECTED_STARTUP_APPS` | _(unset)_ | Internal master handoff: semicolon-separated selected launcher groups; pipe separates filename alternatives |
 | `MANAGED_STARTUP_APPS` | _(unset)_ | Internal master handoff: complete startup-capable launcher set. It is the reconciler's authority boundary — persisted entries outside it are preserved, so a partial handoff never deletes startup apps it was not told about |
-| `KITTY_IGNORE_APOSTROPHE` | `on` | `on` consumes unmodified apostrophes in Kitty; `off` removes the filter (`kitty_ignore_apostrophe` component) |
+| `KITTY_IGNORE_APOSTROPHE` | `on` | `on` consumes unmodified apostrophes outside tmux; `off` removes the filter (`kitty_ignore_apostrophe` component) |
 | `TARGET_HOME_OVERRIDE` | Target user's passwd home | Override the target home for isolated installer tests/automation |
 | `CURSOR_SOURCE_FILE` | bundled `purple_cross.cur` | Path to your own cursor image (`cursor_theme` component) |
 
@@ -267,7 +268,7 @@ or none, and **Enter** installs the selection. Components:
 | `autostart_apps` | General autostart applications | on |
 | `selected_app_autostart` | Master-selected app startup (`s` in app menu) | on |
 | `kitty_defaults` | Kitty terminal defaults (window behavior and word deletion) | on |
-| `kitty_ignore_apostrophe` | Ignore apostrophe input in Kitty without affecting other keys | on |
+| `kitty_ignore_apostrophe` | Ignore apostrophe input in bare Kitty consoles, but not inside tmux | on |
 | `app_rules` | App window rules extension | on |
 | `active_monitor_placement` | Pin new windows to the active/pointer monitor (session extension + CLI helper) | on |
 | `uv_setup` | UV package manager and supply-chain protection | on |
@@ -298,8 +299,8 @@ terminal key it set back to that terminal's own schema default (it never writes 
 second theme), and uninstalling `kitty_defaults` removes only the settings this
 repo appended to `~/.config/kitty/kitty.conf` — the rest of your kitty config,
 and the file itself, are left alone. Uninstalling `kitty_ignore_apostrophe`
-removes only the unmodified-apostrophe mapping and preserves modifier
-combinations and every other shortcut. `passwordless_keyring` deliberately has no
+removes only its bare-console apostrophe mapping and preserves tmux input,
+modifier combinations, and every other shortcut. `passwordless_keyring` deliberately has no
 reversal: re-locking the login keyring would need a password the installer does
 not have, and guessing wrong would cut you off from your stored secrets.
 
