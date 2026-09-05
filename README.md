@@ -175,6 +175,13 @@ GNOME Shell).
 
 The `app-rules@local` GNOME Shell extension assigns windows to specific workspaces or makes them sticky. It is deployed from `configs/gnome-extensions/app-rules@local/`. PWAs referenced below are installed manually; the rules match them once their windows exist.
 
+Rules wait for a mapped window with a valid monitor before calling Mutter's
+window-move APIs. Moving directly inside `window-created` caused GNOME Shell
+segmentation faults during login. Mapping and app identity are checked every
+100 ms for up to five seconds; closing the window or disabling the extension
+cancels pending work. Regression tests run without a desktop:
+`node --test tests/test_app_rules.mjs`.
+
 Current rules:
 
 | App | Workspace / Behavior |
