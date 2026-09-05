@@ -26,7 +26,7 @@ const RULES = [
   // intentionally omits workspace so Cursor keeps GNOME's current workspace.
   { appIds: ['cursor.desktop'], monitor: 1 },
   { appIds: ['gitkraken.desktop', 'gitkraken_gitkraken.desktop', 'smartgit.desktop'], workspace: 2 },
-  { appIds: ['monkeytype.desktop', 'chrome-picebhhlijnlefeleilfbanaghjlkkna-Default.desktop'], workspace: 7 },
+  { appIds: ['monkeytype.desktop', 'chrome-picebhhlijnlefeleilfbanaghjlkkna-Default.desktop'], workspace: 7, monitor: 1 },
   { appIds: ['chatgpt.desktop'], workspace: 0 },
   { appIds: ['com.obsproject.Studio.desktop', 'obs.desktop'], workspace: 7 },
 ];
