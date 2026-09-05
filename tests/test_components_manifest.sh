@@ -165,6 +165,15 @@ else
 fi
 
 echo ""
+echo "--- Cursor is pinned to monitor 2 without a workspace rule ---"
+cursor_rule="$(grep -F "appIds: ['cursor.desktop']" "$app_rules_extension")"
+if [[ "$cursor_rule" == *"monitor: 1"* && "$cursor_rule" != *"workspace:"* ]]; then
+  pass "Cursor uses zero-based monitor index 1 and no workspace assignment"
+else
+  fail "Cursor uses zero-based monitor index 1 and no workspace assignment"
+fi
+
+echo ""
 echo "--- the preflight hook maps to a defined function ---"
 if [ -n "${ISC_PREFLIGHT:-}" ]; then
   if printf '%s\n' "$lib_functions" | grep -qx "$ISC_PREFLIGHT"; then
