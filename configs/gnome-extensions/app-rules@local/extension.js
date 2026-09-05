@@ -20,6 +20,11 @@ import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
+// Match the placement extension's deferred approach: window-created can fire
+// before Mutter assigns a monitor. A native SIGSEGV cannot be caught in JS.
+const RECHECK_INTERVAL_MS = 100;
+const MAX_RECHECKS = 50;
+
 // Built-in application placement rules. Always active.
 const RULES = [
   // Monitor indices are zero-based; monitor 1 is the user's monitor 2. This
@@ -101,13 +106,14 @@ function getAppId(win) {
  * @returns {void}
  */
 function applyRule(win, rule) {
-  if (!win || win.skip_taskbar) {
+  if (!win || win.skip_taskbar || !isWindowReady(win)) {
     return;
   }
 
   if (rule.monitor !== undefined) {
-    const targetMonitor = Math.max(0, rule.monitor);
-    if (global.display.get_n_monitors() > targetMonitor &&
+    const targetMonitor = rule.monitor;
+    if (Number.isInteger(targetMonitor) && targetMonitor >= 0 &&
+        global.display.get_n_monitors() > targetMonitor &&
         win.get_monitor() !== targetMonitor) {
       try {
         win.move_to_monitor(targetMonitor);
@@ -138,18 +144,26 @@ function applyRule(win, rule) {
   }
 }
 
+/** Return whether a mapped window has a valid source monitor for native moves. */
+function isWindowReady(win) {
+  const actor = win.get_compositor_private();
+  const monitor = win.get_monitor();
+  return Boolean(actor?.mapped) && Number.isInteger(monitor) && monitor >= 0 &&
+    monitor < global.display.get_n_monitors();
+}
+
 /**
  * Find the first rule whose app ids match the window and apply it.
  *
  * @param {Meta.Window} win - The window to match.
  * @param {Array<object>} rules - Active rules; user rules precede built-ins
  *   so an installer-managed rule wins for the same app.
- * @returns {void}
+ * @returns {boolean} False while application identity is not available yet.
  */
 function matchAndApply(win, rules) {
   const appId = (getAppId(win) || '').toLowerCase();
   if (!appId) {
-    return;
+    return false;
   }
 
   for (const rule of rules) {
@@ -158,6 +172,7 @@ function matchAndApply(win, rules) {
       break;
     }
   }
+  return true;
 }
 
 export default class AppRulesExtension extends Extension {
@@ -166,14 +181,48 @@ export default class AppRulesExtension extends Extension {
     this._rules = userRules === null
       ? [...RULES, ...STICKY_FALLBACK_RULES]
       : [...userRules, ...RULES];
+    this._pending = new Map();
 
     this._sig = global.display.connect('window-created', (_disp, win) => {
-      matchAndApply(win, this._rules);
+      this._schedule(win);
     });
 
     global.get_window_actors()
       .map((a) => a.meta_window)
-      .forEach((w) => matchAndApply(w, this._rules));
+      .forEach((w) => this._schedule(w));
+    console.log('[app-rules] enabled; waiting for mapped windows before applying rules');
+  }
+
+  /** Defer new/existing windows until mapped, with a bounded identity retry. */
+  _schedule(win) {
+    if (!win || win.skip_taskbar || this._pending.has(win)) return;
+    const pending = {sourceId: 0, unmanagedId: 0, attempts: 0};
+    this._pending.set(win, pending);
+    pending.unmanagedId = win.connect('unmanaged', () => this._cancel(win));
+    pending.sourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, RECHECK_INTERVAL_MS, () => {
+      pending.attempts++;
+      let done = false;
+      try {
+        done = win.skip_taskbar || (isWindowReady(win) && matchAndApply(win, this._rules));
+      } catch (error) {
+        console.log(`[app-rules] deferred rule application failed: ${error}`);
+        done = true;
+      }
+      if (!done && pending.attempts < MAX_RECHECKS) return GLib.SOURCE_CONTINUE;
+      if (!done) console.log('[app-rules] stopped waiting for window mapping or application identity');
+      pending.sourceId = 0; // This callback removes its own source on return.
+      this._cancel(win);
+      return GLib.SOURCE_REMOVE;
+    });
+  }
+
+  /** Cancel work before a window is unmanaged or the extension is disabled. */
+  _cancel(win) {
+    const pending = this._pending.get(win);
+    if (!pending) return;
+    if (pending.sourceId) GLib.source_remove(pending.sourceId);
+    if (pending.unmanagedId) win.disconnect(pending.unmanagedId);
+    this._pending.delete(win);
   }
 
   disable() {
@@ -181,6 +230,8 @@ export default class AppRulesExtension extends Extension {
       global.display.disconnect(this._sig);
       this._sig = null;
     }
+    for (const win of this._pending.keys()) this._cancel(win);
     this._rules = null;
+    console.log('[app-rules] disabled; pending window rules cancelled');
   }
 }
