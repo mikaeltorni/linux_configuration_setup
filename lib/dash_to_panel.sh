@@ -10,7 +10,6 @@
 
 D2P_EXT_ID="${DASH_TO_PANEL_EXTENSION_ID:-dash-to-panel@jderose9.github.com}"
 D2P_EXT_URL="${DASH_TO_PANEL_EXTENSION_URL:-https://github.com/home-sweet-gnome/dash-to-panel/releases/download/v73/dash-to-panel%40jderose9.github.com_v73.zip}"
-D2P_MONITOR_PATCHER="${DASH_TO_PANEL_MONITOR_PATCHER:-$SCRIPT_DIR/scripts/patch_dash_to_panel_monitor_launch.py}"
 # SHA256 verification disabled - using GitHub releases instead
 
 d2p_ext_dir() { printf '%s\n' "$TARGET_HOME/.local/share/gnome-shell/extensions/$D2P_EXT_ID"; }
@@ -92,19 +91,6 @@ d2p_download_install() {
       source "$SCRIPT_DIR/lib/lcs_bin.sh"
     fi
     lcs_bin patch-metadata "$ext_dir/metadata.json" "$shell_version" 9999 || true
-  fi
-}
-
-# d2p_apply_monitor_launch_patch EXTENSION_DIR - idempotently patch the pinned
-# Dash-to-Panel v73 launch path so new app windows follow the clicked panel's
-# monitor. Returns non-zero when the downloaded source is missing or differs
-# from the expected pinned release.
-d2p_apply_monitor_launch_patch() {
-  local ext_dir="${1:-$(d2p_ext_dir)}"
-  log "info" "Applying Dash-to-Panel monitor-local launch patch in $ext_dir"
-  if ! run_as_target python3 "$D2P_MONITOR_PATCHER" "$ext_dir/appIcons.js"; then
-    log "error" "Dash-to-Panel monitor-local launch patch failed in $ext_dir"
-    return 1
   fi
 }
 
@@ -201,11 +187,6 @@ configure_dash_to_panel() {
     msg "Dash-to-Panel install failed; leaving Ubuntu Dock enabled."
     return 0
   fi
-  if ! d2p_apply_monitor_launch_patch "$(d2p_ext_dir)"; then
-    msg "Dash-to-Panel source did not match the pinned v73 monitor-launch patch."
-    return 1
-  fi
-  
   # Time-boxed, backgrounded D-Bus toggles so a slow/unresponsive shell can never
   # block the installer; persistent state is set via gsettings below.
   run_as_target sh -c 'timeout 5 gnome-extensions disable ubuntu-dock@ubuntu.com >/dev/null 2>&1 </dev/null &' || true
