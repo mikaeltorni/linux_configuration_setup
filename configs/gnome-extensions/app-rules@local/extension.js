@@ -1,6 +1,6 @@
 // extension.js - app-rules@local GNOME Shell extension.
 //
-// Pins specific applications to fixed workspaces or makes them sticky (shown
+// Pins specific applications to fixed workspaces/monitors or makes them sticky (shown
 // on all workspaces) as their windows are created. Rules are matched by
 // desktop-file app id.
 //
@@ -12,7 +12,7 @@
 // Components:
 //   - loadUserRules: Read installer-managed rules from user-rules.json.
 //   - getAppId: Resolve a window's desktop-file app id.
-//   - applyRule: Move a window to a workspace and/or make it sticky.
+//   - applyRule: Move a window to a workspace/monitor and/or make it sticky.
 //   - matchAndApply: Find and apply the first rule matching a window.
 //   - AppRulesExtension: Extension entry point wiring up window tracking.
 
@@ -20,9 +20,11 @@ import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-// Built-in workspace pins. Always active.
+// Built-in application placement rules. Always active.
 const RULES = [
-  { appIds: ['cursor.desktop'], workspace: 0 },
+  // Monitor indices are zero-based; monitor 1 is the user's monitor 2. This
+  // intentionally omits workspace so Cursor keeps GNOME's current workspace.
+  { appIds: ['cursor.desktop'], monitor: 1 },
   { appIds: ['gitkraken.desktop', 'gitkraken_gitkraken.desktop', 'smartgit.desktop'], workspace: 2 },
   { appIds: ['monkeytype.desktop', 'chrome-picebhhlijnlefeleilfbanaghjlkkna-Default.desktop'], workspace: 7 },
   { appIds: ['chatgpt.desktop'], workspace: 0 },
@@ -94,13 +96,26 @@ function getAppId(win) {
  *
  * @param {Meta.Window} win - The window to act on. No-op for null or
  *   skip-taskbar (utility/override) windows.
- * @param {{workspace?: number, sticky?: boolean}} rule - The rule to apply.
+ * @param {{workspace?: number, monitor?: number, sticky?: boolean}} rule - The rule to apply.
  *   `workspace` is a zero-based index; `sticky` pins to all workspaces.
  * @returns {void}
  */
 function applyRule(win, rule) {
   if (!win || win.skip_taskbar) {
     return;
+  }
+
+  if (rule.monitor !== undefined) {
+    const targetMonitor = Math.max(0, rule.monitor);
+    if (global.display.get_n_monitors() > targetMonitor &&
+        win.get_monitor() !== targetMonitor) {
+      try {
+        win.move_to_monitor(targetMonitor);
+        console.log(`[app-rules] moved ${getAppId(win) || 'window'} to monitor ${targetMonitor + 1}`);
+      } catch (e) {
+        console.log(`[app-rules] failed to move window to monitor ${targetMonitor + 1}: ${e}`);
+      }
+    }
   }
 
   if (rule.workspace !== undefined) {
