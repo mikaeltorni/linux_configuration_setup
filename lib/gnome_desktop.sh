@@ -109,7 +109,6 @@ configure_favorites() {
   add_favorite org.gnome.SystemMonitor.desktop
   add_favorite org.gnome.Notes.desktop org.gnome.TextEditor.desktop
   add_favorite update-manager.desktop
-  add_favorite lm-studio.desktop
   if [ -n "$managed_program_favorites" ]; then
     # Master handoff owns program favourites. Baseline utilities stay above;
     # selected rows may be empty when every [f] marker is cleared.
