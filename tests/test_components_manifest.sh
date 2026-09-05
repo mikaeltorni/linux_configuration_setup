@@ -179,6 +179,14 @@ if grep -Fq 'add_favorite lm-studio.desktop' "$SCRIPT_DIR/lib/gnome_desktop.sh";
 else
   pass "LM Studio is absent from the baseline dock favorites"
 fi
+
+echo "--- Monkeytype starts on workspace 8 on monitor 2 ---"
+monkeytype_rule="$(grep -F "appIds: ['monkeytype.desktop', 'chrome-picebhhlijnlefeleilfbanaghjlkkna-Default.desktop']" "$app_rules_extension")"
+if [[ "$monkeytype_rule" == *"workspace: 7"* && "$monkeytype_rule" == *"monitor: 1"* ]]; then
+  pass "Monkeytype keeps workspace 8 and uses zero-based monitor 2"
+else
+  fail "Monkeytype keeps workspace 8 and uses zero-based monitor 2"
+fi
 if grep -Fq "monkeytype.desktop" "$SCRIPT_DIR/lib/gnome_desktop.sh"; then
   fail "Monkeytype is absent from the baseline dock favorites"
 else
