@@ -3,8 +3,10 @@
 # system-monitor repo so panel/desktop behavior lives with the rest of the GNOME
 # configuration). Self-contained: it downloads the pinned Dash-to-Panel build
 # from GitHub releases (version-pinned), patches its metadata for the
-# running shell, enables it, disables the Ubuntu Dock, and applies the panel
-# dconf defaults. Provides detect/uninstall for the component lifecycle.
+# running shell, enables it, disables the Ubuntu Dock, applies the panel
+# dconf defaults, and installs a graphical-login oneshot that re-applies
+# enablement so a GNOME crash kill-switch cannot leave the panel off after
+# reboot. Provides detect/uninstall for the component lifecycle.
 
 D2P_EXT_ID="${DASH_TO_PANEL_EXTENSION_ID:-dash-to-panel@jderose9.github.com}"
 D2P_EXT_URL="${DASH_TO_PANEL_EXTENSION_URL:-https://github.com/home-sweet-gnome/dash-to-panel/releases/download/v73/dash-to-panel%40jderose9.github.com_v73.zip}"
@@ -106,6 +108,88 @@ d2p_apply_monitor_launch_patch() {
   fi
 }
 
+# d2p_reapply_enabled_state — Force the three facts that make Dash-to-Panel the
+#   active dock: org.gnome.shell disable-user-extensions=false, Dash-to-Panel in
+#   enabled-extensions (and out of disabled-extensions), Ubuntu Dock out of
+#   enabled-extensions (and in disabled-extensions). Safe to call at install
+#   time and at graphical login; does not download, patch, or write layout keys.
+#   Args: none. Returns: 0 (gsettings writes are best-effort).
+d2p_reapply_enabled_state() {
+  log "info" "Re-applying Dash-to-Panel enablement (kill switch off, $D2P_EXT_ID on, ubuntu-dock off)"
+  if run_as_target gsettings set org.gnome.shell disable-user-extensions false 2>/dev/null; then
+    log "info" "Cleared org.gnome.shell disable-user-extensions"
+  else
+    log "warn" "Could not clear org.gnome.shell disable-user-extensions"
+  fi
+  d2p_strv_edit add org.gnome.shell enabled-extensions "$D2P_EXT_ID"
+  d2p_strv_edit remove org.gnome.shell enabled-extensions ubuntu-dock@ubuntu.com
+  d2p_strv_edit remove org.gnome.shell disabled-extensions "$D2P_EXT_ID"
+  d2p_strv_edit add org.gnome.shell disabled-extensions ubuntu-dock@ubuntu.com
+}
+
+# d2p_reapply_helper_path — Installed login-time helper path for TARGET_HOME.
+d2p_reapply_helper_path() {
+  printf '%s\n' "$TARGET_HOME/.local/libexec/linux-configuration-setup/reapply-dash-to-panel"
+}
+
+# d2p_reapply_unit_path — Installed systemd user unit path for TARGET_HOME.
+d2p_reapply_unit_path() {
+  printf '%s\n' "$TARGET_HOME/.config/systemd/user/dash-to-panel-reapply.service"
+}
+
+# d2p_install_login_reapply — Install and enable the graphical-login oneshot that
+#   calls d2p_reapply_enabled_state. Substitutes the installing checkout into the
+#   unit Environment=LCS_SCRIPT_DIR so the helper can source this library later.
+#   Args: none. Returns: 0 on success, 1 when the helper/unit cannot be installed
+#   or the user unit cannot be enabled.
+d2p_install_login_reapply() {
+  local libexec_dir unit_dir helper_src unit_src helper_dest unit_dest tmp_unit
+  libexec_dir="$TARGET_HOME/.local/libexec/linux-configuration-setup"
+  unit_dir="$TARGET_HOME/.config/systemd/user"
+  helper_src="$SCRIPT_DIR/scripts/reapply_dash_to_panel.sh"
+  unit_src="$SCRIPT_DIR/configs/systemd/dash-to-panel-reapply.service"
+  helper_dest="$(d2p_reapply_helper_path)"
+  unit_dest="$(d2p_reapply_unit_path)"
+
+  log "info" "Installing Dash-to-Panel login re-apply ($unit_dest)"
+  if [ ! -f "$helper_src" ] || [ ! -f "$unit_src" ]; then
+    log "error" "Dash-to-Panel login re-apply sources missing ($helper_src, $unit_src)"
+    return 1
+  fi
+  run_as_target install -d -m 0755 "$libexec_dir" || return 1
+  run_as_target install -d -m 0755 "$unit_dir" || return 1
+  run_as_target install -m 0755 "$helper_src" "$helper_dest" || return 1
+  tmp_unit="$(mktemp)"
+  python3 -c 'from pathlib import Path; import sys
+src, dest, root = sys.argv[1:4]
+Path(dest).write_text(Path(src).read_text().replace("@LCS_SCRIPT_DIR@", root))
+' "$unit_src" "$tmp_unit" "$SCRIPT_DIR" || { rm -f "$tmp_unit"; return 1; }
+  run_as_target install -m 0644 "$tmp_unit" "$unit_dest" || { rm -f "$tmp_unit"; return 1; }
+  rm -f "$tmp_unit"
+  if ! run_as_target systemctl --user daemon-reload; then
+    log "error" "systemctl daemon-reload failed for dash-to-panel-reapply.service"
+    return 1
+  fi
+  if ! run_as_target systemctl --user enable dash-to-panel-reapply.service; then
+    log "error" "Could not enable dash-to-panel-reapply.service"
+    return 1
+  fi
+  log "info" "Enabled dash-to-panel-reapply.service for graphical-session-pre.target"
+}
+
+# d2p_uninstall_login_reapply — Disable and remove the graphical-login oneshot.
+#   Does not touch other files in ~/.local/libexec/linux-configuration-setup
+#   (the passwordless keyring helper also lives there). Args: none. Returns: 0.
+d2p_uninstall_login_reapply() {
+  local helper_dest unit_dest
+  helper_dest="$(d2p_reapply_helper_path)"
+  unit_dest="$(d2p_reapply_unit_path)"
+  log "info" "Removing Dash-to-Panel login re-apply ($unit_dest)"
+  run_as_target systemctl --user disable --now dash-to-panel-reapply.service >/dev/null 2>&1 || true
+  run_as_target rm -f "$helper_dest" "$unit_dest"
+  run_as_target systemctl --user daemon-reload || true
+}
+
 # configure_dash_to_panel - install (if needed), enable, disable Ubuntu Dock, and
 # apply the panel dconf defaults. Component entry point.
 configure_dash_to_panel() {
@@ -127,14 +211,11 @@ configure_dash_to_panel() {
   run_as_target sh -c 'timeout 5 gnome-extensions disable ubuntu-dock@ubuntu.com >/dev/null 2>&1 </dev/null &' || true
   run_as_target sh -c 'timeout 5 gnome-extensions enable "$1" >/dev/null 2>&1 </dev/null &' _ "$D2P_EXT_ID" || true
   
-  # Clear GNOME's global user-extension kill switch, then persist the exact
-  # enabled/disabled state so detection reflects the active panel layout.
-  log "info" "Enabling GNOME user extensions for Dash-to-Panel"
-  run_as_target gsettings set org.gnome.shell disable-user-extensions false 2>/dev/null || true
-  d2p_strv_edit add org.gnome.shell enabled-extensions "$D2P_EXT_ID"
-  d2p_strv_edit remove org.gnome.shell enabled-extensions ubuntu-dock@ubuntu.com
-  d2p_strv_edit remove org.gnome.shell disabled-extensions "$D2P_EXT_ID"
-  d2p_strv_edit add org.gnome.shell disabled-extensions ubuntu-dock@ubuntu.com
+  d2p_reapply_enabled_state
+  if ! d2p_install_login_reapply; then
+    msg "Dash-to-Panel login re-apply hook failed to install; panel may not survive reboot."
+    return 1
+  fi
   
   # Core dash-to-panel settings
   run_as_target dconf write /org/gnome/shell/extensions/dash-to-panel/show-favorites true || true
@@ -173,6 +254,7 @@ detect_dash_to_panel() {
 # uninstall_dash_to_panel - remove Dash-to-Panel and restore the Ubuntu Dock.  
 uninstall_dash_to_panel() {
   msg "Removing Dash-to-Panel and restoring Ubuntu Dock"
+  d2p_uninstall_login_reapply
   run_as_target gnome-extensions disable "$D2P_EXT_ID" 2>/dev/null || true
   run_as_target rm -rf "$(d2p_ext_dir)"
   d2p_strv_edit remove org.gnome.shell enabled-extensions "$D2P_EXT_ID"
