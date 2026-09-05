@@ -173,6 +173,18 @@ else
   fail "Cursor uses zero-based monitor index 1 and no workspace assignment"
 fi
 
+echo "--- LM Studio and Monkeytype are not dock favorites ---"
+if grep -Fq 'add_favorite lm-studio.desktop' "$SCRIPT_DIR/lib/gnome_desktop.sh"; then
+  fail "LM Studio is absent from the baseline dock favorites"
+else
+  pass "LM Studio is absent from the baseline dock favorites"
+fi
+if grep -Fq "monkeytype.desktop" "$SCRIPT_DIR/lib/gnome_desktop.sh"; then
+  fail "Monkeytype is absent from the baseline dock favorites"
+else
+  pass "Monkeytype is absent from the baseline dock favorites"
+fi
+
 echo ""
 echo "--- the preflight hook maps to a defined function ---"
 if [ -n "${ISC_PREFLIGHT:-}" ]; then
