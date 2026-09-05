@@ -109,6 +109,52 @@ assert_file_mode() {
   fi
 }
 
+assert_file_missing() {
+  local path="$1" msg="$2"
+  if [ ! -e "$path" ]; then
+    echo "  PASS: $msg"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $msg (unexpected '$path')"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+# d2p_log_run_as_target LOG_FILE args... — stub run_as_target for Dash-to-Panel
+# lifecycle tests. Records every argv line, answers gsettings get from the D2P_*
+# fixtures, swallows systemctl/gnome-extensions/sleep/sh (no live session), and
+# executes the rest (install/rm/chmod) into TARGET_HOME.
+d2p_log_run_as_target() {
+  local log_file="$1"
+  shift
+  printf '%s\n' "$*" >>"$log_file"
+  case "$1" in
+    gsettings)
+      if [ "${2:-}" = "get" ]; then
+        case "${3:-} ${4:-}" in
+          "org.gnome.shell enabled-extensions") printf '%s\n' "${D2P_ENABLED_EXTENSIONS:-[]}" ;;
+          "org.gnome.shell disabled-extensions") printf '%s\n' "${D2P_DISABLED_EXTENSIONS:-[]}" ;;
+          "org.gnome.shell disable-user-extensions") printf '%s\n' "${D2P_DISABLE_USER_EXTENSIONS:-false}" ;;
+          *) printf '[]\n' ;;
+        esac
+      elif [ "${2:-}" = "set" ]; then
+        case "${3:-} ${4:-}" in
+          "org.gnome.shell enabled-extensions") D2P_ENABLED_EXTENSIONS="${5:-}" ;;
+          "org.gnome.shell disabled-extensions") D2P_DISABLED_EXTENSIONS="${5:-}" ;;
+          "org.gnome.shell disable-user-extensions") D2P_DISABLE_USER_EXTENSIONS="${5:-}" ;;
+        esac
+      fi
+      return 0
+      ;;
+    systemctl|gnome-extensions|sleep|sh|dconf)
+      return 0
+      ;;
+    *)
+      "$@"
+      ;;
+  esac
+}
+
 echo "=========================================="
 echo "  GNOME Desktop Module Tests"
 echo "=========================================="
@@ -415,21 +461,83 @@ fi
 D2P_ENABLED_EXTENSIONS="['$D2P_EXT_ID']"
 
 # configure_dash_to_panel must clear the global user-extension kill switch so the
-# bottom panel (and every other user extension) can load on the next login.
+# bottom panel (and every other user extension) can load on the next login, and
+# must install a graphical-login re-apply so a later crash cannot leave the
+# kill switch true across reboot.
 D2P_CONFIGURE_LOG="$TARGET_HOME/d2p-configure.log"
+D2P_HELPER="$TARGET_HOME/.local/libexec/linux-configuration-setup/reapply-dash-to-panel"
+D2P_UNIT="$TARGET_HOME/.config/systemd/user/dash-to-panel-reapply.service"
 >"$D2P_CONFIGURE_LOG"
-run_as_target() {
-  if [ "$1" = "gsettings" ] && [ "$2" = "get" ]; then return 0; fi
-  printf '%s\n' "$*" >>"$D2P_CONFIGURE_LOG"
-}
+run_as_target() { d2p_log_run_as_target "$D2P_CONFIGURE_LOG" "$@"; }
 configure_dash_to_panel </dev/null
-unset -f run_as_target
 assert_file_contains "$D2P_CONFIGURE_LOG" \
   "gsettings set org.gnome.shell disable-user-extensions false" \
   "configure_dash_to_panel enables user extensions globally"
 assert_file_contains "$D2P_CONFIGURE_LOG" \
+  "gsettings set org.gnome.shell enabled-extensions ['$D2P_EXT_ID']" \
+  "configure_dash_to_panel keeps Dash-to-Panel in enabled-extensions"
+assert_file_contains "$D2P_CONFIGURE_LOG" \
   "gsettings set org.gnome.shell disabled-extensions ['ubuntu-dock@ubuntu.com']" \
   "configure_dash_to_panel persists the disabled-extension list"
+assert_file_contains "$D2P_CONFIGURE_LOG" \
+  "systemctl --user enable dash-to-panel-reapply.service" \
+  "configure_dash_to_panel enables the login re-apply unit"
+assert_file_exists "$D2P_HELPER" \
+  "configure_dash_to_panel installs the login re-apply helper"
+assert_file_exists "$D2P_UNIT" \
+  "configure_dash_to_panel installs the login re-apply systemd user unit"
+assert_file_contains "$D2P_HELPER" \
+  "d2p_reapply_enabled_state" \
+  "login re-apply helper calls the shipped re-apply function"
+assert_file_contains "$D2P_UNIT" \
+  "WantedBy=graphical-session-pre.target" \
+  "login re-apply unit is pulled in before the graphical session"
+assert_file_contains "$D2P_UNIT" \
+  "ExecStart=%h/.local/libexec/linux-configuration-setup/reapply-dash-to-panel" \
+  "login re-apply unit runs the installed helper"
+assert_file_contains "$D2P_UNIT" \
+  "Environment=LCS_SCRIPT_DIR=$SCRIPT_DIR" \
+  "login re-apply unit records the checkout that installed it"
+
+# d2p_reapply_enabled_state must restore the three facts from the live failure
+# (kill switch true, Dash-to-Panel already listed, Ubuntu Dock still enabled).
+echo ""
+echo "--- d2p_reapply_enabled_state from kill switch ---"
+D2P_REAPPLY_LOG="$TARGET_HOME/d2p-reapply.log"
+>"$D2P_REAPPLY_LOG"
+D2P_DISABLE_USER_EXTENSIONS="true"
+D2P_ENABLED_EXTENSIONS="['ubuntu-dock@ubuntu.com']"
+D2P_DISABLED_EXTENSIONS="['$D2P_EXT_ID']"
+run_as_target() { d2p_log_run_as_target "$D2P_REAPPLY_LOG" "$@"; }
+d2p_reapply_enabled_state
+assert_file_contains "$D2P_REAPPLY_LOG" \
+  "gsettings set org.gnome.shell disable-user-extensions false" \
+  "re-apply clears the user-extension kill switch"
+assert_file_contains "$D2P_REAPPLY_LOG" \
+  "gsettings set org.gnome.shell enabled-extensions ['$D2P_EXT_ID']" \
+  "re-apply leaves Dash-to-Panel enabled and Ubuntu Dock out of enabled-extensions"
+assert_file_contains "$D2P_REAPPLY_LOG" \
+  "gsettings set org.gnome.shell disabled-extensions ['ubuntu-dock@ubuntu.com']" \
+  "re-apply puts Ubuntu Dock on the disabled-extension list"
+
+# uninstall must drop the login hook and restore Ubuntu Dock membership.
+echo ""
+echo "--- uninstall_dash_to_panel removes login re-apply ---"
+D2P_UNINSTALL_LOG="$TARGET_HOME/d2p-uninstall.log"
+>"$D2P_UNINSTALL_LOG"
+run_as_target() { d2p_log_run_as_target "$D2P_UNINSTALL_LOG" "$@"; }
+uninstall_dash_to_panel
+unset -f run_as_target
+assert_file_missing "$D2P_HELPER" \
+  "uninstall_dash_to_panel removes the login re-apply helper"
+assert_file_missing "$D2P_UNIT" \
+  "uninstall_dash_to_panel removes the login re-apply systemd user unit"
+assert_file_contains "$D2P_UNINSTALL_LOG" \
+  "systemctl --user disable --now dash-to-panel-reapply.service" \
+  "uninstall_dash_to_panel disables the login re-apply unit"
+assert_file_contains "$D2P_UNINSTALL_LOG" \
+  "gsettings set org.gnome.shell enabled-extensions ['ubuntu-dock@ubuntu.com']" \
+  "uninstall_dash_to_panel restores Ubuntu Dock"
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

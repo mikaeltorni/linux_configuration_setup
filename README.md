@@ -127,18 +127,22 @@ linux_configuration_setup/
 │   ├── autostart.sh          # Unified master-selected application startup
 │   ├── active_monitor.sh     # Active-monitor placement (CLI helper + Shell extension)
 │   ├── cursor_theme.sh       # Purple Cross cursor build, aliases, and defaults
+│   ├── dash_to_panel.sh      # Dash-to-Panel layout and login re-apply
 │   └── gnome_desktop.sh      # GNOME desktop config (favorites, terminal themes, display, extensions)
 ├── scripts/
 │   ├── logging_utils.py      # Centralized Python logging and call tracing
 │   ├── keyring_snapshot.py   # Secret Service export/import helper
 │   ├── pin-window-to-active-monitor.sh  # Move a window to the pointer's monitor
-│   └── activate_passwordless_keyring.sh  # Next-boot keyring activator
+│   ├── activate_passwordless_keyring.sh  # Next-boot keyring activator
+│   └── reapply_dash_to_panel.sh  # Graphical-login Dash-to-Panel enablement
 ├── src/                    # lcs-tools (GSettings arrays + metadata pin)
 ├── configs/
 │   ├── tmux/.tmux.conf            # tmux user defaults
 │   ├── uv/uv.toml                 # global rolling publication cutoff
 │   ├── cursors/
 │   │   └── purple_cross.cur    # Purple Cross cursor theme asset
+│   ├── systemd/
+│   │   └── dash-to-panel-reapply.service  # Graphical-login Dash-to-Panel enablement
 │   └── gnome-extensions/
 │       ├── app-rules@local/    # GNOME Shell extension: per-app workspace/sticky rules
 │       └── active-monitor-placement@local/  # New windows → pointer/active monitor
@@ -221,7 +225,14 @@ This repo is run **after** `linux_installations_setup` has cloned it. It require
 - PWAs (Monkeytype, ChatGPT, Claude, etc.) are installed manually from Chrome — this repo no longer creates their desktop entries, icons, or autostart files. Once you have installed a PWA, the `app-rules@local` extension assigns its window to the mapped workspace. If a PWA does not land on its workspace, verify the extension is enabled and that the PWA's window class matches a rule.
 - Dash-to-Panel is configured with one isolated panel per monitor. Its pinned
   v73 source is patched during installation so a new window launched from a
-  panel icon is explicitly moved to that panel's monitor.
+  panel icon is explicitly moved to that panel's monitor. A user systemd
+  oneshot (`dash-to-panel-reapply.service`, pulled in by
+  `graphical-session-pre.target`) re-applies enablement at every graphical
+  login: it clears `org.gnome.shell disable-user-extensions`, keeps
+  Dash-to-Panel in `enabled-extensions`, and keeps Ubuntu Dock out. That
+  survives the GNOME crash kill-switch that otherwise leaves the extension
+  installed but `Enabled: No` after reboot. Uninstalling `dash_to_panel`
+  removes the oneshot and restores Ubuntu Dock.
 
 ## License
 

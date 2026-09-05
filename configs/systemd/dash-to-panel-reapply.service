@@ -1,0 +1,13 @@
+[Unit]
+Description=Re-apply Dash-to-Panel enablement at graphical login
+Documentation=https://github.com/mikaeltorni/linux_configuration_setup
+After=dbus.socket
+Before=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/libexec/linux-configuration-setup/reapply-dash-to-panel
+Environment=LCS_SCRIPT_DIR=@LCS_SCRIPT_DIR@
+
+[Install]
+WantedBy=graphical-session-pre.target
