@@ -156,21 +156,12 @@ else
 fi
 
 echo ""
-echo "--- SmartGit follows GitKraken's built-in workspace rule ---"
-app_rules_extension="$SCRIPT_DIR/configs/gnome-extensions/app-rules@local/extension.js"
-if grep -Fq "appIds: ['gitkraken.desktop', 'gitkraken_gitkraken.desktop', 'smartgit.desktop'], workspace: 2" "$app_rules_extension"; then
-  pass "SmartGit is pinned to the same zero-based workspace as GitKraken"
+echo "--- app rules have one owner ---"
+if [ ! -d "$SCRIPT_DIR/configs/gnome-extensions/app-rules@local" ] &&
+   ! printf '%s\n' "${ISC_COMPONENTS[@]}" | grep -q '^app_rules|'; then
+  pass "App rules are exclusively installed by linux_workspaces_setup"
 else
-  fail "SmartGit is pinned to the same zero-based workspace as GitKraken"
-fi
-
-echo ""
-echo "--- Cursor is pinned to monitor 2 without a workspace rule ---"
-cursor_rule="$(grep -F "appIds: ['cursor.desktop']" "$app_rules_extension")"
-if [[ "$cursor_rule" == *"monitor: 1"* && "$cursor_rule" != *"workspace:"* ]]; then
-  pass "Cursor uses zero-based monitor index 1 and no workspace assignment"
-else
-  fail "Cursor uses zero-based monitor index 1 and no workspace assignment"
+  fail "Configuration must not bundle or select competing app rules"
 fi
 
 echo "--- LM Studio and Monkeytype are not dock favorites ---"
@@ -180,13 +171,6 @@ else
   pass "LM Studio is absent from the baseline dock favorites"
 fi
 
-echo "--- Monkeytype starts on workspace 8 on monitor 2 ---"
-monkeytype_rule="$(grep -F "appIds: ['monkeytype.desktop', 'chrome-picebhhlijnlefeleilfbanaghjlkkna-Default.desktop']" "$app_rules_extension")"
-if [[ "$monkeytype_rule" == *"workspace: 7"* && "$monkeytype_rule" == *"monitor: 1"* ]]; then
-  pass "Monkeytype keeps workspace 8 and uses zero-based monitor 2"
-else
-  fail "Monkeytype keeps workspace 8 and uses zero-based monitor 2"
-fi
 if grep -Fq "monkeytype.desktop" "$SCRIPT_DIR/lib/gnome_desktop.sh"; then
   fail "Monkeytype is absent from the baseline dock favorites"
 else

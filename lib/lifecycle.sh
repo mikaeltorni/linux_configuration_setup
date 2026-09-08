@@ -28,7 +28,7 @@ detect_cursor_theme()      { local v; v="$(cfg_get org.gnome.desktop.interface c
 detect_display_refresh()   { local v; v="$(cfg_get org.gnome.mutter experimental-features)"; [ -n "$v" ] && [ "$v" != "@as []" ] && [ "$v" != "[]" ]; }
 detect_autostart_apps()    { [ -f "$TARGET_HOME/.local/bin/autostart_apps.sh" ]; }
 detect_selected_app_autostart() { [ -f "$TARGET_HOME/.local/state/linux-configuration-setup/selected-app-autostart.list" ]; }
-detect_app_rules()         { [ -d "$TARGET_HOME/.local/share/gnome-shell/extensions/app-rules@local" ]; }
+detect_app_rules()         { return 1; } # Owned by linux_workspaces_setup.
 # Helper CLI plus the session-wide extension both constitute the fix.
 detect_active_monitor_placement() {
   [ -f "$TARGET_HOME/.local/bin/pin-window-to-active-monitor.sh" ] &&
@@ -84,10 +84,9 @@ uninstall_selected_app_autostart() {
   run_as_target rm -f "$state_file" "$state_file.pending"
   log "info" "Removed tracked selected application startup entries"
 }
+# Compatibility no-op: old receipts must never remove another owner's files.
 uninstall_app_rules() {
-  msg "Removing app-rules GNOME extension"
-  run_as_target gnome-extensions disable app-rules@local 2>/dev/null || true
-  run_as_target rm -rf "$TARGET_HOME/.local/share/gnome-shell/extensions/app-rules@local"
+  msg "App rules are owned by linux_workspaces_setup; keeping installed files unchanged."
 }
 uninstall_active_monitor_placement() {
   msg "Removing active-monitor placement helper and extension"

@@ -219,22 +219,20 @@ else
   PASS=$((PASS + 1))
 fi
 
-# Test configure_app_rules_extension creates a clean-home destination directory
-# before copying the bundled extension files.
-echo ""
-echo "--- configure_app_rules_extension ---"
-
-CONFIG_DIR="$TARGET_HOME/configs"
-mkdir -p "$CONFIG_DIR/gnome-extensions/app-rules@local"
-printf '{"uuid":"app-rules@local"}\n' >"$CONFIG_DIR/gnome-extensions/app-rules@local/metadata.json"
-printf 'extension source\n' >"$CONFIG_DIR/gnome-extensions/app-rules@local/extension.js"
-
-configure_app_rules_extension
-
+# Retired compatibility entrypoints must preserve the owner's installed files.
+echo "--- app-rules ownership ---"
 app_rules_dst="$TARGET_HOME/.local/share/gnome-shell/extensions/app-rules@local"
-assert_file_exists "$app_rules_dst" "Should create the app-rules extension directory"
-assert_file_mode "$app_rules_dst/metadata.json" "644" "Should install metadata.json with a stable file mode"
-assert_file_contains "$app_rules_dst/extension.js" "extension source" "Should copy extension.js into the destination"
+mkdir -p "$app_rules_dst"
+printf 'workspace owner source\n' >"$app_rules_dst/extension.js"
+configure_app_rules_extension
+configure_app_rules_extension
+source "$SCRIPT_DIR/lib/lifecycle.sh"
+uninstall_app_rules
+assert_file_contains "$app_rules_dst/extension.js" "workspace owner source" "Must preserve the workspace owner's extension"
+if [ -d "$SCRIPT_DIR/configs/gnome-extensions/app-rules@local" ]; then
+  echo "FAIL: configuration must not bundle a competing extension"
+  FAIL=$((FAIL + 1))
+fi
 
 # Test configure_favorites honors a user-supplied app list
 echo ""

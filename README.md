@@ -36,7 +36,7 @@ This repository configures the GNOME desktop environment after base packages are
   and all other terminal input remains unchanged
 - **Display refresh**: Xorg xrandr max refresh rate or Wayland VRR
 - **Autostart applications**: Spotify, GitKraken, SmartGit, EasyEffects, and Kitty
-- **App workspace rules**: `app-rules@local` GNOME extension assigns windows to specific workspaces (e.g., Monkeytype → workspace 7, ChatGPT → workspace 0). PWAs themselves are installed manually; once present, these rules match them by window class.
+- **App workspace rules** are installed by `linux_workspaces_setup`, the sole owner of `app-rules@local`.
 - **Active-monitor placement**: Installs `~/.local/bin/pin-window-to-active-monitor.sh`, a runtime helper that moves a window to the monitor containing the mouse pointer. The open-kitty-and-sort hotkey (`linux_hotkey_window_tools`) calls it so newly-launched kitty windows stay on the active monitor even when the workspace is crowded and GNOME would have placed them on a different display.
 - **UV package manager**: Install astral.sh/uv, deploy the global rolling 24-hour supply-chain cutoff, and disable GUI autostart
 - **tmux defaults with full chat history**: Deploy `configs/tmux/.tmux.conf` to
@@ -144,7 +144,6 @@ linux_configuration_setup/
 │   ├── systemd/
 │   │   └── dash-to-panel-reapply.service  # Graphical-login Dash-to-Panel enablement
 │   └── gnome-extensions/
-│       ├── app-rules@local/    # GNOME Shell extension: per-app workspace/sticky rules
 │       └── active-monitor-placement@local/  # New windows → pointer/active monitor
 └── .gitignore
 ```
@@ -173,34 +172,12 @@ GNOME Shell).
 
 ## App Workspace Rules (app-rules@local)
 
-The `app-rules@local` GNOME Shell extension assigns windows to specific workspaces or makes them sticky. It is deployed from `configs/gnome-extensions/app-rules@local/`. PWAs referenced below are installed manually; the rules match them once their windows exist.
-
-Rules wait for a mapped window with a valid monitor before calling Mutter's
-window-move APIs. Moving directly inside `window-created` caused GNOME Shell
-segmentation faults during login. Mapping and app identity are checked every
-100 ms for up to five seconds; closing the window or disabling the extension
-cancels pending work. Regression tests run without a desktop:
-`node --test tests/test_app_rules.mjs`.
-
-Current rules:
-
-| App | Workspace / Behavior |
-|-----|----------------------|
-| Cursor (cursor.desktop) | Workspace 0 |
-| GitKraken | Workspace 2 |
-| SmartGit | Workspace 2 |
-| Monkeytype PWA | Workspace 7 |
-| ChatGPT PWA | Workspace 0 |
-| OBS Studio | Workspace 7 |
-| Discord | Sticky (all workspaces) |
-| Spotify | Sticky (all workspaces) |
-
-Rules may also pin an application to a display monitor (`"monitor": 1`, matched
-by connector plus geometry so the number keeps meaning the same after a
-re-plug). Monitor numbers follow GNOME Settings → Displays. `linux_workspaces_setup`
-owns writing those rules; this repository ships the extension that applies them.
-
-**Note:** After modifying the extension, log out and back in for changes to take effect. GNOME Shell does not hot-reload extensions on Wayland.
+Install and configure app rules through `linux_workspaces_setup` and its
+`app_rules` component. It owns the extension and saved 1-based monitor rules,
+including screen-position matching and deferred moves for mapped windows.
+This repository no longer bundles, installs, detects, or removes that extension.
+Legacy shell helper calls are harmless no-ops, preserving the installed owner.
+This also prevents a configuration-only reinstall from reverting monitor pins.
 
 Window-count badges are owned by `linux_taskbar_window_count` and installed separately from that repository.
 
@@ -287,7 +264,6 @@ or none, and **Enter** installs the selection. Components:
 | `selected_app_autostart` | Master-selected app startup (`s` in app menu) | on |
 | `kitty_defaults` | Kitty terminal defaults (window behavior and word deletion) | on |
 | `kitty_ignore_apostrophe` | Ignore apostrophe input in bare Kitty consoles, but not inside tmux | on |
-| `app_rules` | App window rules extension | on |
 | `active_monitor_placement` | Pin new windows to the active/pointer monitor (session extension + CLI helper) | on |
 | `uv_setup` | UV package manager and supply-chain protection | on |
 | `tmux_defaults` | Tmux defaults with full chat history | on |
