@@ -227,7 +227,8 @@ printf 'workspace owner source\n' >"$app_rules_dst/extension.js"
 configure_app_rules_extension
 configure_app_rules_extension
 source "$SCRIPT_DIR/lib/lifecycle.sh"
-uninstall_app_rules
+# Keep the regression's desktop boundary stubbed even against pre-fix code.
+( gnome-extensions() { return 0; }; uninstall_app_rules )
 assert_file_contains "$app_rules_dst/extension.js" "workspace owner source" "Must preserve the workspace owner's extension"
 if [ -d "$SCRIPT_DIR/configs/gnome-extensions/app-rules@local" ]; then
   echo "FAIL: configuration must not bundle a competing extension"
