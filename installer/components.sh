@@ -37,7 +37,6 @@ ISC_COMPONENTS=(
   "selected_app_autostart|Master-selected app startup ([s] in app menu)|on|configure_selected_app_autostart|detect_selected_app_autostart|uninstall_selected_app_autostart"
   "kitty_defaults|Kitty terminal defaults|on|configure_kitty_defaults|detect_kitty_defaults|uninstall_kitty_defaults"
   "kitty_ignore_apostrophe|Ignore apostrophe input outside tmux (KITTY_IGNORE_APOSTROPHE=on/off)|on|configure_kitty_apostrophe_filter|detect_kitty_apostrophe_filter|uninstall_kitty_apostrophe_filter"
-  "app_rules|App window rules extension|on|configure_app_rules_extension|detect_app_rules|uninstall_app_rules"
   "active_monitor_placement|Pin new windows to the active/pointer monitor (system-wide)|on|configure_active_monitor_placement|detect_active_monitor_placement|uninstall_active_monitor_placement"
   "uv_setup|UV package manager and supply-chain protection|on|configure_uv_autostart|detect_uv_setup|uninstall_uv_setup"
   "tmux_defaults|Tmux defaults with full chat history|on|configure_tmux_defaults|detect_tmux_defaults|uninstall_tmux_defaults"

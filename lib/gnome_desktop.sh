@@ -8,7 +8,7 @@
 #   - configure_terminal_dark_theme(): Set terminal to dark background with light text.
 #   - configure_display_refresh(): Configure display refresh rate settings.
 #   - configure_uv_autostart(): Install the UV package manager (no GUI autostart).
-#   - configure_app_rules_extension(): Deploy the app-rules@local GNOME extension.
+#   - configure_app_rules_extension(): Retired compatibility entrypoint; owner is linux_workspaces_setup.
 
 # detect_terminal_desktop — Detect the preferred installed terminal emulator.
 #   Args: none.
@@ -279,30 +279,8 @@ configure_uv_autostart() {
 
 # ── GNOME Shell extensions ───────────────────────────────────────────────────
 
-# configure_app_rules_extension — Deploy/update the app-rules@local extension.
-#   Copies the extension from CONFIG_DIR to ~/.local/share/gnome-shell/extensions/
-#   and ensures proper ownership. The user must log out/in for changes to take effect.
-#   Args: none. Returns: 0 (skips cleanly if the extension source is missing).
+# Compatibility entrypoint for old callers. linux_workspaces_setup exclusively
+# deploys app-rules; never overwrite its numbering and lifecycle implementation.
 configure_app_rules_extension() {
-  msg "Deploying app-rules@local GNOME Shell extension"
-
-  local ext_src="$CONFIG_DIR/gnome-extensions/app-rules@local"
-  local ext_dst="$TARGET_HOME/.local/share/gnome-shell/extensions/app-rules@local"
-
-  if [ ! -d "$ext_src" ]; then
-    msg "  app-rules source not found at $ext_src; skipping."
-    return 0
-  fi
-
-  run_as_target install -d -m 0755 "$(dirname "$ext_dst")" "$ext_dst"
-  
-  # Copy extension files (preserve the directory structure)
-  for f in "$ext_src"/*; do
-    [ -f "$f" ] || continue
-    log "debug" "configure_app_rules_extension: deploying $(basename "$f")"
-    run_as_target install -m 0644 "$f" "$ext_dst/$(basename "$f")"
-  done
-  
-  msg "  Extension deployed to $ext_dst"
-  msg "  NOTE: Log out and back in for GNOME Shell extension changes to take effect."
+  msg "App rules are owned by linux_workspaces_setup; keeping installed files unchanged."
 }
