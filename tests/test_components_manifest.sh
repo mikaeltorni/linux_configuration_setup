@@ -198,6 +198,12 @@ for id in "${manifest_ids[@]}"; do
   fi
 done
 
+if grep -Eq 'Phase [0-9] of [0-9]|[0-9]-Repo Desktop Setup Chain' "$readme"; then
+  fail "README does not claim an obsolete numbered setup chain"
+else
+  pass "README does not claim an obsolete numbered setup chain"
+fi
+
 echo ""
 echo "--- --list-components is side-effect free and matches the manifest ---"
 tmp_home="$(mktemp -d)"
