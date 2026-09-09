@@ -204,6 +204,12 @@ else
   pass "README does not claim an obsolete numbered setup chain"
 fi
 
+if grep -q 'detect_app_rules()' "$SCRIPT_DIR/lib/lifecycle.sh"; then
+  fail "app-rules detect helper stays in workspaces_setup"
+else
+  pass "app-rules detect helper stays in workspaces_setup"
+fi
+
 echo ""
 echo "--- --list-components is side-effect free and matches the manifest ---"
 tmp_home="$(mktemp -d)"

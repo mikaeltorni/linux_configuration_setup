@@ -28,7 +28,6 @@ detect_cursor_theme()      { local v; v="$(cfg_get org.gnome.desktop.interface c
 detect_display_refresh()   { local v; v="$(cfg_get org.gnome.mutter experimental-features)"; [ -n "$v" ] && [ "$v" != "@as []" ] && [ "$v" != "[]" ]; }
 detect_autostart_apps()    { [ -f "$TARGET_HOME/.local/bin/autostart_apps.sh" ]; }
 detect_selected_app_autostart() { [ -f "$TARGET_HOME/.local/state/linux-configuration-setup/selected-app-autostart.list" ]; }
-detect_app_rules()         { return 1; } # Owned by linux_workspaces_setup.
 # Helper CLI plus the session-wide extension both constitute the fix.
 detect_active_monitor_placement() {
   [ -f "$TARGET_HOME/.local/bin/pin-window-to-active-monitor.sh" ] &&
