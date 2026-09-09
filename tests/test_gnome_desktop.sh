@@ -507,6 +507,42 @@ assert_file_contains "$D2P_UNINSTALL_LOG" \
   "gsettings set org.gnome.shell enabled-extensions ['ubuntu-dock@ubuntu.com']" \
   "uninstall_dash_to_panel restores Ubuntu Dock"
 
+# configure_display_refresh: leftover Wayland VRR on X11 makes the NVIDIA X
+# driver walk every DFP ~16 times per second and drop mouse/keyboard events.
+echo ""
+echo "--- configure_display_refresh X11 clears leftover VRR ---"
+REFRESH_LOG="$TARGET_HOME/display-refresh.log"
+>"$REFRESH_LOG"
+SESSION_TYPE="x11"
+apt_install() { printf 'apt_install %s\n' "$*" >>"$REFRESH_LOG"; }
+msg() { :; }
+user_gsettings() { printf 'gsettings %s\n' "$*" >>"$REFRESH_LOG"; }
+run_as_target() { printf '%s\n' "$*" >>"$REFRESH_LOG"; }
+configure_display_refresh
+unset -f apt_install user_gsettings run_as_target
+assert_file_contains "$REFRESH_LOG" \
+  'gsettings set org.gnome.mutter experimental-features []' \
+  "X11 display_refresh clears mutter variable-refresh-rate leftovers"
+if grep -Fq "variable-refresh-rate" "$REFRESH_LOG"; then
+  fail "X11 display_refresh must not enable variable-refresh-rate"
+else
+  pass "X11 display_refresh does not enable variable-refresh-rate"
+fi
+
+echo ""
+echo "--- configure_display_refresh Wayland still enables VRR ---"
+>"$REFRESH_LOG"
+SESSION_TYPE="wayland"
+apt_install() { printf 'apt_install %s\n' "$*" >>"$REFRESH_LOG"; }
+msg() { :; }
+user_gsettings() { printf 'gsettings %s\n' "$*" >>"$REFRESH_LOG"; }
+run_as_target() { printf '%s\n' "$*" >>"$REFRESH_LOG"; }
+configure_display_refresh
+unset -f apt_install user_gsettings run_as_target
+assert_file_contains "$REFRESH_LOG" \
+  "gsettings set org.gnome.mutter experimental-features ['variable-refresh-rate']" \
+  "Wayland display_refresh still enables mutter VRR"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 

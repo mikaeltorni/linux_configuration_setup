@@ -242,12 +242,16 @@ configure_terminal_dark_theme() {
 }
 
 # configure_display_refresh — Maximise the display refresh rate. On Xorg it sets
-#   each connected monitor to its highest mode via xrandr; on Wayland it enables
-#   mutter's variable-refresh-rate experimental feature.
+#   each connected monitor to its highest mode via xrandr and clears mutter VRR
+#   leftovers (Wayland may have left experimental-features on; on NVIDIA X11
+#   that walks every DFP ~16 Hz and drops pointer/keyboard events). On Wayland
+#   it enables mutter's variable-refresh-rate experimental feature.
 #   Args: none. Returns: 0.
 configure_display_refresh() {
   if [[ "$SESSION_TYPE" =~ ^(x11|xorg)$ ]]; then
-    msg "Xorg: setting MAX refresh per monitor via xrandr (best effort)"
+    msg "Xorg: clearing leftover mutter VRR and setting MAX refresh per monitor"
+    log "info" "configure_display_refresh: X11 clearing org.gnome.mutter experimental-features (VRR leftover causes NVIDIA output-detect lag)"
+    user_gsettings set org.gnome.mutter experimental-features "[]"
     apt_install x11-xserver-utils
     run_as_target bash -lc '
       if command -v xrandr >/dev/null; then
