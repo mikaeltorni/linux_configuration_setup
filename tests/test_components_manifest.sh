@@ -210,6 +210,12 @@ else
   pass "app-rules detect helper stays in workspaces_setup"
 fi
 
+if grep -q 'SELECTED_FEATURES="${FEATURES:-}"' "$SCRIPT_DIR/install.sh"; then
+  fail "FEATURES filter is gone; use --select"
+else
+  pass "FEATURES filter is gone; use --select"
+fi
+
 echo ""
 echo "--- --list-components is side-effect free and matches the manifest ---"
 tmp_home="$(mktemp -d)"
