@@ -256,6 +256,7 @@ or none, and **Enter** installs the selection. Components:
 | `passwordless_keyring` | Prompt-free login keyring | on |
 | `dark_mode` | Color scheme and themes (override with `DESKTOP_COLOR_SCHEME`) | on |
 | `mouse_accel` | Disable mouse acceleration | on |
+| `hide_hotplug_joysticks` | Hide Crosswind/test uinput from Xorg (NVIDIA lag) | on |
 | `favorites` | Dock favorite apps (override with `FAVORITES_APPS`) | on |
 | `cursor_theme` | Purple cross cursor theme (override with `CURSOR_SOURCE_FILE`) | on |
 | `terminal_theme` | Terminal dark theme | on |

@@ -53,6 +53,27 @@ uv_row="$(printf '%s\n' "${ISC_COMPONENTS[@]}" | grep '^uv_setup|')"
   printf 'FAIL: tmux config is missing from configurations folder\n' >&2
   exit 1
 }
+[ -f "$SCRIPT_DIR/configs/udev/61-hide-crosswind-xorg.rules" ] || {
+  printf 'FAIL: Crosswind udev hide rule is missing from configuration assets\n' >&2
+  exit 1
+}
+grep -Fq 'ENV{ID_INPUT}=""' "$SCRIPT_DIR/configs/udev/61-hide-crosswind-xorg.rules" || {
+  printf 'FAIL: Crosswind udev rule must unset ID_INPUT (Xorg checks presence)\n' >&2
+  exit 1
+}
+grep -Fq 'MFG MFG Crosswind V2' "$SCRIPT_DIR/configs/udev/61-hide-crosswind-xorg.rules" || {
+  printf 'FAIL: Crosswind udev rule must match the stick name\n' >&2
+  exit 1
+}
+[ -f "$SCRIPT_DIR/configs/xorg/91-ignore-hotplug-joysticks.conf" ] || {
+  printf 'FAIL: Xorg ignore-hotplug config is missing\n' >&2
+  exit 1
+}
+hide_row="$(printf '%s\n' "${ISC_COMPONENTS[@]}" | grep '^hide_hotplug_joysticks|')"
+[[ "$hide_row" == *'|on|configure_hide_hotplug_joysticks|detect_hide_hotplug_joysticks|uninstall_hide_hotplug_joysticks' ]] || {
+  printf 'FAIL: hide_hotplug_joysticks should be independently selectable and default on\n' >&2
+  exit 1
+}
 tmux_row="$(printf '%s\n' "${ISC_COMPONENTS[@]}" | grep '^tmux_defaults|')"
 [[ "$tmux_row" == *"full chat history"* ]] || {
   printf 'FAIL: tmux_defaults should advertise full chat history\n' >&2
