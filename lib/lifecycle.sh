@@ -23,6 +23,7 @@ detect_disable_auto_lock() { [ "$(cfg_get org.gnome.desktop.screensaver lock-ena
 detect_passwordless_keyring() { [ -d "$TARGET_HOME/.local/state/linux-configuration-setup" ]; }
 detect_dark_mode()         { [ "$(cfg_get org.gnome.desktop.interface color-scheme)" = "'prefer-dark'" ]; }
 detect_mouse_accel()       { [ "$(cfg_get org.gnome.desktop.peripherals.mouse accel-profile)" = "'flat'" ]; }
+detect_hide_hotplug_joysticks() { [ -f /etc/udev/rules.d/61-hide-crosswind-xorg.rules ] && [ -f /etc/X11/xorg.conf.d/91-ignore-hotplug-joysticks.conf ]; }
 detect_favorites()         { local v; v="$(cfg_get org.gnome.shell favorite-apps)"; [ -n "$v" ] && [ "$v" != "@as []" ] && [ "$v" != "[]" ]; }
 detect_cursor_theme()      { local v; v="$(cfg_get org.gnome.desktop.interface cursor-theme)"; [ -n "$v" ] && [ "$v" != "'Adwaita'" ] && [ "$v" != "'Yaru'" ]; }
 detect_display_refresh()   { local v; v="$(cfg_get org.gnome.mutter experimental-features)"; [ -n "$v" ] && [ "$v" != "@as []" ] && [ "$v" != "[]" ]; }
@@ -65,6 +66,16 @@ uninstall_mouse_accel() {
   cfg_reset org.gnome.desktop.peripherals.mouse speed
   cfg_reset org.gnome.desktop.peripherals.touchpad accel-profile
   cfg_reset org.gnome.desktop.peripherals.touchpad speed
+}
+uninstall_hide_hotplug_joysticks() {
+  msg "Removing Xorg/udev ignore rules for hotplug joysticks"
+  if is_root; then
+    rm -f /etc/udev/rules.d/61-hide-crosswind-xorg.rules \
+      /etc/X11/xorg.conf.d/91-ignore-hotplug-joysticks.conf
+    udevadm control --reload-rules 2>/dev/null || true
+  else
+    note_sudo_required "rm -f /etc/udev/rules.d/61-hide-crosswind-xorg.rules /etc/X11/xorg.conf.d/91-ignore-hotplug-joysticks.conf"
+  fi
 }
 uninstall_favorites()      { msg "Resetting dock favorites"; cfg_reset org.gnome.shell favorite-apps; }
 uninstall_cursor_theme()   { msg "Resetting cursor theme"; cfg_reset org.gnome.desktop.interface cursor-theme; }

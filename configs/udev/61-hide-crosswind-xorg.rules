@@ -1,0 +1,8 @@
+# Hide MFG Crosswind event nodes from Xorg. The stick re-enumerates ~every
+# 2 minutes via a HID bootloader; Xorg treating that as an input add starts
+# mutter NVIDIA RandR probing. Unset ID_INPUT (Xorg only checks presence).
+# Leave js* alone so games still see the joystick.
+ACTION=="add|change", SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="MFG MFG Crosswind V2", ENV{ID_INPUT}="", ENV{ID_INPUT_JOYSTICK}="", ENV{LIBINPUT_IGNORE_DEVICE}="1"
+ACTION=="add|change", SUBSYSTEM=="input", KERNEL=="js*", ATTRS{name}=="MFG MFG Crosswind V2", ENV{ID_INPUT}="", ENV{LIBINPUT_IGNORE_DEVICE}="1"
+ACTION=="add|change", SUBSYSTEM=="input", ATTRS{idVendor}=="1234", ATTRS{idProduct}=="0001", ENV{ID_INPUT}="", ENV{LIBINPUT_IGNORE_DEVICE}="1"
+ACTION=="add|change", SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="phrase-test-injector", ENV{ID_INPUT}="", ENV{LIBINPUT_IGNORE_DEVICE}="1"

@@ -7,6 +7,7 @@
 #   - configure_disable_auto_lock(): Disable screen auto-lock (idle-delay=0, lock-enabled=false).
 #   - configure_dark_mode(): Configure the desktop color scheme (dark/light) and GTK/icon/user themes.
 #   - disable_mouse_acceleration(): Set flat mouse/touchpad acceleration + X11 libinput fallback.
+#   - configure_hide_hotplug_joysticks(): Hide Crosswind/test uinput from Xorg.
 #
 # Sourced after lib/helpers.sh and lib/gsettings_helpers.sh.
 # Depends on: msg, run_as_target, user_gsettings
@@ -130,6 +131,31 @@ Section "InputClass"
 EndSection
 EOF
   fi
+}
+
+# configure_hide_hotplug_joysticks — Stop Xorg from seeing the MFG Crosswind
+#   event node (and test uinput injectors). The Crosswind re-enumerates every
+#   ~2 minutes through a HID bootloader; each Xorg udev add starts mutter's
+#   NVIDIA RandR hardware-probe loop (~16 Hz) and drops mouse events. Games
+#   still use /dev/input/js*.
+#   Args: none. Returns: 0 (root writes files; non-root records sudo steps).
+configure_hide_hotplug_joysticks() {
+  msg "Hiding hotplug joysticks from Xorg (Crosswind udev storm)"
+  log "info" "configure_hide_hotplug_joysticks: installing udev and xorg ignore rules"
+  local udev_src="$CONFIG_DIR/udev/61-hide-crosswind-xorg.rules"
+  local xorg_src="$CONFIG_DIR/xorg/91-ignore-hotplug-joysticks.conf"
+  if [ ! -f "$udev_src" ] || [ ! -f "$xorg_src" ]; then
+    log "warn" "configure_hide_hotplug_joysticks: missing $udev_src or $xorg_src"
+    return 0
+  fi
+  if ! is_root; then
+    note_sudo_required "install $udev_src /etc/udev/rules.d/61-hide-crosswind-xorg.rules && install $xorg_src /etc/X11/xorg.conf.d/91-ignore-hotplug-joysticks.conf && udevadm control --reload-rules"
+    return 0
+  fi
+  install -d -m 0755 /etc/udev/rules.d /etc/X11/xorg.conf.d
+  install -m 0644 "$udev_src" /etc/udev/rules.d/61-hide-crosswind-xorg.rules
+  install -m 0644 "$xorg_src" /etc/X11/xorg.conf.d/91-ignore-hotplug-joysticks.conf
+  udevadm control --reload-rules 2>/dev/null || true
 }
 
 # ── Tmux configuration ───────────────────────────────────────────────────────
