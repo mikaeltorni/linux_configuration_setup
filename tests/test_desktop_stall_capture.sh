@@ -76,8 +76,9 @@ dump_now_writes_episode_file() {
     "$ROOT_DIR/scripts/desktop_stall_capture.sh" --dump-now "unit-test"
   local count
   count="$(find "$tmp/episodes" -type f | wc -l)"
+  latest="$(readlink "$tmp/latest.txt" 2>/dev/null || true)"
   rm -rf "$tmp"
-  [ "$count" -ge 1 ]
+  [ "$count" -ge 1 ] && [[ "$latest" == episodes/* ]]
 }
 
 check "DFP loop at threshold dumps an episode" dfp_loop_dumps_once_over_threshold
