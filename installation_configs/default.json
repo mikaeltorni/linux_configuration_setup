@@ -81,6 +81,15 @@
       "uninstall": 0,
       "workspace": 0
     },
+    "desktop_stall_capture": {
+      "config_value": "",
+      "favorite": 0,
+      "on": 1,
+      "startup": 0,
+      "sticky": 0,
+      "uninstall": 0,
+      "workspace": 0
+    },
     "kitty_defaults": {
       "config_value": "",
       "favorite": 0,

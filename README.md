@@ -128,13 +128,15 @@ linux_configuration_setup/
 │   ├── active_monitor.sh     # Active-monitor placement (CLI helper + Shell extension)
 │   ├── cursor_theme.sh       # Purple Cross cursor build, aliases, and defaults
 │   ├── dash_to_panel.sh      # Dash-to-Panel layout and login re-apply
+│   ├── desktop_stall.sh      # Rare NVIDIA/input stall episode capture
 │   └── gnome_desktop.sh      # GNOME desktop config (favorites, terminal themes, display, extensions)
 ├── scripts/
 │   ├── logging_utils.py      # Centralized Python logging and call tracing
 │   ├── keyring_snapshot.py   # Secret Service export/import helper
 │   ├── pin-window-to-active-monitor.sh  # Move a window to the pointer's monitor
 │   ├── activate_passwordless_keyring.sh  # Next-boot keyring activator
-│   └── reapply_dash_to_panel.sh  # Graphical-login Dash-to-Panel enablement
+│   ├── reapply_dash_to_panel.sh  # Graphical-login Dash-to-Panel enablement
+│   └── desktop_stall_capture.sh  # Journal watcher for DFP/uinput stall dumps
 ├── src/                    # lcs-tools (GSettings arrays + metadata pin)
 ├── configs/
 │   ├── tmux/.tmux.conf            # tmux user defaults
@@ -142,7 +144,8 @@ linux_configuration_setup/
 │   ├── cursors/
 │   │   └── purple_cross.cur    # Purple Cross cursor theme asset
 │   ├── systemd/
-│   │   └── dash-to-panel-reapply.service  # Graphical-login Dash-to-Panel enablement
+│   │   ├── dash-to-panel-reapply.service  # Graphical-login Dash-to-Panel enablement
+│   │   └── desktop-stall-capture.service  # User service watching DFP/uinput stalls
 │   └── gnome-extensions/
 │       └── active-monitor-placement@local/  # New windows → pointer/active monitor
 └── .gitignore
@@ -257,6 +260,7 @@ or none, and **Enter** installs the selection. Components:
 | `dark_mode` | Color scheme and themes (override with `DESKTOP_COLOR_SCHEME`) | on |
 | `mouse_accel` | Disable mouse acceleration | on |
 | `hide_hotplug_joysticks` | Hide Crosswind/test uinput from Xorg (NVIDIA lag) | on |
+| `desktop_stall_capture` | Log rare NVIDIA/input desktop stall episodes | on |
 | `favorites` | Dock favorite apps (override with `FAVORITES_APPS`) | on |
 | `cursor_theme` | Purple cross cursor theme (override with `CURSOR_SOURCE_FILE`) | on |
 | `terminal_theme` | Terminal dark theme | on |
