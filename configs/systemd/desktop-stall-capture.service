@@ -1,0 +1,14 @@
+[Unit]
+Description=Capture rare NVIDIA/input desktop stall episodes
+Documentation=https://github.com/mikaeltorni/linux_configuration_setup
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/libexec/linux-configuration-setup/desktop-stall-capture
+Environment=LCS_SCRIPT_DIR=@LCS_SCRIPT_DIR@
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

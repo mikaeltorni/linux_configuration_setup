@@ -74,6 +74,11 @@ hide_row="$(printf '%s\n' "${ISC_COMPONENTS[@]}" | grep '^hide_hotplug_joysticks
   printf 'FAIL: hide_hotplug_joysticks should be independently selectable and default on\n' >&2
   exit 1
 }
+stall_row="$(printf '%s\n' "${ISC_COMPONENTS[@]}" | grep '^desktop_stall_capture|')"
+[[ "$stall_row" == *'|on|configure_desktop_stall_capture|detect_desktop_stall_capture|uninstall_desktop_stall_capture' ]] || {
+  printf 'FAIL: desktop_stall_capture should be independently selectable and default on\n' >&2
+  exit 1
+}
 tmux_row="$(printf '%s\n' "${ISC_COMPONENTS[@]}" | grep '^tmux_defaults|')"
 [[ "$tmux_row" == *"full chat history"* ]] || {
   printf 'FAIL: tmux_defaults should advertise full chat history\n' >&2
