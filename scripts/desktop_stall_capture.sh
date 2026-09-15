@@ -86,7 +86,7 @@ dump_episode() {
           fi
         done
   } >"$dest" 2>/dev/null || true
-  ln -sfn "$(basename "$dest")" "$STATE_DIR/latest.txt" 2>/dev/null || true
+  ln -sfn "episodes/$(basename "$dest")" "$STATE_DIR/latest.txt" 2>/dev/null || true
   _stall_log "dumped episode $dest ($reason)"
 }
 
