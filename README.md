@@ -36,6 +36,7 @@ This repository configures the GNOME desktop environment after base packages are
   and all other terminal input remains unchanged
 - **Display refresh**: Xorg xrandr max refresh rate and mutter VRR cleared (NVIDIA X11 leftover VRR causes a ~16 Hz output-detect loop that lags mouse and typing); Wayland keeps mutter VRR
 - **Autostart applications**: Spotify, GitKraken, SmartGit, EasyEffects, and Kitty
+- **Seagate disks**: Mount present volumes whose labels start with `Seagate` at graphical login through UDisks, using the same `/media/$USER/<label>` path as Files. Missing disks are skipped.
 - **App workspace rules** are installed by `linux_workspaces_setup`, the sole owner of `app-rules@local`.
 - **Active-monitor placement**: Installs `~/.local/bin/pin-window-to-active-monitor.sh`, a runtime helper that moves a window to the monitor containing the mouse pointer. The open-kitty-and-sort hotkey (`linux_hotkey_window_tools`) calls it so newly-launched kitty windows stay on the active monitor even when the workspace is crowded and GNOME would have placed them on a different display.
 - **UV package manager**: Install astral.sh/uv, deploy the global rolling 24-hour supply-chain cutoff, and disable GUI autostart
@@ -261,6 +262,7 @@ or none, and **Enter** installs the selection. Components:
 | `mouse_accel` | Disable mouse acceleration | on |
 | `hide_hotplug_joysticks` | Hide Crosswind/test uinput from Xorg (NVIDIA lag) | on |
 | `desktop_stall_capture` | Log rare NVIDIA/input desktop stall episodes | on |
+| `seagate_mount` | Mount Seagate-labelled disks at desktop login | on |
 | `favorites` | Dock favorite apps (override with `FAVORITES_APPS`) | on |
 | `cursor_theme` | Purple cross cursor theme (override with `CURSOR_SOURCE_FILE`) | on |
 | `terminal_theme` | Terminal dark theme | on |

@@ -34,6 +34,7 @@ source "$SCRIPT_DIR/lib/active_monitor.sh"
 source "$SCRIPT_DIR/lib/cursor_theme.sh"
 source "$SCRIPT_DIR/lib/dash_to_panel.sh"
 source "$SCRIPT_DIR/lib/desktop_stall.sh"
+source "$SCRIPT_DIR/lib/seagate_mount.sh"
 source "$SCRIPT_DIR/lib/lifecycle.sh"
 
 isc_activate_components

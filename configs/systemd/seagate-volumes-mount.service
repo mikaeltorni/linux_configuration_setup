@@ -1,0 +1,14 @@
+[Unit]
+Description=Mount Seagate-labelled disks for the desktop session
+PartOf=graphical-session.target
+StartLimitIntervalSec=60
+StartLimitBurst=12
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/libexec/linux-configuration-setup/mount-seagate-volumes
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target
