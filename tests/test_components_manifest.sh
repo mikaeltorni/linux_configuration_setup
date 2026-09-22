@@ -79,6 +79,11 @@ stall_row="$(printf '%s\n' "${ISC_COMPONENTS[@]}" | grep '^desktop_stall_capture
   printf 'FAIL: desktop_stall_capture should be independently selectable and default on\n' >&2
   exit 1
 }
+seagate_row="$(printf '%s\n' "${ISC_COMPONENTS[@]}" | grep '^seagate_mount|')"
+[[ "$seagate_row" == *'|on|configure_seagate_mount|detect_seagate_mount|uninstall_seagate_mount' ]] || {
+  printf 'FAIL: seagate_mount should be independently selectable and default on\n' >&2
+  exit 1
+}
 tmux_row="$(printf '%s\n' "${ISC_COMPONENTS[@]}" | grep '^tmux_defaults|')"
 [[ "$tmux_row" == *"full chat history"* ]] || {
   printf 'FAIL: tmux_defaults should advertise full chat history\n' >&2

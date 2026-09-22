@@ -31,6 +31,7 @@ ISC_COMPONENTS=(
   "mouse_accel|Disable mouse acceleration|on|disable_mouse_acceleration|detect_mouse_accel|uninstall_mouse_accel"
   "hide_hotplug_joysticks|Hide Crosswind/test uinput from Xorg (NVIDIA lag)|on|configure_hide_hotplug_joysticks|detect_hide_hotplug_joysticks|uninstall_hide_hotplug_joysticks"
   "desktop_stall_capture|Log rare NVIDIA/input desktop stall episodes|on|configure_desktop_stall_capture|detect_desktop_stall_capture|uninstall_desktop_stall_capture"
+  "seagate_mount|Mount Seagate-labelled disks at desktop login|on|configure_seagate_mount|detect_seagate_mount|uninstall_seagate_mount"
   "favorites|Dock favorite apps (override with FAVORITES_APPS)|on|configure_favorites|detect_favorites|uninstall_favorites"
   "cursor_theme|Purple cross cursor theme (override with CURSOR_SOURCE_FILE)|on|configure_purple_cross_default_cursor|detect_cursor_theme|uninstall_cursor_theme"
   "terminal_theme|Terminal dark theme|on|configure_terminal_dark_theme||uninstall_terminal_theme"

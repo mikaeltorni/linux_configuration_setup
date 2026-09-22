@@ -90,6 +90,15 @@
       "uninstall": 0,
       "workspace": 0
     },
+    "seagate_mount": {
+      "config_value": "",
+      "favorite": 0,
+      "on": 1,
+      "startup": 0,
+      "sticky": 0,
+      "uninstall": 0,
+      "workspace": 0
+    },
     "kitty_defaults": {
       "config_value": "",
       "favorite": 0,
