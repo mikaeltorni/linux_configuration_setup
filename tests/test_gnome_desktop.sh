@@ -271,13 +271,16 @@ cat >"$LIS_STUB" <<'STUB'
 [ "${1:-}" = "--list-favorite-components" ] || exit 0
 printf 'obs\tcom.obsproject.Studio.desktop\n'
 printf 'remote_desktop\torg.remmina.Remmina.desktop,remmina.desktop\n'
+printf 'baobab\torg.gnome.baobab.desktop\ton\n'
 STUB
 chmod +x "$LIS_STUB"
 touch "$TARGET_HOME/.local/share/applications/org.remmina.Remmina.desktop"
 touch "$TARGET_HOME/.local/share/applications/com.obsproject.Studio.desktop"
+touch "$TARGET_HOME/.local/share/applications/org.gnome.baobab.desktop"
 LIS_INSTALL_SH="$LIS_STUB" configure_favorites </dev/null
 if grep -q "org.remmina.Remmina.desktop" "$GSETTINGS_CALL_LOG" && \
-   grep -q "com.obsproject.Studio.desktop" "$GSETTINGS_CALL_LOG"; then
+   grep -q "com.obsproject.Studio.desktop" "$GSETTINGS_CALL_LOG" && \
+   grep -q "org.gnome.baobab.desktop" "$GSETTINGS_CALL_LOG"; then
   pass "configure_favorites builds the default dock from installations_setup's favourite list"
 else
   fail "configure_favorites builds the default dock from installations_setup's favourite list"
@@ -304,6 +307,7 @@ echo "--- configure_favorites (managed reconciliation) ---"
 CURRENT_FAVORITE_APPS="['chatgpt-pwa.desktop', 'google-chrome.desktop', 'org.remmina.Remmina.desktop']"
 >"$GSETTINGS_CALL_LOG"
 touch "$TARGET_HOME/.local/share/applications/google-chrome.desktop"
+touch "$TARGET_HOME/.local/share/applications/org.gnome.baobab.desktop"
 touch "$TARGET_HOME/.local/share/applications/org.remmina.Remmina.desktop"
 user_gsettings() {
   printf '%s\n' "$*" >>"$GSETTINGS_CALL_LOG"
@@ -314,11 +318,12 @@ user_gsettings() {
   [ "$1" = "get" ] && return 1
   return 0
 }
-MANAGED_FAVORITE_APPS="google-chrome.desktop,org.remmina.Remmina.desktop,com.obsproject.Studio.desktop"
-SELECTED_FAVORITE_APPS="google-chrome.desktop"
+MANAGED_FAVORITE_APPS="google-chrome.desktop,org.gnome.baobab.desktop,org.remmina.Remmina.desktop,com.obsproject.Studio.desktop"
+SELECTED_FAVORITE_APPS="google-chrome.desktop,org.gnome.baobab.desktop"
 configure_favorites </dev/null
 if grep -q "chatgpt-pwa.desktop" "$GSETTINGS_CALL_LOG" && \
    grep -q "google-chrome.desktop" "$GSETTINGS_CALL_LOG" && \
+   grep -q "org.gnome.baobab.desktop" "$GSETTINGS_CALL_LOG" && \
    ! grep -q "org.remmina.Remmina.desktop" "$GSETTINGS_CALL_LOG" && \
    ! grep -q "com.obsproject.Studio.desktop" "$GSETTINGS_CALL_LOG"; then
   pass "configure_favorites preserves unmanaged PWAs and reconciles managed favourites"
