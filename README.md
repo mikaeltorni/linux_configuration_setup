@@ -214,7 +214,7 @@ This repo is run **after** `linux_installations_setup` has cloned it. It require
   the complete managed superset whenever you want cleared `[S]` markers to
   actually remove launchers.
 - Log out and back in before testing GNOME Shell extension code changes.
-- PWAs (Monkeytype, ChatGPT, Claude, etc.) are installed manually from Chrome — this repo no longer creates their desktop entries, icons, or autostart files. Once you have installed a PWA, the `app-rules@local` extension assigns its window to the mapped workspace. If a PWA does not land on its workspace, verify the extension is enabled and that the PWA's window class matches a rule.
+- PWAs (Monkeytype, ChatGPT, Claude, etc.) are installed manually from Chrome — this repo no longer creates their desktop entries, icons, or autostart files. Once you have installed a PWA, the `app-rules@local` extension assigns its window to the mapped workspace. Monkeytype is excluded from pointer-monitor placement so that pin can keep it on monitor 2. If a PWA does not land on its workspace, verify the extension is enabled and that the PWA's window class matches a rule.
 - Dash-to-Panel is configured with one isolated panel per monitor. Its pinned
   v73 source is patched during installation so a new window launched from a
   panel icon is explicitly moved to that panel's monitor. A user systemd
