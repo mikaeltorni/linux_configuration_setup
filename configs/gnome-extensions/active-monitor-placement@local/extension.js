@@ -56,6 +56,8 @@ const BUILTIN_FIXED_MONITOR_APP_IDS = new Set([
   'smartgit.desktop',
   'gitkraken.desktop',
   'gitkraken_gitkraken.desktop',
+  'monkeytype.desktop',
+  'chrome-picebhhlijnlefeleilfbanaghjlkkna-Default.desktop',
 ]);
 
 /**

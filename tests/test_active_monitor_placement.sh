@@ -107,10 +107,12 @@ if [ -f "$EXT_DIR/extension.js" ]; then
   if grep -qF 'const BUILTIN_FIXED_MONITOR_APP_IDS' "$EXT_DIR/extension.js" && \
      grep -qF "'smartgit.desktop'" "$EXT_DIR/extension.js" && \
      grep -qF "'gitkraken.desktop'" "$EXT_DIR/extension.js" && \
-     grep -qF "'gitkraken_gitkraken.desktop'" "$EXT_DIR/extension.js"; then
-    pass "active-monitor-placement leaves Git clients' fixed monitors alone"
+     grep -qF "'gitkraken_gitkraken.desktop'" "$EXT_DIR/extension.js" && \
+     grep -qF "'monkeytype.desktop'" "$EXT_DIR/extension.js" && \
+     grep -qF "'chrome-picebhhlijnlefeleilfbanaghjlkkna-Default.desktop'" "$EXT_DIR/extension.js"; then
+    pass "active-monitor-placement leaves fixed-monitor apps alone"
   else
-    fail "active-monitor-placement leaves Git clients' fixed monitors alone"
+    fail "active-monitor-placement leaves fixed-monitor apps alone"
   fi
 fi
 
