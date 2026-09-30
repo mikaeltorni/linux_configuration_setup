@@ -20,6 +20,11 @@ detect_rtc() {
 }
 detect_clock_calendar()    { [ "$(cfg_get org.gnome.desktop.interface clock-show-weekday)" = "true" ]; }
 detect_disable_auto_lock() { [ "$(cfg_get org.gnome.desktop.screensaver lock-enabled)" = "false" ]; }
+detect_session_restart() {
+  local dest
+  dest="$(session_restart_dropin_dest)"
+  [ -f "$dest" ] && grep -qx 'InhibitDelayMaxSec=0' "$dest"
+}
 detect_passwordless_keyring() { [ -d "$TARGET_HOME/.local/state/linux-configuration-setup" ]; }
 detect_dark_mode()         { [ "$(cfg_get org.gnome.desktop.interface color-scheme)" = "'prefer-dark'" ]; }
 detect_mouse_accel()       { [ "$(cfg_get org.gnome.desktop.peripherals.mouse accel-profile)" = "'flat'" ]; }
@@ -53,6 +58,19 @@ uninstall_disable_auto_lock() {
   cfg_reset org.gnome.desktop.session idle-delay
   cfg_reset org.gnome.desktop.screensaver lock-enabled
   cfg_reset org.gnome.desktop.screensaver idle-activation-enabled
+}
+uninstall_session_restart() {
+  msg "Restoring logind's default restart delay"
+  local dest
+  dest="$(session_restart_dropin_dest)"
+  if ! is_root; then
+    note_sudo_required "rm -f $dest && systemctl reload systemd-logind"
+    log "info" "uninstall_session_restart: deferred removal of $dest"
+    return 0
+  fi
+  rm -f "$dest"
+  log "info" "uninstall_session_restart: removed $dest"
+  session_restart_reload_logind
 }
 uninstall_dark_mode() {
   msg "Resetting color scheme and themes to default"

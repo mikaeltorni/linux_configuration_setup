@@ -5,6 +5,8 @@
 #   - configure_rtc(): Set RTC to local time via timedatectl.
 #   - configure_clock_calendar(): Enable weekday + week numbers in GNOME clock/calendar.
 #   - configure_disable_auto_lock(): Disable screen auto-lock (idle-delay=0, lock-enabled=false).
+#   - configure_session_restart(): Start Restart/Power Off immediately instead of
+#     returning to the login screen.
 #   - configure_dark_mode(): Configure the desktop color scheme (dark/light) and GTK/icon/user themes.
 #   - disable_mouse_acceleration(): Set flat mouse/touchpad acceleration + X11 libinput fallback.
 #   - configure_hide_hotplug_joysticks(): Hide Crosswind/test uinput from Xorg.
@@ -50,6 +52,64 @@ configure_disable_auto_lock() {
   user_gsettings set org.gnome.desktop.session idle-delay 0 || true
   user_gsettings set org.gnome.desktop.screensaver lock-enabled false || true
   user_gsettings set org.gnome.desktop.screensaver idle-activation-enabled false || true
+}
+
+# ── Restart / power off ──────────────────────────────────────────────────────
+
+# Drop-in that clears logind's inhibitor delay. unattended-upgrades ships 30s
+# under /usr/lib; this /etc drop-in wins and makes Restart start reboot.target
+# before GNOME can end the session and show the login screen.
+SESSION_RESTART_DROPIN_NAME="50-immediate-session-restart.conf"
+_SESSION_RESTART_CONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../configs" && pwd)"
+
+# session_restart_dropin_dest — Absolute path of the installed logind drop-in.
+#   SESSION_RESTART_DROPIN_DEST overrides it in tests. Args: none.
+#   Returns: 0 and prints the path.
+session_restart_dropin_dest() {
+  printf '%s\n' "${SESSION_RESTART_DROPIN_DEST:-/etc/systemd/logind.conf.d/$SESSION_RESTART_DROPIN_NAME}"
+}
+
+# session_restart_asset — Shipped logind drop-in inside this checkout.
+#   Args: none. Returns: 0 and prints the path.
+session_restart_asset() {
+  printf '%s\n' "${CONFIG_DIR:-$_SESSION_RESTART_CONFIG_DIR}/logind/$SESSION_RESTART_DROPIN_NAME"
+}
+
+# session_restart_reload_logind — Ask logind to reread logind.conf without
+#   restarting the daemon (a restart would drop the desktop session).
+#   Args: none. Returns: systemctl's status.
+session_restart_reload_logind() {
+  log "info" "session_restart_reload_logind: reloading systemd-logind"
+  systemctl reload systemd-logind
+}
+
+# configure_session_restart — Install the immediate-restart logind drop-in.
+#   A non-root run records the install and reload for later sudo. An unchanged
+#   drop-in is left in place so repeated installs do not reload logind.
+#   Args: none. Returns: 0 when installed, already present, or deferred;
+#   non-zero when the root install or reload fails.
+configure_session_restart() {
+  msg "Making Restart and Power Off start immediately"
+  log "info" "configure_session_restart: clearing logind inhibit delay so Restart does not return to the login screen"
+  local src dest
+  src="$(session_restart_asset)"
+  dest="$(session_restart_dropin_dest)"
+  if [[ ! -f "$src" ]]; then
+    log "warn" "configure_session_restart: missing $src"
+    return 0
+  fi
+  if [[ -f "$dest" ]] && cmp -s "$src" "$dest"; then
+    log "info" "configure_session_restart: $dest already installed"
+    return 0
+  fi
+  if ! is_root; then
+    note_sudo_required "install -D -m 0644 $src $dest && systemctl reload systemd-logind"
+    return 0
+  fi
+  install -d -m 0755 "$(dirname "$dest")"
+  install -m 0644 "$src" "$dest"
+  log "info" "configure_session_restart: installed $dest"
+  session_restart_reload_logind
 }
 
 # ── Dark mode configuration ──────────────────────────────────────────────────

@@ -153,6 +153,15 @@
       "uninstall": 0,
       "workspace": 0
     },
+    "session_restart": {
+      "config_value": "",
+      "favorite": 0,
+      "on": 1,
+      "startup": 0,
+      "sticky": 0,
+      "uninstall": 0,
+      "workspace": 0
+    },
     "terminal_theme": {
       "config_value": "",
       "favorite": 0,
