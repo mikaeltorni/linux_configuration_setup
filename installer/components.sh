@@ -26,6 +26,7 @@ ISC_COMPONENTS=(
   "rtc|Local-time RTC (dual-boot clock fix)|on|configure_rtc|detect_rtc|uninstall_rtc"
   "clock_calendar|Clock and calendar display|on|configure_clock_calendar|detect_clock_calendar|uninstall_clock_calendar"
   "disable_auto_lock|Disable screen auto-lock|on|configure_disable_auto_lock|detect_disable_auto_lock|uninstall_disable_auto_lock"
+  "session_restart|Restart and power off without returning to the login screen|on|configure_session_restart|detect_session_restart|uninstall_session_restart"
   "passwordless_keyring|Prompt-free login keyring|on|configure_passwordless_keyring|detect_passwordless_keyring"
   "dark_mode|Color scheme and themes (dark default; DESKTOP_COLOR_SCHEME=light)|on|configure_dark_mode|detect_dark_mode|uninstall_dark_mode"
   "mouse_accel|Disable mouse acceleration|on|disable_mouse_acceleration|detect_mouse_accel|uninstall_mouse_accel"

@@ -24,7 +24,7 @@ See the full cross-repository map in
 
 This repository configures the GNOME desktop environment after base packages are installed. It handles:
 
-- **System configuration**: RTC to local time, clock/calendar display, screen auto-lock
+- **System configuration**: RTC to local time, clock/calendar display, screen auto-lock, and Restart/Power Off that reboots instead of returning to the login screen
 - **Prompt-free credentials**: passwordless GNOME Login keyring for automatic-login sessions
 - **Color scheme**: Dark by default; set `DESKTOP_COLOR_SCHEME=light` (or type `light` at the prompt) for light mode. `DESKTOP_GTK_THEME` / `DESKTOP_ICON_THEME` override the GTK/icon theme names
 - **Cursor theme**: Bundled Purple Cross by default; set `CURSOR_SOURCE_FILE=/path/to/your.cur` (or type a path) to build the theme from your own cursor image
@@ -128,7 +128,7 @@ linux_configuration_setup/
 │   ├── logging.sh          # Centralized logging with levels
 │   ├── gsettings_helpers.sh  # GSettings/dconf helper functions
 │   ├── lcs_bin.sh            # Resolves/builds the lcs-tools Rust helper
-│   ├── system_config.sh      # RTC, clock, lock, dark mode, mouse accel
+│   ├── system_config.sh      # RTC, clock, lock, immediate restart, dark mode, mouse accel
 │   ├── autostart.sh          # Unified master-selected application startup
 │   ├── active_monitor.sh     # Active-monitor placement (CLI helper + Shell extension)
 │   ├── cursor_theme.sh       # Purple Cross cursor build, aliases, and defaults
@@ -261,6 +261,7 @@ or none, and **Enter** installs the selection. Components:
 | `rtc` | Local-time RTC (dual-boot clock fix) | on |
 | `clock_calendar` | Clock and calendar display | on |
 | `disable_auto_lock` | Disable screen auto-lock | on |
+| `session_restart` | Restart and power off without returning to the login screen | on |
 | `passwordless_keyring` | Prompt-free login keyring | on |
 | `dark_mode` | Color scheme and themes (override with `DESKTOP_COLOR_SCHEME`) | on |
 | `mouse_accel` | Disable mouse acceleration | on |
