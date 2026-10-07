@@ -1,6 +1,42 @@
 #!/usr/bin/env bash
 # Persistent GDM policy for the next login; never reloads or stops the session.
 
+# Save the target user's Ubuntu Xorg choice through AccountsService.
+# Parameters: none. TARGET_UID identifies the account; GDM_XSESSIONS_DIR supplies installed sessions.
+# Returns: 0 when all saved preferences are verified; 1 when unavailable or unsuccessful.
+save_x11_account_session() {
+  printf 'parameters=none\n'
+  local xsessions="${GDM_XSESSIONS_DIR:-/usr/share/xsessions}"
+  local account="/org/freedesktop/Accounts/User${TARGET_UID}"
+  local method property value actual
+  if [[ ! -f "$xsessions/ubuntu-xorg.desktop" ]] || ! command -v busctl >/dev/null 2>&1; then
+    printf '1\n'
+    return 1
+  fi
+  for method in SetXSession SetSession SetSessionType; do
+    value=ubuntu-xorg
+    [[ "$method" != SetSessionType ]] || value=x11
+    if ! run_as_target busctl --timeout=5 --allow-interactive-authorization=no call \
+      org.freedesktop.Accounts "$account" org.freedesktop.Accounts.User "$method" s "$value"; then
+      printf '1\n'
+      return 1
+    fi
+  done
+  for property in XSession Session SessionType; do
+    value=ubuntu-xorg
+    [[ "$property" != SessionType ]] || value=x11
+    if ! actual="$(run_as_target busctl --timeout=5 get-property \
+      org.freedesktop.Accounts "$account" org.freedesktop.Accounts.User "$property")" ||
+       [[ "$actual" != "s \"$value\"" ]]; then
+      printf '1\n'
+      return 1
+    fi
+  done
+  msg "Saved X11 for your next login. Log out and back in when ready; the running session is unchanged."
+  printf '0\n'
+  return 0
+}
+
 # Configure GDM to use X11, preserving unrelated settings.
 # Parameters: none. GDM_CUSTOM_CONF and GDM_XSESSIONS_DIR override system paths for tests.
 # Returns: 0 on success/root deferral; nonzero when prerequisites or the write fail.
@@ -10,6 +46,9 @@ configure_x11_session() {
   local xsessions="${GDM_XSESSIONS_DIR:-/usr/share/xsessions}"
   local result=0
   if ! is_root; then
+    if ! save_x11_account_session; then
+      msg "Could not save the account's X11 preference; the system policy still requires the sudo command below."
+    fi
     note_sudo_required "sudo bash $SCRIPT_DIR/install.sh --select x11_session"
     printf '0\n'
     return 0

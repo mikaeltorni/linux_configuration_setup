@@ -67,6 +67,19 @@ class X11SessionTests(unittest.TestCase):
             '"is-active --quiet gdm.service"|"kill --kill-who=main --signal=HUP gdm.service")\n'
             ' printf "%s\\n" "$*" >> "$TEST_SYSTEMCTL_LOG"; exit 0 ;;\n'
             '*) echo "Unexpected systemctl command: $*" >&2; exit 99 ;;\nesac\n')
+        self.account_state = self.base / 'account-state'
+        self.account_state.mkdir()
+        self.account_log = self.base / 'account-calls'
+        (self.bin / 'busctl').write_text(
+            '#!/bin/bash\n'
+            'printf "%s\\n" "$*" >> "$TEST_ACCOUNT_LOG"\n'
+            '[[ "${TEST_ACCOUNT_DENY:-0}" != 1 ]] || exit 1\n'
+            'tokens=("$@"); last="${tokens[-1]}"; method="${tokens[-3]}"\n'
+            'case "$method" in\n'
+            'SetSession|SetXSession|SetSessionType) printf "%s" "$last" > "$TEST_ACCOUNT_STATE/${method#Set}" ;;\n'
+            '*) if [[ -f "$TEST_ACCOUNT_STATE/$last" ]]; then '
+            'printf \'s "%s"\\n\' "$(cat "$TEST_ACCOUNT_STATE/$last")"; else exit 1; fi ;;\n'
+            'esac\n')
         for item in self.bin.iterdir():
             item.chmod(0o755)
         # Install.sh derives RUNTIME_DIR from TARGET_UID. Override only that
@@ -80,6 +93,7 @@ class X11SessionTests(unittest.TestCase):
                         GDM_CUSTOM_CONF=str(self.conf), GDM_XSESSIONS_DIR=str(self.sessions),
                         PATH=f'{self.bin}:{os.environ["PATH"]}', BASH_ENV=str(self.bootstrap),
                         TEST_RUNTIME_DIR=str(self.runtime), TEST_SYSTEMCTL_LOG=str(self.command_log),
+                        TEST_ACCOUNT_STATE=str(self.account_state), TEST_ACCOUNT_LOG=str(self.account_log),
                         SUDO_USER='', TEST_EUID='0')
         print(None)
 
@@ -228,6 +242,36 @@ class X11SessionTests(unittest.TestCase):
         self.assertEqual(self.conf.read_text(), OBSERVED)
         self.assertFalse(self.backup.exists())
         self.assert_absent()
+        self.assertEqual((self.account_state / 'Session').read_text(), 'ubuntu-xorg')
+        self.assertEqual((self.account_state / 'XSession').read_text(), 'ubuntu-xorg')
+        self.assertEqual((self.account_state / 'SessionType').read_text(), 'x11')
+        for method, value in (('SetSession', 'ubuntu-xorg'), ('SetXSession', 'ubuntu-xorg'),
+                              ('SetSessionType', 'x11')):
+            self.assertIn(f'{method} s {value}', self.account_log.read_text())
+        self.assertIn('Saved X11 for your next login', result.stdout)
+        print(None)
+
+    def test_account_unavailable_defers(self):
+        """Defer global policy when the account service denies changes without a dialog.
+
+        Parameters: self - the test instance.
+        Returns: None.
+        """
+        print(f'self={object.__repr__(self)}')
+        self.env['TEST_EUID'] = '1000'
+        self.env['TEST_ACCOUNT_DENY'] = '1'
+        for property, value in (('Session', 'ubuntu'), ('XSession', ''), ('SessionType', 'wayland')):
+            (self.account_state / property).write_text(value)
+        result = self.installer('--select', 'x11_session')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.conf.read_text(), OBSERVED)
+        self.assert_absent()
+        self.assertEqual((self.account_state / 'Session').read_text(), 'ubuntu')
+        self.assertEqual((self.account_state / 'XSession').read_text(), '')
+        self.assertEqual((self.account_state / 'SessionType').read_text(), 'wayland')
+        self.assertIn('--allow-interactive-authorization=no', self.account_log.read_text())
+        self.assertIn('sudo bash', result.stdout)
+        self.assertNotIn('Saved X11 for your next login', result.stdout)
         print(None)
 
     def test_listing(self):
