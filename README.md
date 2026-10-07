@@ -109,7 +109,19 @@ GDM's SIGHUP handler rereads settings without restarting GDM or GNOME Shell
 Log out and back in when ready to use X11. `Alt+F2`, `r` only reloads an existing
 X11 Shell; it cannot convert a running Wayland session into X11.
 
-A sudo-free run reports the exact command above without changing system files.
+A sudo-free run saves and verifies the target user's Ubuntu Xorg choice through
+AccountsService (`Session=ubuntu-xorg`, `XSession=ubuntu-xorg`, `SessionType=x11`):
+
+```bash
+bash install.sh --select x11_session
+```
+
+This changes the next-login default without a password or graphical dialog;
+the open Wayland session still needs one manual logout/login to become X11.
+The installer also reports the sudo command for globally disabling Wayland.
+If AccountsService or `ubuntu-xorg.desktop` is unavailable, it reports that
+limitation and defers the system change. `--detect` reports the global GDM
+policy, so it can remain absent after a successful account-only selection.
 Missing GDM configuration, malformed INI, or no installed X11 session under
 `/usr/share/xsessions` causes a failure before configuration is modified.
 `GDM_CUSTOM_CONF` and `GDM_XSESSIONS_DIR` override these paths for isolated tests.

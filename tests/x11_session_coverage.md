@@ -14,11 +14,14 @@ satisfies the installer preflight. Desktop commands and sudo fail if invoked. sy
 | Missing GDM config | `test_missing_config`: nonzero exit; no file or backup created; detect absent |
 | No installed X11 session | `test_missing_xsession`: nonzero exit; original populated config unchanged; no backup; detect absent |
 | Malformed INI | `test_malformed_config`: nonzero exit; original populated config unchanged; no backup; detect absent |
-| Sudo-free installation | `test_user_install_defers`: success with exact sudo component command; config unchanged; detect absent (receipt cannot override live detection) |
+| Sudo-free installation | `test_user_install_defers`: success with saved Session/XSession=ubuntu-xorg and SessionType=x11 through mocked AccountsService; exact sudo component command for global policy; config unchanged; global-policy detect absent (receipt cannot override live detection) |
+| AccountsService denies the own-account change | `test_account_unavailable_defers`: no interactive authorization; populated account preference unchanged; global config unchanged; exact sudo command still reported |
 | `--list-components` | `test_listing`: default-on component present, no configuration/backup/receipt writes |
 | Default install selection | `test_default_selection`: framework's default-id output and saved default.json enable x11_session |
 | Shared command validation | `test_invalid_selection`: unknown option and missing --select value rejected before mutation; public --detect still absent |
 | Config helper operand parsing | `test_helper_arguments`: missing config/operand, extra operand and unknown operation rejected without changing populated config |
+
+AccountsService calls are mocked and captured; no account service writes reach the machine from tests.
 
 Numeric conversion and numeric domain cases are inapplicable: all operands are
 paths. No uninstall operation is introduced: the component has a saved backup
