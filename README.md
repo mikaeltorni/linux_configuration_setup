@@ -25,6 +25,7 @@ See the full cross-repository map in
 This repository configures the GNOME desktop environment after base packages are installed. It handles:
 
 - **System configuration**: RTC to local time, clock/calendar display, screen auto-lock, and Restart/Power Off that reboots instead of returning to the login screen
+- **X11 login**: The default-on `x11_session` component disables Wayland in GDM and preserves automatic login. It applies at the next login without stopping the current session.
 - **Prompt-free credentials**: passwordless GNOME Login keyring for automatic-login sessions
 - **Color scheme**: Dark by default; set `DESKTOP_COLOR_SCHEME=light` (or type `light` at the prompt) for light mode. `DESKTOP_GTK_THEME` / `DESKTOP_ICON_THEME` override the GTK/icon theme names
 - **Cursor theme**: Bundled Purple Cross by default; set `CURSOR_SOURCE_FILE=/path/to/your.cur` (or type a path) to build the theme from your own cursor image
@@ -51,7 +52,10 @@ This repository configures the GNOME desktop environment after base packages are
 ## Installation
 
 ```bash
-# Run as root — it will configure everything for the target user
+# Configure user-level components without sudo; root-only steps are reported
+bash install.sh
+
+# Include system configuration for the desktop user
 sudo bash install.sh
 ```
 
@@ -81,6 +85,44 @@ The Kitty filter can be switched in place without running unrelated components:
 ```bash
 KITTY_IGNORE_APOSTROPHE=off bash install.sh --select kitty_ignore_apostrophe
 KITTY_IGNORE_APOSTROPHE=on bash install.sh --select kitty_ignore_apostrophe
+```
+
+## Persistent X11 login (`x11_session`)
+
+The master installer and `bash install.sh --default` select this component by
+default. The standalone `installation_configs/default.json` also enables it.
+Apply only this policy with:
+
+```bash
+sudo bash install.sh --select x11_session
+bash install.sh --detect
+```
+
+It sets `WaylandEnable=false`, `XorgEnable=true`, and
+`PreferredDisplayServer=xorg` in `/etc/gdm3/custom.conf`'s `[daemon]` section.
+Automatic login, comments, and other settings are preserved. Before the first
+change it saves `/etc/gdm3/custom.conf.before-x11-session`; repeat runs keep that
+backup and do not rewrite an already-correct file. When GDM is active, the
+installer runs `systemctl kill --kill-who=main --signal=HUP gdm.service` as root.
+GDM's SIGHUP handler rereads settings without restarting GDM or GNOME Shell
+([GDM 46 source](https://github.com/GNOME/gdm/blob/46.2/daemon/main.c)).
+Log out and back in when ready to use X11. `Alt+F2`, `r` only reloads an existing
+X11 Shell; it cannot convert a running Wayland session into X11.
+
+A sudo-free run reports the exact command above without changing system files.
+Missing GDM configuration, malformed INI, or no installed X11 session under
+`/usr/share/xsessions` causes a failure before configuration is modified.
+`GDM_CUSTOM_CONF` and `GDM_XSESSIONS_DIR` override these paths for isolated tests.
+The internal helper `scripts/gdm_x11.py` accepts `apply CONFIG XSESSIONS` and
+`check CONFIG`; the installer supplies the system paths and handles root
+deferral and settings reload. Detection reads the live policy. Receipt-only uninstall retains the X11 policy;
+restore the saved configuration manually if you want to undo it, taking care to
+preserve any later edits to unrelated settings.
+
+Verify this component without touching the desktop:
+
+```bash
+python3 -m unittest discover -s tests -p 'test_x11_session.py' -v
 ```
 
 ## Idempotency
@@ -258,6 +300,7 @@ or none, and **Enter** installs the selection. Components:
 
 | Component id | Description | Default |
 |---|---|---|
+| `x11_session` | Use X11 for GDM logins (disable Wayland) | on |
 | `rtc` | Local-time RTC (dual-boot clock fix) | on |
 | `clock_calendar` | Clock and calendar display | on |
 | `disable_auto_lock` | Disable screen auto-lock | on |

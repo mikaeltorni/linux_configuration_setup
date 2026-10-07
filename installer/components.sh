@@ -23,6 +23,7 @@ ISC_PREFLIGHT="ensure_session_bus"
 # intentional for the keyring re-encryption and the shared/generated assets
 # whose reversal would be ambiguous or risky.
 ISC_COMPONENTS=(
+  "x11_session|Use X11 for GDM logins (disable Wayland)|on|configure_x11_session|detect_x11_session"
   "rtc|Local-time RTC (dual-boot clock fix)|on|configure_rtc|detect_rtc|uninstall_rtc"
   "clock_calendar|Clock and calendar display|on|configure_clock_calendar|detect_clock_calendar|uninstall_clock_calendar"
   "disable_auto_lock|Disable screen auto-lock|on|configure_disable_auto_lock|detect_disable_auto_lock|uninstall_disable_auto_lock"
