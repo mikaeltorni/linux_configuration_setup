@@ -17,29 +17,39 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DIST_DIR="$REPO_ROOT/dist"
-DIST_BIN="$DIST_DIR/lcs-tools"
-TARGET_BIN="$REPO_ROOT/target/release/lcs-tools"
+BIN_NAME=lcs-tools
 PRINT_ONLY=0
 RUST_IMAGE="${LCS_RUST_IMAGE:-rust:1-bookworm}"
 
 log() { printf '[build_lcs_tools] %s\n' "$*" >&2; }
 
+# Describe the accepted native builder flags.
+# Parameters: none. Returns: zero after stderr usage output.
 usage() {
   cat >&2 <<'EOF'
-Usage: bash scripts/build_lcs_tools.sh [--print]
+Usage: bash scripts/build_lcs_tools.sh [--bin lcs-tools|gdm-x11|keyring-snapshot] [--print]
 
-Build the lcs-tools release binary into dist/lcs-tools.
+Build the selected native configuration helper into dist/.
 With --print, also write the absolute binary path to stdout.
 EOF
 }
 
-while [ $# -gt 0 ]; do
-  case "$1" in
-    --print) PRINT_ONLY=1; shift ;;
-    -h|--help) usage; exit 0 ;;
-    *) log "Unknown argument: $1"; usage; exit 1 ;;
-  esac
-done
+# Parse complete raw flags before running build or install operations.
+# Parameters: command tokens. Returns: zero on valid flags, one on usage error.
+parse_build_args() {
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --print) PRINT_ONLY=1; shift ;;
+      --bin)
+        case "${2:-}" in
+          lcs-tools|gdm-x11|keyring-snapshot) BIN_NAME="$2"; shift 2 ;;
+          *) log "Unknown or missing binary name"; usage; return 1 ;;
+        esac ;;
+      -h|--help) usage; exit 0 ;;
+      *) log "Unknown argument: $1"; usage; return 1 ;;
+    esac
+  done
+}
 
 # reclaim_build_artifacts_for_invoker — When this script runs under sudo, cargo
 # writes root-owned dist/ and target/. Hand them back to SUDO_USER so a later
@@ -99,11 +109,13 @@ ensure_cargo_on_path() {
   command -v cargo >/dev/null 2>&1
 }
 
+# Compile and copy the selected binary using the invoker's established toolchain.
+# Parameters: none; BIN_NAME selects the target. Returns: build/install status.
 build_with_cargo() {
   log "Building with local cargo…"
   (
     cd "$REPO_ROOT"
-    cargo build --release --bin lcs-tools
+    cargo build --locked --release --bin "$BIN_NAME"
   )
   mkdir -p "$DIST_DIR"
   install -m 0755 "$TARGET_BIN" "$DIST_BIN"
@@ -119,6 +131,8 @@ container_engine() {
   fi
 }
 
+# Compile and copy the selected binary using the existing container fallback.
+# Parameters: none; BIN_NAME selects the target. Returns: build/install status.
 build_with_container() {
   local engine
   engine="$(container_engine)" || {
@@ -134,11 +148,13 @@ build_with_container() {
     -v "$REPO_ROOT:/src:rw" \
     -w /src \
     "$RUST_IMAGE" \
-    cargo build --release --bin lcs-tools
+    cargo build --locked --release --bin "$BIN_NAME"
   install -m 0755 "$TARGET_BIN" "$DIST_BIN"
 }
 
-main() {
+# Build and validate the selected command through the existing preference order.
+# Parameters: none; parsed globals identify paths. Returns: build/install status.
+build_release() {
   if ensure_cargo_on_path; then
     build_with_cargo
   elif dist_is_fresh; then
@@ -155,7 +171,7 @@ main() {
     mkdir -p "$DIST_DIR"
     install -m 0755 "$TARGET_BIN" "$DIST_BIN"
   else
-    log "Cannot build lcs-tools: install cargo (rustup or apt install cargo) or docker/podman."
+    log "Cannot build $BIN_NAME: install cargo (rustup or apt install cargo) or docker/podman."
     exit 1
   fi
 
@@ -171,6 +187,15 @@ main() {
   else
     log "Ready: $DIST_BIN"
   fi
+}
+
+# Parse complete raw tokens and delegate compilation/delivery.
+# Parameters: command tokens. Returns: build/delivery status.
+main() {
+  parse_build_args "$@" || return $?
+  DIST_BIN="$DIST_DIR/$BIN_NAME"
+  TARGET_BIN="$REPO_ROOT/target/release/$BIN_NAME"
+  build_release
 }
 
 main "$@"

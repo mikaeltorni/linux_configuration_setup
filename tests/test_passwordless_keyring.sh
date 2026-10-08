@@ -4,7 +4,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-HELPER="$ROOT_DIR/scripts/keyring_snapshot.py"
+HELPER="${KEYRING_SNAPSHOT_HELPER:-$(bash "$ROOT_DIR/scripts/build_lcs_tools.sh" --bin keyring-snapshot --print)}"
 ACTIVATOR="$ROOT_DIR/scripts/activate_passwordless_keyring.sh"
 UNIT="$ROOT_DIR/configs/systemd/passwordless-keyring-activation.service"
 UNLOCK_DROPIN="$ROOT_DIR/configs/systemd/gnome-keyring-daemon.service.d/passwordless-login-unlock.conf"
@@ -23,8 +23,8 @@ rg -q 'gnome-keyring-daemon --login' "$ROOT_DIR/lib/keyring.sh"
 rg -q 'install -m 0644 "\$logging_lib"' "$ROOT_DIR/lib/keyring.sh"
 rg -q 'source "\$script_dir/logging.sh"' "$ACTIVATOR"
 rg -q 'dbus-run-session' "$ROOT_DIR/lib/keyring.sh"
-rg -q 'find_python_with_module gi' "$ROOT_DIR/lib/keyring.sh"
-rg -q '"\$python_bin" "\$helper" export' "$ROOT_DIR/lib/keyring.sh"
+rg -q 'build_lcs_tools.sh.*--bin keyring-snapshot' "$ROOT_DIR/lib/keyring.sh"
+rg -q '"\$helper" export' "$ROOT_DIR/lib/keyring.sh"
 rg -q 'systemctl --user restart gnome-keyring-daemon.service' "$ROOT_DIR/lib/keyring.sh"
 rg -q 'passwordless-keyring-pending' "$ROOT_DIR/lib/keyring.sh"
 rg -q 'gnome-keyring-daemon.service.d/passwordless-login-unlock.conf' "$ROOT_DIR/lib/keyring.sh"
@@ -34,7 +34,7 @@ rg -q '^ExecStart=$' "$UNLOCK_DROPIN"
 rg -q 'gnome-keyring-daemon --foreground --unlock --components=pkcs11,secrets --control-directory=%t/keyring' "$UNLOCK_DROPIN"
 rg -q '^StandardInput=data$' "$UNLOCK_DROPIN"
 rg -q '^StandardInputData=Cg==$' "$UNLOCK_DROPIN"
-if rg -q 'unlock_sync' "$HELPER"; then
+if rg -q 'call\("Unlock"|call\("Prompt"' "$ROOT_DIR/src/keyring.rs"; then
   echo "keyring helper must not open an interactive unlock prompt" >&2
   exit 1
 fi
@@ -47,12 +47,17 @@ if rg -q 'systemctl|kill|pkill|killall' "$ACTIVATOR"; then
   exit 1
 fi
 
+# Start a separate daemon and bus for one isolated fixture.
+# Parameters: home - temporary home; password - fixture login; command - assertions.
+# Returns: the isolated command status/output.
 run_keyring_session() {
   local home="$1" password="$2" command="$3"
   mkdir -p "$home"
-  chmod 700 "$home"
-  HOME="$home" XDG_CONFIG_HOME="$home/.config" \
-    dbus-run-session -- bash -euo pipefail -c '
+  mkdir -p "$home/runtime"
+  chmod 700 "$home" "$home/runtime"
+  HOME="$home" XDG_CONFIG_HOME="$home/.config" XDG_DATA_HOME="$home/.local/share" \
+    XDG_RUNTIME_DIR="$home/runtime" GNOME_KEYRING_CONTROL="$home/runtime/keyring" \
+    timeout 40 dbus-run-session -- bash -euo pipefail -c '
       export XDG_RUNTIME_DIR="$HOME/runtime"
       mkdir -p "$XDG_RUNTIME_DIR"
       chmod 700 "$XDG_RUNTIME_DIR"
@@ -68,7 +73,7 @@ ACTIVE_HOME="$SANDBOX/active"
 SNAPSHOT="$SANDBOX/items.json"
 
 run_keyring_session "$SOURCE_HOME" "test-password" \
-  "'$PYTHON_BIN' '$HELPER' store-test-item account demo 'test-secret'; '$PYTHON_BIN' '$HELPER' export '$SNAPSHOT'"
+  "'$HELPER' store-test-item account demo 'test-secret'; '$HELPER' export '$SNAPSHOT'"
 
 test "$(stat -c %a "$SNAPSHOT")" = 600
 "$PYTHON_BIN" - "$SNAPSHOT" <<'PY'
@@ -83,20 +88,23 @@ assert text_item["secret"] != "test-secret"
 PY
 
 run_keyring_session "$DEST_HOME" "" \
-  "'$PYTHON_BIN' '$HELPER' import '$SNAPSHOT'; '$PYTHON_BIN' '$HELPER' verify-test-item account demo 'test-secret'"
+  "'$HELPER' import '$SNAPSHOT'; '$HELPER' verify-test-item account demo 'test-secret'"
 
 test "$(cat "$DEST_HOME/.local/share/keyrings/default")" = login
 
 # Reopen the generated files in a fresh daemon to prove that an empty PAM login
 # password unlocks the on-disk keyring, not merely the process that created it.
 run_keyring_session "$DEST_HOME" "" \
-  "'$PYTHON_BIN' '$HELPER' check; '$PYTHON_BIN' '$HELPER' verify-test-item account demo 'test-secret'"
+  "'$HELPER' check; '$HELPER' verify-test-item account demo 'test-secret'"
 
 # Reproduce the systemd foreground daemon path. Without --unlock this path
 # leaves Login locked; the installed drop-in starts the daemon with one empty
 # password line on stdin.
-HOME="$DEST_HOME" XDG_CONFIG_HOME="$DEST_HOME/.config" \
-  dbus-run-session -- bash -euo pipefail -c '
+mkdir -p "$DEST_HOME/runtime-systemd"
+chmod 700 "$DEST_HOME/runtime-systemd"
+HOME="$DEST_HOME" XDG_CONFIG_HOME="$DEST_HOME/.config" XDG_DATA_HOME="$DEST_HOME/.local/share" \
+  XDG_RUNTIME_DIR="$DEST_HOME/runtime-systemd" GNOME_KEYRING_CONTROL="$DEST_HOME/runtime-systemd/keyring" \
+  timeout 40 dbus-run-session -- bash -euo pipefail -c '
     export XDG_RUNTIME_DIR="$HOME/runtime-systemd"
     mkdir -p "$XDG_RUNTIME_DIR"
     chmod 700 "$XDG_RUNTIME_DIR"
@@ -106,11 +114,20 @@ HOME="$DEST_HOME" XDG_CONFIG_HOME="$DEST_HOME/.config" \
     daemon_pid=$!
     trap "kill $daemon_pid 2>/dev/null || true" EXIT
     for _ in 1 2 3 4 5; do
-      "$2" "$1" check >/dev/null 2>&1 && exit 0
+      "$1" check >/dev/null 2>&1 && exit 0
       sleep 0.2
     done
-    "$2" "$1" check
-  ' bash "$HELPER" "$PYTHON_BIN"
+    "$1" check
+  ' bash "$HELPER"
+
+# Exercise the actual installer staging owner through an isolated target runner.
+# Parameters: command tokens. Returns: the isolated command status/output.
+run_as_target() { "$@"; }
+source "$ROOT_DIR/lib/keyring.sh"
+STAGING_HOME="$SANDBOX/staging"
+_build_passwordless_keyring "$SNAPSHOT" "$STAGING_HOME" "$HELPER"
+run_keyring_session "$STAGING_HOME" "" \
+  "'$HELPER' check; '$HELPER' verify-test-item account demo 'test-secret'"
 
 # Activation happens while no daemon is touching the files. Verify that it
 # preserves the encrypted originals, installs the staged keyring, and is safe
@@ -137,6 +154,6 @@ backup_hashes="$(find "$backup_dir" -maxdepth 1 -type f -print0 |
   sort -z | xargs -0 sha256sum | sed "s|$backup_dir/||")"
 test "$backup_hashes" = "$original_hashes"
 run_keyring_session "$ACTIVE_HOME" "" \
-  "'$PYTHON_BIN' '$HELPER' check; '$PYTHON_BIN' '$HELPER' verify-test-item account demo 'test-secret'"
+  "'$HELPER' check; '$HELPER' verify-test-item account demo 'test-secret'"
 
 echo "passwordless keyring tests passed"

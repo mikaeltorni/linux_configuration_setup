@@ -14,9 +14,16 @@ path = "src/main.rs"
 name = "gdm-x11"
 path = "src/bin/gdm-x11.rs"
 
+[[bin]]
+name = "keyring-snapshot"
+path = "src/bin/keyring-snapshot.rs"
+
 [dependencies]
 image = { version = "0.25", default-features = false, features = ["ico", "png"] }
 serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+base64 = "0.22"
+zbus = { version = "4.4", default-features = false, features = ["async-io"] }
 
 [dev-dependencies]
 tempfile = "3"
