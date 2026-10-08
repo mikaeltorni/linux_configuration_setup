@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+source "$(dirname "${BASH_SOURCE[0]}")/desktop_tools.sh"
 # desktop_stall.sh — install the user service that snapshots rare input lag.
 #
 # NVIDIA X11 + a new uinput/hotplug device can start mutter's DFP probe loop.
@@ -18,6 +19,8 @@ dsc_unit_path() {
 
 # configure_desktop_stall_capture — install, enable, and start the watcher.
 #   Args: none. Returns: 0 on success, 1 when the helper/unit cannot be installed.
+# Parameters: none; installer globals identify source and target.
+# Returns: existing file/service installation status.
 configure_desktop_stall_capture() {
   local libexec_dir unit_dir helper_src unit_src helper_dest unit_dest tmp_unit
   libexec_dir="$TARGET_HOME/.local/libexec/linux-configuration-setup"
@@ -37,10 +40,7 @@ configure_desktop_stall_capture() {
   run_as_target install -d -m 0755 "$unit_dir" || return 1
   run_as_target install -m 0755 "$helper_src" "$helper_dest" || return 1
   tmp_unit="$(mktemp)"
-  python3 -c 'from pathlib import Path; import sys
-src, dest, root = sys.argv[1:4]
-Path(dest).write_text(Path(src).read_text().replace("@LCS_SCRIPT_DIR@", root))
-' "$unit_src" "$tmp_unit" "$SCRIPT_DIR" || { rm -f "$tmp_unit"; return 1; }
+  "$(lcs_desktop_tools_program)" render-unit "$unit_src" "$tmp_unit" "$SCRIPT_DIR" || { rm -f "$tmp_unit"; return 1; }
   run_as_target install -m 0644 "$tmp_unit" "$unit_dest" || { rm -f "$tmp_unit"; return 1; }
   rm -f "$tmp_unit"
   if ! run_as_target systemctl --user daemon-reload; then

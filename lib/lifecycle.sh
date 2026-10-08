@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+source "$(dirname "${BASH_SOURCE[0]}")/desktop_tools.sh"
 # lifecycle.sh - Detection and uninstall functions for linux_configuration_setup.
 #
 # detect_* report live desktop state for --detect; uninstall_* reverse a setting
@@ -192,36 +193,11 @@ detect_kitty_defaults() {
 #   by) are removed; every other customization in the user's kitty.conf is kept,
 #   and the file itself is never deleted.
 #   Args: none. Returns: 0.
+# Parameters: none; TARGET_HOME identifies the user config.
+# Returns: native operation status or zero when absent.
 uninstall_kitty_defaults() {
   local conf="$TARGET_HOME/.config/kitty/kitty.conf"
   msg "Removing managed Kitty defaults from kitty.conf"
   run_as_target test -f "$conf" || return 0
-  run_as_target python3 - "$conf" <<'PY'
-"""Strip the installer-managed kitty settings, keeping user content intact."""
-import sys
-
-MANAGED = (
-    "confirm_os_window_close",
-    "map ctrl+backspace",
-    "wayland_titlebar_color",
-)
-path = sys.argv[1]
-with open(path, encoding="utf-8") as handle:
-    lines = handle.read().splitlines()
-
-kept: list[str] = []
-for line in lines:
-    if line.startswith(MANAGED):
-        # Drop the comment block written directly above the managed setting.
-        while kept and kept[-1].startswith("#"):
-            kept.pop()
-        while kept and not kept[-1].strip():
-            kept.pop()
-        continue
-    kept.append(line)
-
-text = "\n".join(kept).rstrip("\n")
-with open(path, "w", encoding="utf-8") as handle:
-    handle.write(text + "\n" if text else "")
-PY
+  run_as_target "$(lcs_desktop_tools_program)" kitty-defaults-remove "$conf"
 }

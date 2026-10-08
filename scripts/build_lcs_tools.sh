@@ -27,7 +27,7 @@ log() { printf '[build_lcs_tools] %s\n' "$*" >&2; }
 # Parameters: none. Returns: zero after stderr usage output.
 usage() {
   cat >&2 <<'EOF'
-Usage: bash scripts/build_lcs_tools.sh [--bin lcs-tools|gdm-x11|keyring-snapshot] [--print]
+Usage: bash scripts/build_lcs_tools.sh [--bin lcs-tools|gdm-x11|keyring-snapshot|desktop-config] [--print]
 
 Build the selected native configuration helper into dist/.
 With --print, also write the absolute binary path to stdout.
@@ -42,7 +42,7 @@ parse_build_args() {
       --print) PRINT_ONLY=1; shift ;;
       --bin)
         case "${2:-}" in
-          lcs-tools|gdm-x11|keyring-snapshot) BIN_NAME="$2"; shift 2 ;;
+          lcs-tools|gdm-x11|keyring-snapshot|desktop-config) BIN_NAME="$2"; shift 2 ;;
           *) log "Unknown or missing binary name"; usage; return 1 ;;
         esac ;;
       -h|--help) usage; exit 0 ;;
