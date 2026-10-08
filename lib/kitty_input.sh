@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+source "$(dirname "${BASH_SOURCE[0]}")/desktop_tools.sh"
 # kitty_input.sh — Reversible Kitty input-filter configuration.
 #
 # Public functions:
@@ -19,57 +20,14 @@ KITTY_APOSTROPHE_MAPPING_PREFIX="${KITTY_APOSTROPHE_MAPPING%discard_event}"
 #   Removes the earlier unconditional mapping during upgrades and owns only the
 #   exact conditional mapping used by this component. Other shortcuts,
 #   including shifted apostrophe and user-defined conditional mappings, remain.
-#   Args: $1 — on or off. Returns: the filesystem operation status.
+# Parameters: state - on or off. Returns: native filesystem operation status.
 _write_kitty_apostrophe_filter() {
   local state="$1"
   local conf="$TARGET_HOME/.config/kitty/kitty.conf"
-  run_as_target python3 - \
+  run_as_target "$(lcs_desktop_tools_program)" kitty-filter \
     "$conf" "$state" "$KITTY_APOSTROPHE_COMMENT" \
     "$KITTY_APOSTROPHE_LEGACY_COMMENT" "$KITTY_APOSTROPHE_MAPPING" \
-    "$KITTY_APOSTROPHE_LEGACY_PREFIX" "$KITTY_APOSTROPHE_MAPPING_PREFIX" <<'PY'
-"""Reconcile the installer-owned Kitty apostrophe mapping."""
-import os
-import sys
-
-(
-    path,
-    state,
-    comment,
-    legacy_comment,
-    mapping,
-    legacy_prefix,
-    mapping_prefix,
-) = sys.argv[1:]
-if os.path.exists(path):
-    with open(path, encoding="utf-8") as handle:
-        lines = handle.read().splitlines()
-else:
-    lines = []
-
-comments = {comment, legacy_comment}
-prefixes = (legacy_prefix, mapping_prefix)
-kept: list[str] = []
-for line in lines:
-    if line.startswith(prefixes):
-        if kept and kept[-1] in comments:
-            kept.pop()
-        while kept and not kept[-1].strip():
-            kept.pop()
-        continue
-    kept.append(line)
-
-if state == "on":
-    if not kept:
-        kept.append("# Managed by linux_configuration_setup.")
-    while kept and not kept[-1].strip():
-        kept.pop()
-    kept.extend(("", comment, mapping))
-
-os.makedirs(os.path.dirname(path), exist_ok=True)
-text = "\n".join(kept).rstrip("\n")
-with open(path, "w", encoding="utf-8") as handle:
-    handle.write(text + "\n" if text else "")
-PY
+    "$KITTY_APOSTROPHE_LEGACY_PREFIX" "$KITTY_APOSTROPHE_MAPPING_PREFIX"
 }
 
 # configure_kitty_apostrophe_filter — Install a conditional Kitty mapping that
