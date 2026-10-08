@@ -125,8 +125,9 @@ policy, so it can remain absent after a successful account-only selection.
 Missing GDM configuration, malformed INI, or no installed X11 session under
 `/usr/share/xsessions` causes a failure before configuration is modified.
 `GDM_CUSTOM_CONF` and `GDM_XSESSIONS_DIR` override these paths for isolated tests.
-The internal helper `scripts/gdm_x11.py` accepts `apply CONFIG XSESSIONS` and
-`check CONFIG`; the installer supplies the system paths and handles root
+`gdm-x11` accepts `apply CONFIG XSESSIONS` and `check CONFIG`. A root install
+builds that command and uses it. Without Cargo, the installer runs
+`scripts/gdm_x11.py`. The installer supplies the system paths and handles root
 deferral and settings reload. Detection reads the live policy. Receipt-only uninstall retains the X11 policy;
 restore the saved configuration manually if you want to undo it, taking care to
 preserve any later edits to unrelated settings.

@@ -10,6 +10,10 @@ publish = false
 name = "lcs-tools"
 path = "src/main.rs"
 
+[[bin]]
+name = "gdm-x11"
+path = "src/bin/gdm-x11.rs"
+
 [dependencies]
 image = { version = "0.25", default-features = false, features = ["ico", "png"] }
 serde_json = "1"
