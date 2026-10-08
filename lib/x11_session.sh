@@ -37,6 +37,39 @@ save_x11_account_session() {
   return 0
 }
 
+# Build gdm-x11 with the invoker's Cargo. Tests set TEST_EUID and keep Python.
+# Parameters: none. SCRIPT_DIR is the repository and TARGET_HOME receives the ELF.
+# Returns: 0 when Cargo is absent, this is a fixture run, or the binary is installed.
+build_gdm_x11() {
+  [[ -z "${TEST_EUID:-}" ]] || return 0
+  command -v cargo >/dev/null 2>&1 || return 0
+  local cargo_bin cargo_home rustup_home
+  cargo_bin="$(command -v cargo)"
+  cargo_home="$(cd "$(dirname "$cargo_bin")/.." && pwd)"
+  rustup_home="$(cd "$(dirname "$cargo_home")" && pwd)/.rustup"
+  env CARGO_HOME="$cargo_home" RUSTUP_HOME="$rustup_home" \
+    cargo build --locked --release --manifest-path "$SCRIPT_DIR/Cargo.toml" --bin gdm-x11
+  install -D -m 0755 "$SCRIPT_DIR/target/release/gdm-x11" "$SCRIPT_DIR/dist/gdm-x11"
+  if [[ -n "${TARGET_HOME:-}" ]]; then
+    install -D -m 0755 "$SCRIPT_DIR/target/release/gdm-x11" "$TARGET_HOME/.local/bin/gdm-x11"
+  fi
+}
+
+# Print the gdm-x11 ELF when Cargo is available and a build exists.
+# Parameters: none. Returns: 0 and the path, or 1 so the caller uses Python.
+gdm_x11_program() {
+  local candidate
+  command -v cargo >/dev/null 2>&1 || return 1
+  for candidate in \
+    "$SCRIPT_DIR/target/release/gdm-x11" \
+    "$SCRIPT_DIR/dist/gdm-x11" \
+    "${TARGET_HOME:-}/.local/bin/gdm-x11"
+  do
+    [[ -n "$candidate" && -x "$candidate" ]] && { printf '%s\n' "$candidate"; return 0; }
+  done
+  return 1
+}
+
 # Configure GDM to use X11, preserving unrelated settings.
 # Parameters: none. GDM_CUSTOM_CONF and GDM_XSESSIONS_DIR override system paths for tests.
 # Returns: 0 on success/root deferral; nonzero when prerequisites or the write fail.
@@ -44,7 +77,8 @@ configure_x11_session() {
   printf 'parameters=none\n'
   local configuration="${GDM_CUSTOM_CONF:-/etc/gdm3/custom.conf}"
   local xsessions="${GDM_XSESSIONS_DIR:-/usr/share/xsessions}"
-  local result=0
+  local result=0 program
+  build_gdm_x11
   if ! is_root; then
     if ! save_x11_account_session; then
       msg "Could not save the account's X11 preference; the system policy still requires the sudo command below."
@@ -53,7 +87,11 @@ configure_x11_session() {
     printf '0\n'
     return 0
   fi
-  python3 "$SCRIPT_DIR/scripts/gdm_x11.py" apply "$configuration" "$xsessions" || result=$?
+  if program="$(gdm_x11_program)"; then
+    "$program" apply "$configuration" "$xsessions" || result=$?
+  else
+    python3 "$SCRIPT_DIR/scripts/gdm_x11.py" apply "$configuration" "$xsessions" || result=$?
+  fi
   # GDM 46's HUP handler only rereads settings. It does not stop GDM or Shell.
   if [[ "$result" -eq 0 ]] && command -v systemctl >/dev/null 2>&1 &&
      systemctl is-active --quiet gdm.service; then
@@ -68,8 +106,12 @@ configure_x11_session() {
 # Returns: 0 when GDM is configured for X11; nonzero otherwise.
 detect_x11_session() {
   printf 'parameters=none\n'
-  local result=0
-  python3 "$SCRIPT_DIR/scripts/gdm_x11.py" check "${GDM_CUSTOM_CONF:-/etc/gdm3/custom.conf}" >/dev/null 2>&1 || result=$?
+  local result=0 program
+  if program="$(gdm_x11_program)"; then
+    "$program" check "${GDM_CUSTOM_CONF:-/etc/gdm3/custom.conf}" >/dev/null 2>&1 || result=$?
+  else
+    python3 "$SCRIPT_DIR/scripts/gdm_x11.py" check "${GDM_CUSTOM_CONF:-/etc/gdm3/custom.conf}" >/dev/null 2>&1 || result=$?
+  fi
   printf '%s\n' "$result"
   return "$result"
 }
