@@ -277,13 +277,15 @@ chmod +x "$LIS_STUB"
 touch "$TARGET_HOME/.local/share/applications/org.remmina.Remmina.desktop"
 touch "$TARGET_HOME/.local/share/applications/com.obsproject.Studio.desktop"
 touch "$TARGET_HOME/.local/share/applications/org.gnome.baobab.desktop"
+touch "$TARGET_HOME/.local/share/applications/org.gnome.SystemMonitor.desktop"
 LIS_INSTALL_SH="$LIS_STUB" configure_favorites </dev/null
 if grep -q "org.remmina.Remmina.desktop" "$GSETTINGS_CALL_LOG" && \
    grep -q "com.obsproject.Studio.desktop" "$GSETTINGS_CALL_LOG" && \
-   grep -q "org.gnome.baobab.desktop" "$GSETTINGS_CALL_LOG"; then
-  pass "configure_favorites builds the default dock from installations_setup's favourite list"
+   grep -q "org.gnome.baobab.desktop" "$GSETTINGS_CALL_LOG" && \
+   ! grep -q "org.gnome.SystemMonitor.desktop" "$GSETTINGS_CALL_LOG"; then
+  pass "configure_favorites builds the default dock from installations_setup and omits System Monitor"
 else
-  fail "configure_favorites builds the default dock from installations_setup's favourite list"
+  fail "configure_favorites builds the default dock from installations_setup and omits System Monitor"
 fi
 
 >"$GSETTINGS_CALL_LOG"
@@ -304,7 +306,7 @@ unset SELECTED_FAVORITE_APPS
 echo ""
 echo "--- configure_favorites (managed reconciliation) ---"
 
-CURRENT_FAVORITE_APPS="['chatgpt-pwa.desktop', 'google-chrome.desktop', 'org.remmina.Remmina.desktop']"
+CURRENT_FAVORITE_APPS="['chatgpt-pwa.desktop', 'google-chrome.desktop', 'org.remmina.Remmina.desktop', 'org.gnome.SystemMonitor.desktop']"
 >"$GSETTINGS_CALL_LOG"
 touch "$TARGET_HOME/.local/share/applications/google-chrome.desktop"
 touch "$TARGET_HOME/.local/share/applications/org.gnome.baobab.desktop"
@@ -325,10 +327,11 @@ if grep -q "chatgpt-pwa.desktop" "$GSETTINGS_CALL_LOG" && \
    grep -q "google-chrome.desktop" "$GSETTINGS_CALL_LOG" && \
    grep -q "org.gnome.baobab.desktop" "$GSETTINGS_CALL_LOG" && \
    ! grep -q "org.remmina.Remmina.desktop" "$GSETTINGS_CALL_LOG" && \
-   ! grep -q "com.obsproject.Studio.desktop" "$GSETTINGS_CALL_LOG"; then
-  pass "configure_favorites preserves unmanaged PWAs and reconciles managed favourites"
+   ! grep -q "com.obsproject.Studio.desktop" "$GSETTINGS_CALL_LOG" && \
+   ! grep -q "org.gnome.SystemMonitor.desktop" "$GSETTINGS_CALL_LOG"; then
+  pass "configure_favorites preserves unmanaged PWAs and removes the obsolete System Monitor favorite"
 else
-  fail "configure_favorites preserves unmanaged PWAs and reconciles managed favourites"
+  fail "configure_favorites preserves unmanaged PWAs and removes the obsolete System Monitor favorite"
 fi
 unset MANAGED_FAVORITE_APPS SELECTED_FAVORITE_APPS CURRENT_FAVORITE_APPS
 

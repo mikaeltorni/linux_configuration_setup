@@ -78,9 +78,12 @@ favorite_app_managed_desktop_ids() {
 # configure_favorites — Build the GNOME dash favorite-apps list from the apps
 #   that are actually installed and apply it. When MANAGED_FAVORITE_APPS is set
 #   (master handoff), only installer-managed .desktop ids are reconciled; other
-#   dock favourites such as user-pinned PWAs are preserved.
-#   Args: none. Returns: 0.
+#   dock favourites such as user-pinned PWAs are preserved. The removed default
+#   System Monitor pin is also reconciled during upgrades.
+# Parameters: none.
+# Returns: the status of applying the favorites list.
 configure_favorites() {
+  printf 'parameters=none\n'
   local selected_program_favorites="${SELECTED_FAVORITE_APPS:-}"
   local managed_program_favorites="${MANAGED_FAVORITE_APPS:-}"
   local managed_reconcile_ids="$managed_program_favorites"
@@ -91,6 +94,9 @@ configure_favorites() {
     [ -n "$managed_reconcile_ids" ] && \
       log "info" "Derived managed dock favourites from installations_setup metadata"
   fi
+  # Treat the removed baseline favorite as managed so upgrades unpin its stale
+  # entry while preserving unrelated user favorites.
+  managed_reconcile_ids="${managed_reconcile_ids:+$managed_reconcile_ids,}org.gnome.SystemMonitor.desktop"
 
   # add_favorite — Append the first installed candidate to the FAVORITES list.
   #   Args: $@ — candidate desktop ids. Returns: 0.
@@ -106,7 +112,6 @@ configure_favorites() {
   add_favorite cursor.desktop
   add_favorite org.gnome.Nautilus.desktop
   add_favorite org.gnome.Settings.desktop gnome-control-center.desktop
-  add_favorite org.gnome.SystemMonitor.desktop
   add_favorite org.gnome.Notes.desktop org.gnome.TextEditor.desktop
   add_favorite update-manager.desktop
   if [ -n "$managed_program_favorites" ]; then
@@ -196,6 +201,9 @@ configure_favorites() {
   else
     msg "No favorites were found to set (no matching desktop files)"
   fi
+  local result=$?
+  printf '%s\n' "$result"
+  return "$result"
 }
 
 # configure_terminal_dark_theme — Force a dark background with light text across
