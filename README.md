@@ -29,7 +29,8 @@ This repository configures the GNOME desktop environment after base packages are
 - **Prompt-free credentials**: passwordless GNOME Login keyring for automatic-login sessions
 - **Color scheme**: Dark by default; set `DESKTOP_COLOR_SCHEME=light` (or type `light` at the prompt) for light mode. `DESKTOP_GTK_THEME` / `DESKTOP_ICON_THEME` override the GTK/icon theme names
 - **Cursor theme**: Bundled Purple Cross by default; set `CURSOR_SOURCE_FILE=/path/to/your.cur` (or type a path) to build the theme from your own cursor image
-- **GNOME favorites**: Baseline desktop utilities plus favorite metadata
+- **GNOME favorites**: Baseline desktop utilities without System Monitor pinned
+  by default, plus favorite metadata
   published by application-owning repositories, including Baobab by default;
   the master installer forwards selected rows as `SELECTED_FAVORITE_APPS` and
   the complete managed set as `MANAGED_FAVORITE_APPS` so user-pinned PWAs and
