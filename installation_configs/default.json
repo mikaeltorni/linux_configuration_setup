@@ -45,6 +45,15 @@
       "uninstall": 0,
       "workspace": 0
     },
+    "desktop_stall_capture": {
+      "config_value": "",
+      "favorite": 0,
+      "on": 1,
+      "startup": 0,
+      "sticky": 0,
+      "uninstall": 0,
+      "workspace": 0
+    },
     "disable_auto_lock": {
       "config_value": "",
       "favorite": 0,
@@ -81,24 +90,6 @@
       "uninstall": 0,
       "workspace": 0
     },
-    "desktop_stall_capture": {
-      "config_value": "",
-      "favorite": 0,
-      "on": 1,
-      "startup": 0,
-      "sticky": 0,
-      "uninstall": 0,
-      "workspace": 0
-    },
-    "seagate_mount": {
-      "config_value": "",
-      "favorite": 0,
-      "on": 1,
-      "startup": 0,
-      "sticky": 0,
-      "uninstall": 0,
-      "workspace": 0
-    },
     "kitty_defaults": {
       "config_value": "",
       "favorite": 0,
@@ -109,6 +100,15 @@
       "workspace": 0
     },
     "kitty_ignore_apostrophe": {
+      "config_value": "",
+      "favorite": 0,
+      "on": 1,
+      "startup": 0,
+      "sticky": 0,
+      "uninstall": 0,
+      "workspace": 0
+    },
+    "log_retention": {
       "config_value": "",
       "favorite": 0,
       "on": 1,
@@ -136,6 +136,15 @@
       "workspace": 0
     },
     "rtc": {
+      "config_value": "",
+      "favorite": 0,
+      "on": 1,
+      "startup": 0,
+      "sticky": 0,
+      "uninstall": 0,
+      "workspace": 0
+    },
+    "seagate_mount": {
       "config_value": "",
       "favorite": 0,
       "on": 1,

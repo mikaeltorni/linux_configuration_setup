@@ -52,6 +52,7 @@ isc_load_helpers
 source "$SCRIPT_DIR/lib/helpers.sh"
 source "$SCRIPT_DIR/lib/gsettings_helpers.sh"  
 source "$SCRIPT_DIR/lib/system_config.sh"
+source "$SCRIPT_DIR/lib/log_retention.sh"
 source "$SCRIPT_DIR/lib/x11_session.sh"
 source "$SCRIPT_DIR/lib/keyring.sh"
 source "$SCRIPT_DIR/lib/autostart.sh"
