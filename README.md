@@ -60,6 +60,43 @@ bash install.sh
 sudo bash install.sh
 ```
 
+### Bounded system logs (`log_retention`)
+
+The default-on `log_retention` component limits persistent journals to a 512 MiB
+target, runtime journals to 128 MiB, and journal history to seven days. It keeps
+2 GiB free for other uses and applies journal rate limiting (1,000 messages per
+30 seconds before systemd's available-space multiplier).
+
+```bash
+# User mode reports the required privileged step without prompting.
+bash install.sh --select log_retention
+# Apply the system settings and restart only journald and the rotation timer.
+sudo bash install.sh --select log_retention
+```
+
+When logrotate is available, its timer checks every 15 minutes. Existing rsyslog
+stanzas rotate daily or above 100 MiB, retaining seven immediately compressed
+archives. Destinations and rotation hooks are preserved; the original policy is
+backed up once to `/var/backups/log-retention/rsyslog.logrotate.original`.
+The installer validates the replacement before installing it. A log can exceed
+100 MiB between checks; these thresholds are not filesystem quotas. Systems
+without logrotate still receive the journal settings.
+
+Normal installation preserves existing log contents. After fixing a confirmed
+log flood and saving a diagnostic sample, these maintenance commands reclaim the
+space from the two affected text logs and old journal archives:
+
+```bash
+sudo truncate -s 0 /var/log/syslog /var/log/syslog.1
+sudo journalctl --rotate --vacuum-size=512M
+```
+
+Verify the installed configuration with `systemd-analyze cat-config
+systemd/journald.conf`, `systemctl cat logrotate.timer`, and `sudo logrotate
+--debug /etc/logrotate.conf`. The isolated regression is `bash
+tests/test_log_retention.sh`; it uses `LOG_RETENTION_ROOT` to redirect filesystem
+writes and mocks all service changes.
+
 ### Environment Variables
 
 | Variable | Default | Description |
@@ -314,6 +351,7 @@ or none, and **Enter** installs the selection. Components:
 
 | Component id | Description | Default |
 |---|---|---|
+| `log_retention` | Bound system journal and syslog growth | on |
 | `x11_session` | Use X11 for GDM logins (disable Wayland) | on |
 | `rtc` | Local-time RTC (dual-boot clock fix) | on |
 | `clock_calendar` | Clock and calendar display | on |
