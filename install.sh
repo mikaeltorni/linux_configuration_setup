@@ -39,17 +39,26 @@ source "$SCRIPT_DIR/installer/components.sh"
 
 INSTALLER_NO_REBOOT="${INSTALLER_NO_REBOOT:-0}"
 
+# Apply the accepted plan while recording installation output.
+# Parameters: $@ - already validated installer arguments. Returns: operation status.
 main_inner() {
+  printf 'arguments=%s\n' "$*" >&2
   msg "=== Linux Configuration Setup ==="
   msg "Installing all configured components"
-  component_main "$@"
+  _isc_apply_plan "$ISC_ARGUMENT_ORIGIN"
   local rc=$?
   report_sudo_required
   msg "=== Linux Configuration Setup Complete ==="
-  return $rc
+  printf '%s\n' "$rc" >&2
+  return "$rc"
 }
 
+# Plan the terminal interaction before a log pipe changes terminal detection.
+# Parameters: $@ - already parsed installer arguments. Returns: zero on completion or cancellation.
 run_and_log_with_reboot() {
+  printf 'arguments=%s\n' "$*" >&2
+  isc_plan_install
+  if [[ "$ISC_PLAN_ACTION" == cancel ]]; then printf '0\n' >&2; return 0; fi
   local ts log_dir log_file
   ts=$(date +"%Y%m%d-%H%M%S")
   log_dir="$SCRIPT_DIR/.log"  
@@ -65,6 +74,8 @@ run_and_log_with_reboot() {
     msg "Configuration applied. No reboot required."
     msg "Log out and back in for GNOME Shell extension changes to take effect."
   fi
+  printf '0\n' >&2
+  return 0
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
