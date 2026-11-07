@@ -35,6 +35,7 @@ if [[ "$operation" == install ]]; then
 # kitty-shell-highlighting begin
 if [[ $- == *i* && -n ${KITTY_WINDOW_ID:-} && -r $HOME/.local/share/kitty-blesh/ble.sh ]]; then
   source "$HOME/.local/share/kitty-blesh/ble.sh" --attach=none
+  bleopt complete_auto_complete=
   ble-face command_builtin='fg=81,bold'
   ble-face command_file='fg=81,bold'
   ble-face syntax_delimiter='fg=214,bold'

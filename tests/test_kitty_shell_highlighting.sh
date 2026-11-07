@@ -20,6 +20,7 @@ bash "$root/install.sh" --select kitty_shell_highlighting
 grep -q 'kitty-blesh/ble.sh' "$home/.bashrc"
 grep -q '# personal shell configuration' "$home/.bashrc"
 python3 "$root/tests/kitty_shell_highlighting_pty.py" "$home"
+python3 "$root/tests/kitty_shell_no_suggestion_pty.py" "$home"
 bash "$root/install.sh" --select kitty_shell_highlighting
 [ "$(grep -c '# kitty-shell-highlighting begin' "$home/.bashrc")" -eq 2 ]
 listing="$(bash "$root/install.sh" --detect)"
