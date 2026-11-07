@@ -385,7 +385,8 @@ commands, builtins, errors and shell syntax. Commands such as `cd` and `sudo`
 appear cyan; delimiters such as `&&`, `|`, and redirections appear orange.
 Bash resolves available command names from its environment rather than a fixed
 list. Highlighting applies while editing the command line, not to program
-output; other shells and remote machines have their own configuration. ble.sh
+output; other shells and remote machines have their own configuration. Automatic
+inline suggestions are disabled; Tab completion remains available. ble.sh
 replaces Bash's interactive line editor and may alter completion and keybindings.
 
 ```bash
