@@ -369,11 +369,33 @@ or none, and **Enter** installs the selection. Components:
 | `autostart_apps` | General autostart applications | on |
 | `selected_app_autostart` | Master-selected app startup (`s` in app menu) | on |
 | `kitty_defaults` | Kitty terminal defaults (window behavior and word deletion) | on |
+| `kitty_shell_highlighting` | Color Bash commands and operators while typing in Kitty | on |
 | `kitty_ignore_apostrophe` | Ignore apostrophe input in bare Kitty consoles, but not inside tmux | on |
 | `active_monitor_placement` | Pin new windows to the active/pointer monitor (session extension + CLI helper) | on |
 | `uv_setup` | UV package manager and supply-chain protection | on |
 | `tmux_defaults` | Tmux defaults with full chat history | on |
 | `dash_to_panel` | Dash-to-Panel layout (replaces Ubuntu Dock) | on |
+
+### Kitty Bash syntax highlighting
+
+The `kitty_shell_highlighting` component installs a checksum-verified pinned
+[ble.sh](https://github.com/akinomyoga/ble.sh) release and adds managed blocks
+to `~/.bashrc`. New interactive Bash sessions in Kitty use it to highlight
+commands, builtins, errors and shell syntax. Commands such as `cd` and `sudo`
+appear cyan; delimiters such as `&&`, `|`, and redirections appear orange.
+Bash resolves available command names from its environment rather than a fixed
+list. Highlighting applies while editing the command line, not to program
+output; other shells and remote machines have their own configuration. ble.sh
+replaces Bash's interactive line editor and may alter completion and keybindings.
+
+```bash
+bash install.sh --select kitty_shell_highlighting
+bash install.sh --uninstall kitty_shell_highlighting
+```
+
+Installation needs `curl`, `tar`, `xz`, `sha256sum` and access to the pinned
+GitHub release. Uninstall removes the managed `.bashrc` blocks and the installed
+editor; existing shells keep their current editor until closed.
 
 ## Detect, reconfigure, and uninstall
 
