@@ -1,7 +1,5 @@
 # Native keyring public checks
 
-Capability queue: authoritative [workflow ledger](/home/mk/projects/installation_scripts/tmp/workflow/6500c77863834cf58c7ec79332b5335a.md), row 1. Current checkpoint is native-keyring-snapshot (steps 27–29): export/import/check and retained fixture commands. All later desktop inline and shared configurator ports remain deferred.
-
 Runner: `cargo test --offline --locked --release --test keyring_cli`.
 Every bus, daemon, home and mutable collection is isolated; no desktop service
 or real credential is accessed.

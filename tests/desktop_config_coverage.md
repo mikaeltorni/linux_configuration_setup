@@ -1,10 +1,5 @@
 # Desktop native helper checks
 
-Capability queue: authoritative workflow ledger row 1 at
-`/home/mk/projects/installation_scripts/tmp/workflow/6500c77863834cf58c7ec79332b5335a.md`.
-Current steps 30–32 own Kitty filter/default removal, unit rendering and GDM
-native integration; subsequent owning surfaces remain deferred.
-
 Runner: `cargo test --offline --locked --release --test desktop_config_cli`.
 
 | Contract | Saved assertion |
