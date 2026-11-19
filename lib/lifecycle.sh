@@ -35,11 +35,20 @@ detect_cursor_theme()      { local v; v="$(cfg_get org.gnome.desktop.interface c
 detect_display_refresh()   { local v; v="$(cfg_get org.gnome.mutter experimental-features)"; [ -n "$v" ] && [ "$v" != "@as []" ] && [ "$v" != "[]" ]; }
 detect_autostart_apps()    { [ -f "$TARGET_HOME/.local/bin/autostart_apps.sh" ]; }
 detect_selected_app_autostart() { [ -f "$TARGET_HOME/.local/state/linux-configuration-setup/selected-app-autostart.list" ]; }
-# Helper CLI plus the session-wide extension both constitute the fix.
+# Detect active-monitor placement using the available owner or legacy file checks.
+# Parameters: none. Returns: zero if installed, one otherwise.
 detect_active_monitor_placement() {
-  [ -f "$TARGET_HOME/.local/bin/pin-window-to-active-monitor.sh" ] &&
-    [ -d "$TARGET_HOME/.local/share/gnome-shell/extensions/active-monitor-placement@local" ] &&
-    [ -f "$TARGET_HOME/.local/share/gnome-shell/extensions/active-monitor-placement@local/placementPolicy.js" ]
+  printf 'parameters=none\n' >&2
+  local result status=1
+  if [[ -f "$ACTIVE_MONITOR_OWNER_INSTALLER" ]]; then
+    result="$(_active_monitor_run_owner --detect)" &&
+      grep -Fxq $'active_monitor_placement\tinstalled' <<< "$result" && status=0
+  elif [[ -f "$TARGET_HOME/.local/bin/pin-window-to-active-monitor.sh" &&
+          -f "$TARGET_HOME/.local/share/gnome-shell/extensions/active-monitor-placement@local/placementPolicy.js" ]]; then
+    status=0
+  fi
+  printf '%s\n' "$status" >&2
+  return "$status"
 }
 detect_uv_setup()          { [ -x "$TARGET_HOME/.local/bin/uv" ] && [ -f "$TARGET_HOME/.config/uv/uv.toml" ] && [ ! -e "$TARGET_HOME/.config/autostart/uv-python.desktop" ]; }
 detect_tmux_defaults()     { [ -f "$TARGET_HOME/.tmux.conf" ]; }
@@ -117,7 +126,16 @@ uninstall_selected_app_autostart() {
 uninstall_app_rules() {
   msg "App rules are owned by linux_workspaces_setup; keeping installed files unchanged."
 }
+# Remove active-monitor placement through the owner when its checkout is available.
+# Parameters: none. Returns: the invoked removal operation's status.
 uninstall_active_monitor_placement() {
+  printf 'parameters=none\n' >&2
+  local status=0
+  if [[ -f "$ACTIVE_MONITOR_OWNER_INSTALLER" ]]; then
+    _active_monitor_run_owner --uninstall active_monitor_placement || status=$?
+    printf '%s\n' "$status" >&2
+    return "$status"
+  fi
   msg "Removing active-monitor placement helper and extension"
   run_as_target rm -f "$TARGET_HOME/.local/bin/pin-window-to-active-monitor.sh"
   run_as_target gnome-extensions disable active-monitor-placement@local 2>/dev/null || true
@@ -127,7 +145,9 @@ uninstall_active_monitor_placement() {
     # shellcheck source=gsettings_helpers.sh
     source "$SCRIPT_DIR/lib/gsettings_helpers.sh"
   fi
-  strv_edit remove org.gnome.shell enabled-extensions active-monitor-placement@local
+  strv_edit remove org.gnome.shell enabled-extensions active-monitor-placement@local || status=$?
+  printf '%s\n' "$status" >&2
+  return "$status"
 }
 uninstall_uv_setup()       { msg "Removing UV configuration"; run_as_target rm -f "$TARGET_HOME/.config/autostart/uv-python.desktop" "$TARGET_HOME/.config/uv/uv.toml"; }
 uninstall_tmux_defaults()  { msg "Removing tmux defaults"; run_as_target rm -f "$TARGET_HOME/.tmux.conf"; }
