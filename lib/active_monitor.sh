@@ -21,6 +21,18 @@ ACTIVE_MONITOR_HELPER_SRC="$SCRIPT_DIR/scripts/$ACTIVE_MONITOR_HELPER_NAME"
 ACTIVE_MONITOR_EXT_UUID="active-monitor-placement@local"
 ACTIVE_MONITOR_EXT_SRC="${CONFIG_DIR:-$SCRIPT_DIR/configs}/gnome-extensions/$ACTIVE_MONITOR_EXT_UUID"
 ACTIVE_MONITOR_EXT_DST_REL=".local/share/gnome-shell/extensions/$ACTIVE_MONITOR_EXT_UUID"
+ACTIVE_MONITOR_OWNER_INSTALLER="${ACTIVE_MONITOR_PLACEMENT_DIR:-${SCRIPT_DIR%/*}/linux_active_monitor_placement}/install.sh"
+
+# Run the standalone owner's public installer for the same desktop target.
+# Parameters: $@ - owner installer arguments. Returns: the owner's exit status.
+_active_monitor_run_owner() {
+  printf 'arguments=%s\n' "$*" >&2
+  local status=0
+  run_as_target env TARGET_HOME_OVERRIDE="$TARGET_HOME" \
+    bash "$ACTIVE_MONITOR_OWNER_INSTALLER" "$@" || status=$?
+  printf '%s\n' "$status" >&2
+  return "$status"
+}
 
 # _active_monitor_strv_edit add|remove SCHEMA KEY VALUE — idempotently edit a
 # gsettings string-array key (enabled-extensions). Isolated helper so this
@@ -116,14 +128,22 @@ _active_monitor_deploy_extension() {
 # configure_active_monitor_placement - deploy the pin helper and the session-wide
 # active-monitor-placement extension so ordinary launches land on the
 # pointer/active monitor when the WM would otherwise pick a crowded other display.
-# Returns: 0 when at least the helper is installed; 1 only when both artifacts fail.
+# Parameters: none. Returns: the owner status, or zero if legacy deployment succeeds.
 configure_active_monitor_placement() {
+  printf 'parameters=none\n' >&2
+  if [[ -f "$ACTIVE_MONITOR_OWNER_INSTALLER" ]]; then
+    local status=0
+    _active_monitor_run_owner --select active_monitor_placement || status=$?
+    printf '%s\n' "$status" >&2
+    return "$status"
+  fi
   msg "Installing active-monitor placement (helper + session extension)"
   local helper_rc=0 ext_rc=0
   _active_monitor_deploy_helper || helper_rc=$?
   _active_monitor_deploy_extension || ext_rc=$?
   if [ "$helper_rc" -ne 0 ] && [ "$ext_rc" -ne 0 ]; then
     log "error" "active_monitor_placement: both helper and extension deploy failed"
+    printf '1\n' >&2
     return 1
   fi
   if [ "$helper_rc" -ne 0 ]; then
@@ -132,5 +152,6 @@ configure_active_monitor_placement() {
   if [ "$ext_rc" -ne 0 ]; then
     log "warn" "active_monitor_placement: extension deploy failed; CLI pin helper still available"
   fi
+  printf '0\n' >&2
   return 0
 }
