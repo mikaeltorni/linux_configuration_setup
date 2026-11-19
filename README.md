@@ -252,6 +252,13 @@ linux_configuration_setup/
 
 ## Active monitor placement (`active_monitor_placement`)
 
+When a sibling `linux_active_monitor_placement` checkout is available,
+`--select active_monitor_placement`, `--reconfigure active_monitor_placement`,
+`--uninstall active_monitor_placement`, and `--detect` delegate this component
+to its standalone installer. Set `ACTIVE_MONITOR_PLACEMENT_DIR` to use a
+checkout at a different location. With no installer at the resolved path,
+Configuration Setup uses the legacy bundled deployment for compatibility.
+
 When a monitor is crowded, GNOME/Mutter often places a newly opened window on
 another display (commonly the second monitor). The `active_monitor_placement`
 component fixes that system-wide:
