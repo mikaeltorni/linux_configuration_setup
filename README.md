@@ -1,8 +1,25 @@
-# Linux Configuration Setup
+# Linux Configuration Setup — Ubuntu GNOME desktop configuration
 
-> Part of [installation_scripts](https://github.com/mikaeltorni/installation_scripts) — the master installer that orchestrates a productivity-focused Ubuntu 24.04 desktop setup (workspaces, hotkeys, window tiling, programming tools, and more). Tested on Ubuntu 24.04.4 LTS.
+Linux Configuration Setup is an Ubuntu GNOME desktop configuration installer for users who
+want repeatable appearance, autostart, Kitty, and tmux settings.
 
-GNOME desktop configuration, autostart applications, and system settings.
+[![Last commit](https://img.shields.io/github/last-commit/mikaeltorni/linux_configuration_setup)](https://github.com/mikaeltorni/linux_configuration_setup/commits/master)
+[![Commit activity](https://img.shields.io/github/commit-activity/m/mikaeltorni/linux_configuration_setup)](https://github.com/mikaeltorni/linux_configuration_setup/graphs/commit-activity)
+[![Issues](https://img.shields.io/github/issues/mikaeltorni/linux_configuration_setup)](https://github.com/mikaeltorni/linux_configuration_setup/issues)
+
+[Settings](#overview) · [Installation](#installation) · [Configuration](#environment-variables) · [Troubleshooting](#troubleshooting) · [Installer commands](#installer-lifecycle) · [MIT license](LICENSE.md)
+
+## Quick start
+
+Run as the target user in a GNOME desktop session. System components have separate sudo requirements.
+
+```bash
+bash install.sh --list-components
+bash install.sh --select dark_mode
+gsettings get org.gnome.desktop.interface color-scheme
+```
+
+The Ubuntu 24.04.5 GNOME 46 X11 workstation VM applied and detected the profile's GNOME, Kitty, and tmux defaults on two runs.
 
 Installer run logs and Python helper diagnostics are written to the
 repository-local `.log/` directory.
@@ -16,8 +33,7 @@ any sibling setup repository.
   `.installer-support/`, with its license and verifiable source manifest.
   Framework discovery works offline without a private checkout or credentials.
 
-See the full cross-repository map in
-[installation_scripts/DEPENDENCIES.md](https://github.com/mikaeltorni/installation_scripts/blob/master/DEPENDENCIES.md).
+[Active Monitor Placement](https://github.com/mikaeltorni/linux_active_monitor_placement) owns the standalone pointer-monitor extension. [Linux Workspaces Setup](https://github.com/mikaeltorni/linux_workspaces_setup) owns workspace rules.
 
 ## Overview
 
@@ -43,7 +59,7 @@ This repository configures the GNOME desktop environment after base packages are
 - **Autostart applications**: Spotify, GitKraken, SmartGit, EasyEffects, and Kitty
 - **Seagate disks**: Mount present volumes whose labels start with `Seagate` at graphical login through UDisks, using the same `/media/$USER/<label>` path as Files. Missing disks are skipped.
 - **App workspace rules** are installed by `linux_workspaces_setup`, the sole owner of `app-rules@local`.
-- **Active-monitor placement**: Installs `~/.local/bin/pin-window-to-active-monitor.sh`, a runtime helper that moves a window to the monitor containing the mouse pointer. The open-kitty-and-sort hotkey (`linux_hotkey_window_tools`) calls it so newly-launched kitty windows stay on the active monitor even when the workspace is crowded and GNOME would have placed them on a different display.
+- **Active-monitor placement**: Uses the standalone owner when available, with a bundled fallback. Both paths install `~/.local/bin/pin-window-to-active-monitor.sh`, a runtime helper that moves a window to the monitor containing the mouse pointer. The open-kitty-and-sort hotkey (`linux_hotkey_window_tools`) calls it so newly-launched kitty windows stay on the active monitor even when the workspace is crowded and GNOME would have placed them on a different display.
 - **UV package manager**: Install astral.sh/uv, deploy the global rolling 24-hour supply-chain cutoff, and disable GUI autostart
 - **tmux defaults with full chat history**: Deploy `configs/tmux/.tmux.conf` to
   the target user's home with tmux's maximum accepted history limit
@@ -334,7 +350,7 @@ MIT
 ## Component selection
 
 This repository's `install.sh` participates in the shared installer
-component menu (see the [`installation_scripts`](https://github.com/mikaeltorni/installation_scripts)
+component menu (see the `installation_scripts`
 master installer). Run standalone, it offers an interactive submenu on a
 terminal; the master installer drives it non-interactively.
 
@@ -445,6 +461,28 @@ You are solely responsible for determining whether this software is suitable, sa
 The authors and copyright holders make no guarantees regarding security, reliability, availability, correctness, compliance, non-infringement, or fitness for any particular purpose.
 
 This notice is intended to clarify the nature of the project and does not impose additional restrictions beyond the MIT License.
+
+## Ubuntu GNOME desktop configuration FAQ
+
+### How do I apply only the GNOME dark color scheme?
+
+Run `bash install.sh --select dark_mode` as the desktop user. Read the current setting with `gsettings get org.gnome.desktop.interface color-scheme`.
+
+### Can this installer configure Kitty and tmux separately?
+
+Yes. List the options using `bash install.sh --list-components` and select `kitty_defaults` or `tmux_defaults` for the corresponding configuration.
+
+### When do GDM login changes take effect?
+
+The X11 login component updates the login configuration for the next session. Save your work and use your normal login process when you are ready to switch.
+
+### Which steps require sudo?
+
+User-level GNOME, Kitty, and tmux settings run under the desktop user. System components such as the GDM login configuration require the privileges described in Installation.
+
+### Where are installer and helper logs?
+
+Look in the checkout’s `.log/` directory. Review the run associated with the component you applied.
 
 ## Installer lifecycle
 
